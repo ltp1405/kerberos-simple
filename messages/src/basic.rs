@@ -1,6 +1,9 @@
-use der::{self, asn1::{GeneralizedTime, Ia5String}};
+use der::{
+    self,
+    asn1::{GeneralizedTime, Ia5String},
+};
 
-pub type SequenceOf<T> = der::asn1::SequenceOf<T>;
+pub type SequenceOf<T, const U: usize> = der::asn1::SequenceOf<T, U>;
 pub type OctetString = der::asn1::OctetString;
 pub type BitSring = der::asn1::BitString;
 
