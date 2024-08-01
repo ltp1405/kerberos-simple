@@ -8,11 +8,11 @@ pub type OctetString = der::asn1::OctetString;
 pub type BitSring = der::asn1::BitString;
 
 // RFC4120 5.2.4
-pub type Int32 = i32;
+pub type Int32 = der::asn1::Int;
 // RFC4120 5.2.4
-pub type UInt32 = u32;
+pub type UInt32 = der::asn1::Int;
 // RFC4120 5.2.4
-pub type Microseconds = u32;
+pub type Microseconds = der::asn1::Int;
 
 // RFC4120 5.2.1
 pub type KerberosString = Ia5String;
