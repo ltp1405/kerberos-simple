@@ -140,17 +140,15 @@ impl<'a, const N: usize> Decode<'a> for AuthorizationData<N> {
     }
 }
 
-impl<const N: usize> EncodeValue for AuthorizationData<N> {
-    fn value_len(&self) -> der::Result<der::Length> {
+impl<const N: usize> Encode for AuthorizationData<N> {
+    fn encoded_len(&self) -> der::Result<der::Length> {
         self.inner
             .as_ref()
-            .map_or(Ok(der::Length::ZERO), |inner| inner.value_len())
+            .map_or(Ok(der::Length::ZERO), |inner| inner.encoded_len())
     }
 
-    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.inner
-            .as_ref()
-            .map_or(Ok(()), |inner| inner.encode(encoder))
+    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.inner.encode(encoder)
     }
 }
 
@@ -327,14 +325,14 @@ impl<const N: usize> EncodeValue for AdKdcIssued<N> {
         self.ad_checksum.encoded_len()?
             + self.i_realm.encoded_len()?
             + self.i_sname.encoded_len()?
-            + self.elements.value_len()?
+            + self.elements.encoded_len()?
     }
 
     fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
         self.ad_checksum.encode(encoder)?;
         self.i_realm.encode(encoder)?;
         self.i_sname.encode(encoder)?;
-        self.elements.encode_value(encoder)?;
+        self.elements.encode(encoder)?;
         Ok(())
     }
 }
@@ -377,12 +375,12 @@ impl<'a, const N: usize> DecodeValue<'a> for AdAndOr<N> {
 
 impl<const N: usize> EncodeValue for AdAndOr<N> {
     fn value_len(&self) -> der::Result<der::Length> {
-        self.condition_count.encoded_len()? + self.elements.value_len()?
+        self.condition_count.encoded_len()? + self.elements.encoded_len()?
     }
 
     fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
         self.condition_count.encode(encoder)?;
-        self.elements.encode_value(encoder)?;
+        self.elements.encode(encoder)?;
         Ok(())
     }
 }
@@ -594,11 +592,128 @@ pub struct KerberosFlags {
     inner: BitSring,
 }
 
+pub enum KerberosFlagsKind {
+    Reserved,
+    Forwardable,
+    Forwarded,
+    Proxiable,
+    Proxy,
+    MayPostdate,
+    Postdated,
+    Invalid,
+    Renewable,
+    Initial,
+    PreAuthenticated,
+    HWAuthenticated,
+    TransitedPolicyChecked,
+    OkAsDelegate,
+    Other,
+}
+
 impl KerberosFlags {
     pub fn new<T: Into<BitSring>>(inner: T) -> Self {
         Self {
             inner: inner.into(),
         }
+    }
+
+    pub fn kind(&self) -> Option<KerberosFlagsKind> {
+        if let Some(bytes) = self.as_bytes() {
+            match &bytes[..32] {
+                flags::RESERVED => Some(KerberosFlagsKind::Reserved),
+                flags::FORWARDABLE => Some(KerberosFlagsKind::Forwardable),
+                flags::FORWARDED => Some(KerberosFlagsKind::Forwarded),
+                flags::PROXIABLE => Some(KerberosFlagsKind::Proxiable),
+                flags::PROXY => Some(KerberosFlagsKind::Proxy),
+                flags::MAY_POSTDATE => Some(KerberosFlagsKind::MayPostdate),
+                flags::POSTDATED => Some(KerberosFlagsKind::Postdated),
+                flags::INVALID => Some(KerberosFlagsKind::Invalid),
+                flags::RENEWABLE => Some(KerberosFlagsKind::Renewable),
+                flags::INITIAL => Some(KerberosFlagsKind::Initial),
+                flags::PRE_AUTHENT => Some(KerberosFlagsKind::PreAuthenticated),
+                flags::HW_AUTHENT => Some(KerberosFlagsKind::HWAuthenticated),
+                flags::TRANSITED_POLICY_CHECKED => Some(KerberosFlagsKind::TransitedPolicyChecked),
+                flags::OK_AS_DELEGATE => Some(KerberosFlagsKind::OkAsDelegate),
+                _ => Some(KerberosFlagsKind::Other),
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl KerberosFlags {
+    pub fn reserve() -> Self {
+        Self::new(BitSring::from_bytes(flags::RESERVED).unwrap())
+    }
+
+    pub fn forwardable() -> Self {
+        Self::new(BitSring::from_bytes(flags::FORWARDABLE).unwrap())
+    }
+
+    pub fn forwarded() -> Self {
+        Self::new(BitSring::from_bytes(flags::FORWARDED).unwrap())
+    }
+
+    pub fn proxiable() -> Self {
+        Self::new(BitSring::from_bytes(flags::PROXIABLE).unwrap())
+    }
+
+    pub fn proxy() -> Self {
+        Self::new(BitSring::from_bytes(flags::PROXY).unwrap())
+    }
+
+    pub fn may_postdate() -> Self {
+        Self::new(BitSring::from_bytes(flags::MAY_POSTDATE).unwrap())
+    }
+
+    pub fn postdated() -> Self {
+        Self::new(BitSring::from_bytes(flags::POSTDATED).unwrap())
+    }
+
+    pub fn invalid() -> Self {
+        Self::new(BitSring::from_bytes(flags::INVALID).unwrap())
+    }
+
+    pub fn renewable() -> Self {
+        Self::new(BitSring::from_bytes(flags::RENEWABLE).unwrap())
+    }
+
+    pub fn initial() -> Self {
+        Self::new(BitSring::from_bytes(flags::INITIAL).unwrap())
+    }
+
+    pub fn pre_authent() -> Self {
+        Self::new(BitSring::from_bytes(flags::PRE_AUTHENT).unwrap())
+    }
+
+    pub fn hw_authent() -> Self {
+        Self::new(BitSring::from_bytes(flags::HW_AUTHENT).unwrap())
+    }
+
+    pub fn transited_policy_checked() -> Self {
+        Self::new(BitSring::from_bytes(flags::TRANSITED_POLICY_CHECKED).unwrap())
+    }
+
+    pub fn ok_as_delegate() -> Self {
+        Self::new(BitSring::from_bytes(flags::OK_AS_DELEGATE).unwrap())
+    }
+}
+
+impl Encode for KerberosFlags {
+    fn encoded_len(&self) -> der::Result<der::Length> {
+        self.inner.encoded_len()
+    }
+
+    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.inner.encode(encoder)
+    }
+}
+
+impl<'a> Decode<'a> for KerberosFlags {
+    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
+        let inner = BitSring::decode(decoder)?;
+        Ok(Self { inner })
     }
 }
 
@@ -657,6 +772,7 @@ impl EncryptedData {
 }
 
 // RFC4120 5.2.9
+#[derive(Sequence)]
 pub struct EncryptionKey {
     keytype: Int32,
     keyvalue: OctetString,
