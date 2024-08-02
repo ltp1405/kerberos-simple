@@ -16,12 +16,8 @@ pub struct Ticket<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
 }
 
 impl<const N: usize> Ticket<N> {
-    pub fn new(
-        tkt_vno: Int32,
-        realm: Realm,
-        sname: PrincipalName<N>,
-        enc_part: EncryptedData,
-    ) -> Self {
+    pub fn new(realm: Realm, sname: PrincipalName<N>, enc_part: EncryptedData) -> Self {
+        let tkt_vno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
         Self {
             tkt_vno,
             realm,
@@ -217,6 +213,16 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
 
     pub fn crealm(mut self, crealm: Realm) -> Self {
         self.crealm = crealm;
+        self
+    }
+
+    pub fn cname(mut self, cname: PrincipalName<N>) -> Self {
+        self.cname = cname;
+        self
+    }
+
+    pub fn transited(mut self, transited: TransitedEncoding) -> Self {
+        self.transited = transited;
         self
     }
 
