@@ -4,6 +4,8 @@ pub const DEFAULT_PRINCIPAL_COMPONENTS_LEN: usize = 2;
 
 pub const DEFAULT_AS_REP_ENTRIES_LEN: usize = 1;
 
+pub const DEFAULT_HOSTS: usize = 4;
+
 pub mod ntypes {
     pub const UNKNOWN: &[u8] = b"\x00";
     pub const PRINCIPAL: &[u8] = b"\x01";
