@@ -13,7 +13,7 @@ pub struct KdcReq {
     #[asn1(context_specific = "2")]
     msg_type: Int32,
 
-    #[asn1(context_specific = "3", tag_mode = "IMPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     padata: Option<SequenceOf<PaData, DEFAULT_PRINCIPAL_COMPONENTS_LEN>>,
 
     #[asn1(context_specific = "4")]
