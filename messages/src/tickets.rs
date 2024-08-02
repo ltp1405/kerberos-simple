@@ -1,9 +1,7 @@
 use der::Sequence;
 
 use crate::basic::{
-    AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags,
-    KerberosTime, OctetString, PrincipalName, Realm, DEFAULT_HOSTS,
-    DEFAULT_PRINCIPAL_COMPONENTS_LEN,
+    AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags, KerberosString, KerberosTime, OctetString, PrincipalName, Realm, DEFAULT_HOSTS, DEFAULT_PRINCIPAL_COMPONENTS_LEN
 };
 
 // RFC 4120 Section 5.3
@@ -30,8 +28,8 @@ impl<const N: usize> Ticket<N> {
         &self.tkt_vno
     }
 
-    pub fn realm(&self) -> &str {
-        self.realm.as_ref()
+    pub fn realm(&self) -> &KerberosString {
+        &self.realm
     }
 
     pub fn sname(&self) -> &PrincipalName<N> {
