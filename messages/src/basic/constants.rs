@@ -42,3 +42,23 @@ pub mod patypes {
     pub const PA_ETYPE_INFO: &[u8] = b"\x0B";
     pub const PA_ETYPE_INFO2: &[u8] = b"\x13";
 }
+
+pub mod flags {
+    pub const RESERVED: &[u8] = &[0x00, 0x00, 0x00, 0x00]; // Bit 0-7 are reserved
+
+    pub const FORWARDABLE: &[u8] = &[0x01, 0x00, 0x00, 0x00]; // Bit 0
+    pub const FORWARDED: &[u8] = &[0x02, 0x00, 0x00, 0x00]; // Bit 1
+    pub const PROXIABLE: &[u8] = &[0x04, 0x00, 0x00, 0x00]; // Bit 2
+    pub const PROXY: &[u8] = &[0x08, 0x00, 0x00, 0x00]; // Bit 3
+    pub const MAY_POSTDATE: &[u8] = &[0x10, 0x00, 0x00, 0x00]; // Bit 4
+    pub const POSTDATED: &[u8] = &[0x20, 0x00, 0x00, 0x00]; // Bit 5
+    pub const INVALID: &[u8] = &[0x40, 0x00, 0x00, 0x00]; // Bit 6
+    pub const RENEWABLE: &[u8] = &[0x80, 0x00, 0x00, 0x00]; // Bit 7
+
+    pub const INITIAL: &[u8] = &[0x00, 0x01, 0x00, 0x00]; // Bit 8
+    pub const PRE_AUTHENT: &[u8] = &[0x00, 0x02, 0x00, 0x00]; // Bit 9
+    pub const HW_AUTHENT: &[u8] = &[0x00, 0x04, 0x00, 0x00]; // Bit 10
+
+    pub const TRANSITED_POLICY_CHECKED: &[u8] = &[0x00, 0x08, 0x00, 0x00]; // Bit 11
+    pub const OK_AS_DELEGATE: &[u8] = &[0x00, 0x10, 0x00, 0x00]; // Bit 12
+}

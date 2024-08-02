@@ -1,13 +1,20 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::{
+    marker::PhantomData,
+    ops::Deref,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use convertable_derive::Convertable;
 use der::{
     self,
     asn1::{GeneralizedTime, Ia5String},
     Decode, DecodeValue, Encode, EncodeValue, Sequence,
 };
 
-const DEFAULT_LEN: usize = 255;
+pub use constants::*;
+use predefined_values::{AddressType, NameType};
+
+mod constants;
+mod predefined_values;
 
 pub type SequenceOf<T, const U: usize> = der::asn1::SequenceOf<T, U>;
 pub type OctetString = der::asn1::OctetString;
@@ -31,19 +38,17 @@ pub type Realm = KerberosString;
 
 // RFC4120 5.2.2
 #[derive(Sequence)]
-pub struct PrincipalName<const N: usize = 2> {
-    name_type: Int32,
+pub struct PrincipalName<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
+    name_type: NameType,
     // Most PrincipalNames will have only a few components (typically one or two).
-    pub name_string: SequenceOf<KerberosString, N>,
+    name_string: SequenceOf<KerberosString, N>,
 }
 
 impl<const N: usize> PrincipalName<N> {
     pub fn new<K: Into<SequenceOf<KerberosString, N>>>(
-        name_type: PredefinedNameType,
+        name_type: NameType,
         components: K,
     ) -> Result<Self, &'static str> {
-        let name_type = name_type.into();
-
         let name_string = components.into();
 
         if name_string.is_empty() {
@@ -56,75 +61,37 @@ impl<const N: usize> PrincipalName<N> {
         })
     }
 
-    pub fn get_name_type(&self) -> PredefinedNameType {
-        self.name_type.as_bytes().into()
+    pub fn name_type(&self) -> NameType {
+        self.name_type
     }
-}
 
-// RFC4120 6.2
-#[derive(Debug, PartialEq, Eq, Convertable)]
-pub enum PredefinedNameType {
-    #[convert(0x00)]
-    Unknown,
-    #[convert(0x01)]
-    Principal,
-    #[convert(0x02)]
-    SrvInst,
-    #[convert(0x03)]
-    SrcHst,
-    #[convert(0x04)]
-    SrvXhst,
-    #[convert(0x05)]
-    Uid,
-    #[convert(0x06)]
-    X500Principal,
-    #[convert(0x07)]
-    SmtpName,
-    #[convert(0x0A)]
-    Enterprise,
+    pub fn name_string(&self) -> &SequenceOf<KerberosString, N> {
+        &self.name_string
+    }
 }
 
 // RFC4120 5.2.5
 #[derive(Sequence)]
 pub struct HostAddress {
-    addr_type: Int32,
-    pub address: OctetString,
+    addr_type: AddressType,
+    address: OctetString,
 }
 
 impl HostAddress {
-    pub fn new<S: Into<OctetString>>(addr_type: PredefinedAddressType, address: S) -> Self {
+    pub fn new<S: Into<OctetString>>(addr_type: AddressType, address: S) -> Self {
         Self {
-            addr_type: addr_type.into(),
+            addr_type,
             address: address.into(),
         }
     }
 
-    pub fn get_addr_type(&self) -> PredefinedAddressType {
-        self.addr_type.as_bytes().into()
+    pub fn addr_type(&self) -> AddressType {
+        self.addr_type
     }
-}
 
-// RFC4120 7.5.3
-#[derive(Debug, PartialEq, Eq, Convertable)]
-pub enum PredefinedAddressType {
-    #[convert(0x02)]
-    Ipv4,
-    #[convert(0x03)]
-    Directional,
-    #[convert(0x05)]
-    ChaosNet,
-    #[convert(0x06)]
-    Xns,
-    #[convert(0x07)]
-    Iso,
-    #[convert(0x0C)]
-    DecnetPhaseIV,
-    #[convert(0x10)]
-    AppleTalkDDP,
-    #[convert(0x14)]
-    NetBios,
-    #[convert(0x18)]
-    Ipv6,
+    pub fn address(&self) -> &OctetString {
+        &self.address
+    }
 }
 
 // RFC4120 5.2.5
@@ -173,24 +140,15 @@ impl<'a, const N: usize> Decode<'a> for AuthorizationData<N> {
     }
 }
 
-impl<'a, const N: usize> DecodeValue<'a> for AuthorizationData<N> {
-    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
-        let inner = reader.decode()?;
-        Ok(Self { inner })
-    }
-}
-
-impl<const N: usize> EncodeValue for AuthorizationData<N> {
-    fn value_len(&self) -> der::Result<der::Length> {
+impl<const N: usize> Encode for AuthorizationData<N> {
+    fn encoded_len(&self) -> der::Result<der::Length> {
         self.inner
             .as_ref()
-            .map_or(Ok(der::Length::ZERO), |inner| inner.value_len())
+            .map_or(Ok(der::Length::ZERO), |inner| inner.encoded_len())
     }
 
-    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.inner
-            .as_ref()
-            .map_or(Ok(()), |inner| inner.encode(encoder))
+    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.inner.encode(encoder)
     }
 }
 
@@ -204,7 +162,7 @@ impl<const N: usize> AuthorizationData<N> {
                 for ad_entry in entries {
                     inner
                         .add(ad_entry)
-                        .expect("Cannot add ADEntry to AuthorizationData");
+                        .expect("Possible overflow when adding ADEntry to AuthorizationData")
                 }
                 inner
             })
@@ -222,52 +180,84 @@ impl<const N: usize> AuthorizationData<N> {
 
 #[derive(Sequence)]
 pub struct ADEntry {
-    pub ad_type: Int32, // All negative values are reserved for local use. Non-negative values are reserved for registered use.
-    pub ad_data: OctetString,
+    ad_type: Int32, // All negative values are reserved for local use. Non-negative values are reserved for registered use.
+    ad_data: OctetString,
 }
 
-impl TryFrom<ADEntry> for ADElement {
-    type Error = &'static str;
+impl ADEntry {
+    pub fn new<A: Into<Int32>, S: Into<OctetString>>(ad_type: A, ad_data: S) -> Self {
+        Self {
+            ad_type: ad_type.into(),
+            ad_data: ad_data.into(),
+        }
+    }
+
+    pub fn for_local_use(&self) -> bool {
+        !self.for_registered_use()
+    }
+
+    pub fn for_registered_use(&self) -> bool {
+        let decoded =
+            i32::from_der(self.ad_type.as_bytes()).expect("Could not decode bytes to i32");
+        decoded >= 0
+    }
+
+    pub fn ad_type(&self) -> &Int32 {
+        &self.ad_type
+    }
+
+    pub fn ad_data(&self) -> &OctetString {
+        &self.ad_data
+    }
+}
+
+impl TryFrom<ADEntry> for ADRegisteredEntry {
+    type Error = String;
 
     fn try_from(entry: ADEntry) -> Result<Self, Self::Error> {
-        let ad_type: PredefinedADType = entry.ad_type.as_bytes().into();
-        let err_msg = "Invalid AD type";
+        if entry.for_local_use() {
+            return Err("Local AD type is not supported".to_owned());
+        }
+
+        fn to_meaningful_error(ad_type: &[u8], element: &str, e: der::Error) -> String {
+            format!(
+                "Bytes representation of AD type {} is not valid to decode to {}. Error: {}",
+                String::from_utf8_lossy(ad_type),
+                element,
+                e
+            )
+        }
+
+        let ad_type = entry.ad_type.as_bytes();
+
         let bytes = entry.ad_data.as_bytes();
 
         let decoded_element = match ad_type {
-            PredefinedADType::IfRelevant => {
-                ADElement::IfRelevant(AdIfRelevant::from_der(bytes).map_err(|_| err_msg)?)
-            }
-            PredefinedADType::KdcIssued => {
-                ADElement::KdcIssued(AdKdcIssued::from_der(bytes).map_err(|_| err_msg)?)
-            }
-            PredefinedADType::AndOr => {
-                ADElement::AndOr(AdAndOr::from_der(bytes).map_err(|_| err_msg)?)
-            }
-            PredefinedADType::MandatoryForKdc => {
-                ADElement::MandatoryForKdc(AdMandatoryForKdc::from_der(bytes).map_err(|_| err_msg)?)
-            }
+            adtypes::AD_IF_RELEVANT => ADRegisteredEntry::IfRelevant(
+                AdIfRelevant::from_der(bytes)
+                    .map_err(|e| to_meaningful_error(ad_type, "AdIfRelevant", e))?,
+            ),
+            adtypes::AD_KDC_ISSUED => ADRegisteredEntry::KdcIssued(Box::new(
+                AdKdcIssued::from_der(bytes)
+                    .map_err(|e| to_meaningful_error(ad_type, "AdKdcIssued", e))?,
+            )),
+            adtypes::AD_AND_OR => ADRegisteredEntry::AndOr(
+                AdAndOr::from_der(bytes).map_err(|e| to_meaningful_error(ad_type, "AdAndOr", e))?,
+            ),
+            adtypes::AD_MANDATORY_FOR_KDC => ADRegisteredEntry::MandatoryForKdc(
+                AdMandatoryForKdc::from_der(bytes)
+                    .map_err(|e| to_meaningful_error(ad_type, "AdMandatoryForKdc", e))?,
+            ),
+            _ => panic!("This should not happen. Local AD type is short-circuited"),
         };
 
         Ok(decoded_element)
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Convertable)]
-pub enum PredefinedADType {
-    #[convert(0x01)]
-    IfRelevant,
-    #[convert(0x04)]
-    KdcIssued,
-    #[convert(0x05)]
-    AndOr,
-    #[convert(0x08)]
-    MandatoryForKdc,
-}
-
-pub enum ADElement {
+pub enum ADRegisteredEntry {
     IfRelevant(AdIfRelevant),
-    KdcIssued(AdKdcIssued),
+    KdcIssued(Box<AdKdcIssued>), // Boxing since AdKdcIssued is extremely large compared to other AD types
     AndOr(AdAndOr),
     MandatoryForKdc(AdMandatoryForKdc),
 }
@@ -277,18 +267,50 @@ pub type AdIfRelevant<const N: usize = DEFAULT_LEN> = AuthorizationData<N>;
 
 // RFC4120 5.2.6.2
 pub struct AdKdcIssued<const N: usize = DEFAULT_LEN> {
-    pub ad_checksum: Checksum,
-    pub i_realm: Option<Realm>,
-    pub i_sname: Option<PrincipalName>,
-    pub elements: AuthorizationData<N>,
+    ad_checksum: Checksum,
+    i_realm: Option<Realm>,
+    i_sname: Option<PrincipalName<N>>,
+    elements: AuthorizationData<N>,
+}
+
+impl<const N: usize> AdKdcIssued<N> {
+    pub fn new(
+        ad_checksum: Checksum,
+        i_realm: Option<Realm>,
+        i_sname: Option<PrincipalName<N>>,
+        elements: AuthorizationData<N>,
+    ) -> Self {
+        Self {
+            ad_checksum,
+            i_realm,
+            i_sname,
+            elements,
+        }
+    }
+
+    pub fn ad_checksum(&self) -> &Checksum {
+        &self.ad_checksum
+    }
+
+    pub fn i_realm(&self) -> Option<&Ia5String> {
+        self.i_realm.as_ref()
+    }
+
+    pub fn i_sname(&self) -> Option<&PrincipalName<N>> {
+        self.i_sname.as_ref()
+    }
+
+    pub fn elements(&self) -> &AuthorizationData<N> {
+        &self.elements
+    }
 }
 
 impl<'a, const N: usize> DecodeValue<'a> for AdKdcIssued<N> {
-    fn decode_value<R: der::Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let ad_checksum = reader.decode()?;
         let i_realm = reader.decode()?;
         let i_sname = reader.decode()?;
-        let elements = AuthorizationData::decode_value(reader, header)?;
+        let elements = AuthorizationData::decode(reader)?;
         Ok(Self {
             ad_checksum,
             i_realm,
@@ -303,14 +325,14 @@ impl<const N: usize> EncodeValue for AdKdcIssued<N> {
         self.ad_checksum.encoded_len()?
             + self.i_realm.encoded_len()?
             + self.i_sname.encoded_len()?
-            + self.elements.value_len()?
+            + self.elements.encoded_len()?
     }
 
     fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
         self.ad_checksum.encode(encoder)?;
         self.i_realm.encode(encoder)?;
         self.i_sname.encode(encoder)?;
-        self.elements.encode_value(encoder)?;
+        self.elements.encode(encoder)?;
         Ok(())
     }
 }
@@ -319,14 +341,31 @@ impl<'a, const N: usize> Sequence<'a> for AdKdcIssued<N> {}
 
 // RFC4120 5.2.6.3
 pub struct AdAndOr<const N: usize = DEFAULT_LEN> {
-    pub condition_count: Int32,
-    pub elements: AuthorizationData<N>,
+    condition_count: Int32,
+    elements: AuthorizationData<N>,
+}
+
+impl<const N: usize> AdAndOr<N> {
+    pub fn new(condition_count: Int32, elements: AuthorizationData<N>) -> Self {
+        Self {
+            condition_count,
+            elements,
+        }
+    }
+
+    pub fn condition_count(&self) -> &Int32 {
+        &self.condition_count
+    }
+
+    pub fn elements(&self) -> &AuthorizationData<N> {
+        &self.elements
+    }
 }
 
 impl<'a, const N: usize> DecodeValue<'a> for AdAndOr<N> {
-    fn decode_value<R: der::Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let condition_count = reader.decode()?;
-        let elements = AuthorizationData::decode_value(reader, header)?;
+        let elements = AuthorizationData::decode(reader)?;
         Ok(Self {
             condition_count,
             elements,
@@ -336,12 +375,12 @@ impl<'a, const N: usize> DecodeValue<'a> for AdAndOr<N> {
 
 impl<const N: usize> EncodeValue for AdAndOr<N> {
     fn value_len(&self) -> der::Result<der::Length> {
-        self.condition_count.encoded_len()? + self.elements.value_len()?
+        self.condition_count.encoded_len()? + self.elements.encoded_len()?
     }
 
     fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
         self.condition_count.encode(encoder)?;
-        self.elements.encode_value(encoder)?;
+        self.elements.encode(encoder)?;
         Ok(())
     }
 }
@@ -370,23 +409,69 @@ impl PaData {
         }
     }
 
-    pub fn get_padata_type(&self) -> PredefinedPaDataType {
-        self.padata_type.as_bytes().into()
+    pub fn for_registered_use(&self) -> bool {
+        let decoded = i32::from_der(self.padata_type.as_bytes()).expect("padata_type is not Int32");
+        decoded >= 0
+    }
+
+    pub fn for_unregistered_use(&self) -> bool {
+        !self.for_registered_use()
     }
 }
 
-#[derive(PartialEq, Eq, Convertable)]
-pub enum PredefinedPaDataType {
-    #[convert(0x01)]
-    PaTgsReq, // DER encoding of AP-REQ
-    #[convert(0x02)]
-    PaEncTimeStamp, // DER encoding of PA-ENC-TIMESTAMP
-    #[convert(0x03)]
-    PaPwSalt, // salt (not ASN.1 encoded)
-    #[convert(0x0B)]
-    PaETypeInfo, // DER encoding of ETYPE-INFO
-    #[convert(0x13)]
-    PaETypeInfo2, // DER encoding of ETYPE-INFO2
+impl<const N: usize> TryFrom<PaData> for PaDataRegisteredType<N> {
+    type Error = String;
+
+    fn try_from(pa_data: PaData) -> Result<Self, Self::Error> {
+        if pa_data.for_unregistered_use() {
+            return Err("PaData is not for registered use".to_string());
+        }
+
+        fn to_meaningful_error(pa_type: &[u8], element: &str, e: der::Error) -> String {
+            format!(
+                "Bytes representation of PA type {} is not valid to decode to {}. Error: {}",
+                String::from_utf8_lossy(pa_type),
+                element,
+                e
+            )
+        }
+
+        let value = match pa_data.padata_type.as_bytes() {
+            patypes::PA_TGS_REQ => todo!("Wait for the interface of AS-REP"),
+            patypes::PA_ENC_TIMESTAMP => {
+                let decoded =
+                    EncryptedData::from_der(pa_data.padata_value.as_bytes()).map_err(|e| {
+                        to_meaningful_error(patypes::PA_ENC_TIMESTAMP, "EncryptedData", e)
+                    })?;
+                PaDataRegisteredType::EncTimeStamp(decoded)
+            }
+            patypes::PA_PW_SALT => PaDataRegisteredType::PwSalt(pa_data.padata_value),
+            patypes::PA_ETYPE_INFO => {
+                let decoded = ETypeInfo::from_der(pa_data.padata_value.as_bytes())
+                    .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO, "ETYPE-INFO", e))?;
+                PaDataRegisteredType::ETypeInfo(decoded)
+            }
+            patypes::PA_ETYPE_INFO2 => {
+                let decoded = ETypeInfo2::from_der(pa_data.padata_value.as_bytes())
+                    .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO2, "ETYPE-INFO2", e))?;
+                PaDataRegisteredType::ETypeInfo2(decoded)
+            }
+            _ => panic!("Cannot happen"),
+        };
+
+        Ok(value)
+    }
+}
+
+pub enum PaDataRegisteredType<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> {
+    TgsReq,                       // DER encoding of AP-REQ
+    EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
+    // The padata-value for this pre-authentication type contains the salt
+    // for the string-to-key to be used by the client to obtain the key for
+    // decrypting the encrypted part of an AS-REP message.
+    PwSalt(OctetString),       // salt (not ASN.1 encoded)
+    ETypeInfo(ETypeInfo<N>),   // DER encoding of ETYPE-INFO
+    ETypeInfo2(ETypeInfo2<N>), // DER encoding of ETYPE-INFO2
 }
 
 // RFC4120 5.2.7.1
@@ -503,10 +588,212 @@ impl ETypeInfo2Entry {
 pub type ETypeInfo2<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> = SequenceOf<ETypeInfo2Entry, N>;
 
 // RFC4120 5.2.8
-pub struct KerberosFlags {}
+pub struct KerberosFlags {
+    inner: BitSring,
+}
+
+pub enum KerberosFlagsKind {
+    Reserved,
+    Forwardable,
+    Forwarded,
+    Proxiable,
+    Proxy,
+    MayPostdate,
+    Postdated,
+    Invalid,
+    Renewable,
+    Initial,
+    PreAuthenticated,
+    HWAuthenticated,
+    TransitedPolicyChecked,
+    OkAsDelegate,
+    Other,
+}
+
+impl KerberosFlags {
+    pub fn new<T: Into<BitSring>>(inner: T) -> Self {
+        Self {
+            inner: inner.into(),
+        }
+    }
+
+    pub fn kind(&self) -> Option<KerberosFlagsKind> {
+        if let Some(bytes) = self.as_bytes() {
+            match &bytes[..32] {
+                flags::RESERVED => Some(KerberosFlagsKind::Reserved),
+                flags::FORWARDABLE => Some(KerberosFlagsKind::Forwardable),
+                flags::FORWARDED => Some(KerberosFlagsKind::Forwarded),
+                flags::PROXIABLE => Some(KerberosFlagsKind::Proxiable),
+                flags::PROXY => Some(KerberosFlagsKind::Proxy),
+                flags::MAY_POSTDATE => Some(KerberosFlagsKind::MayPostdate),
+                flags::POSTDATED => Some(KerberosFlagsKind::Postdated),
+                flags::INVALID => Some(KerberosFlagsKind::Invalid),
+                flags::RENEWABLE => Some(KerberosFlagsKind::Renewable),
+                flags::INITIAL => Some(KerberosFlagsKind::Initial),
+                flags::PRE_AUTHENT => Some(KerberosFlagsKind::PreAuthenticated),
+                flags::HW_AUTHENT => Some(KerberosFlagsKind::HWAuthenticated),
+                flags::TRANSITED_POLICY_CHECKED => Some(KerberosFlagsKind::TransitedPolicyChecked),
+                flags::OK_AS_DELEGATE => Some(KerberosFlagsKind::OkAsDelegate),
+                _ => Some(KerberosFlagsKind::Other),
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl KerberosFlags {
+    pub fn reserve() -> Self {
+        Self::new(BitSring::from_bytes(flags::RESERVED).unwrap())
+    }
+
+    pub fn forwardable() -> Self {
+        Self::new(BitSring::from_bytes(flags::FORWARDABLE).unwrap())
+    }
+
+    pub fn forwarded() -> Self {
+        Self::new(BitSring::from_bytes(flags::FORWARDED).unwrap())
+    }
+
+    pub fn proxiable() -> Self {
+        Self::new(BitSring::from_bytes(flags::PROXIABLE).unwrap())
+    }
+
+    pub fn proxy() -> Self {
+        Self::new(BitSring::from_bytes(flags::PROXY).unwrap())
+    }
+
+    pub fn may_postdate() -> Self {
+        Self::new(BitSring::from_bytes(flags::MAY_POSTDATE).unwrap())
+    }
+
+    pub fn postdated() -> Self {
+        Self::new(BitSring::from_bytes(flags::POSTDATED).unwrap())
+    }
+
+    pub fn invalid() -> Self {
+        Self::new(BitSring::from_bytes(flags::INVALID).unwrap())
+    }
+
+    pub fn renewable() -> Self {
+        Self::new(BitSring::from_bytes(flags::RENEWABLE).unwrap())
+    }
+
+    pub fn initial() -> Self {
+        Self::new(BitSring::from_bytes(flags::INITIAL).unwrap())
+    }
+
+    pub fn pre_authent() -> Self {
+        Self::new(BitSring::from_bytes(flags::PRE_AUTHENT).unwrap())
+    }
+
+    pub fn hw_authent() -> Self {
+        Self::new(BitSring::from_bytes(flags::HW_AUTHENT).unwrap())
+    }
+
+    pub fn transited_policy_checked() -> Self {
+        Self::new(BitSring::from_bytes(flags::TRANSITED_POLICY_CHECKED).unwrap())
+    }
+
+    pub fn ok_as_delegate() -> Self {
+        Self::new(BitSring::from_bytes(flags::OK_AS_DELEGATE).unwrap())
+    }
+}
+
+impl Encode for KerberosFlags {
+    fn encoded_len(&self) -> der::Result<der::Length> {
+        self.inner.encoded_len()
+    }
+
+    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.inner.encode(encoder)
+    }
+}
+
+impl<'a> Decode<'a> for KerberosFlags {
+    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
+        let inner = BitSring::decode(decoder)?;
+        Ok(Self { inner })
+    }
+}
+
+impl TryFrom<&[u8]> for KerberosFlags {
+    type Error = &'static str;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        if bytes.len() < 4 {
+            return Err("KerberosFlags's bit string must be at least 32 bits long");
+        }
+        let inner = BitSring::from_bytes(bytes).map_err(|_| "Error parsing bit string")?;
+        Ok(Self { inner })
+    }
+}
+
+impl Deref for KerberosFlags {
+    type Target = BitSring;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
 
 // RFC4120 5.2.9
-pub struct EncryptedData {}
+#[derive(Sequence)]
+pub struct EncryptedData {
+    etype: Int32,
+    kvno: Option<UInt32>,
+    cipher: OctetString,
+}
+
+impl EncryptedData {
+    pub fn new<T: Into<Int32>, U: Into<Option<UInt32>>, V: Into<OctetString>>(
+        etype: T,
+        kvno: U,
+        cipher: V,
+    ) -> Self {
+        Self {
+            etype: etype.into(),
+            kvno: kvno.into(),
+            cipher: cipher.into(),
+        }
+    }
+
+    pub fn etype(&self) -> &Int32 {
+        &self.etype
+    }
+
+    pub fn kvno(&self) -> Option<&Int32> {
+        self.kvno.as_ref()
+    }
+
+    pub fn cipher(&self) -> &OctetString {
+        &self.cipher
+    }
+}
+
+// RFC4120 5.2.9
+#[derive(Sequence)]
+pub struct EncryptionKey {
+    keytype: Int32,
+    keyvalue: OctetString,
+}
+
+impl EncryptionKey {
+    pub fn new<T: Into<Int32>, U: Into<OctetString>>(keytype: T, keyvalue: U) -> Self {
+        Self {
+            keytype: keytype.into(),
+            keyvalue: keyvalue.into(),
+        }
+    }
+
+    pub fn keytype(&self) -> &Int32 {
+        &self.keytype
+    }
+
+    pub fn keyvalue(&self) -> &OctetString {
+        &self.keyvalue
+    }
+}
 
 // RFC4120 5.2.9
 #[derive(Sequence)]
@@ -515,97 +802,126 @@ pub struct Checksum {
     checksum: OctetString,
 }
 
-// RFC4120 5.2.9
-pub struct EncryptionKey {}
+impl Checksum {
+    pub fn new<T: Into<Int32>, U: Into<OctetString>>(cksumtype: T, checksum: U) -> Self {
+        Self {
+            cksumtype: cksumtype.into(),
+            checksum: checksum.into(),
+        }
+    }
+
+    pub fn cksumtype(&self) -> &Int32 {
+        &self.cksumtype
+    }
+
+    pub fn checksum(&self) -> &OctetString {
+        &self.checksum
+    }
+}
 
 #[cfg(test)]
 mod test {
     use crate::basic::{
-        Int32, PredefinedAddressType, PrincipalName,
-        SequenceOf,
+        predefined_values::{AddressType, NameType},
+        HostAddress, PrincipalName, SequenceOf,
     };
 
-    use super::{KerberosString, PredefinedNameType};
+    use super::{HostAddresses, KerberosString, OctetString};
 
     ////////////////////////// PrincipalName //////////////////////////
+    fn init_kerberos_string_len_1() -> SequenceOf<KerberosString, 1> {
+        let mut kerberos_strings = SequenceOf::new();
+        kerberos_strings
+            .add(KerberosString::new("test").unwrap())
+            .unwrap();
+        kerberos_strings
+    }
 
-    fn init_components(size: usize) -> SequenceOf<KerberosString, 2> {
-        let mut components = SequenceOf::new();
-        for i in 0..size {
-            let input = format!("test{}", i);
-            components
-                .add(KerberosString::new(&input).unwrap())
-                .expect("Cannot add component");
+    fn init_kerberos_string_len_2() -> SequenceOf<KerberosString, 2> {
+        let mut kerberos_strings = SequenceOf::new();
+        for _ in 0..2 {
+            kerberos_strings
+                .add(KerberosString::new("test").unwrap())
+                .unwrap();
         }
-        components
+        kerberos_strings
     }
 
     #[test]
-    fn principal_name_should_accept_valid_name_type() {
-        let name_type = PredefinedNameType::Principal;
-        let components = init_components(1);
-        let principal_name = PrincipalName::new(name_type, components);
-        assert!(principal_name.is_ok());
-    }
+    fn principal_name_works_fine_with_appropriate_kerberos_string() {
+        let testcases = vec![
+            (NameType::Unknown, init_kerberos_string_len_2()),
+            (NameType::SmtpName, init_kerberos_string_len_2()),
+        ];
 
-    #[test]
-    fn principal_name_should_have_at_least_one_component() {
-        let name_type = PredefinedNameType::Principal;
-        let components = SequenceOf::new();
-        let principal_name = PrincipalName::<2>::new(name_type, components);
-        assert!(principal_name.is_err());
-    }
+        for (expected_name_type, name_string) in testcases {
+            let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+            assert!(principal_name.is_ok());
+            let principal_name = principal_name.unwrap();
+            assert_eq!(principal_name.name_type(), expected_name_type);
+            assert_eq!(principal_name.name_string(), &name_string);
+        }
 
-    #[test]
-    fn no_panic_when_using_predefined_name_type() {
-        let name_type = PredefinedNameType::Principal;
-        let components = init_components(2);
-        let principal_name =
-            PrincipalName::new(name_type, components).expect("Cannot create PrincipalName");
-        assert_eq!(
-            principal_name.get_name_type(),
-            PredefinedNameType::Principal
-        );
+        let testcases = vec![
+            (NameType::SrcHst, init_kerberos_string_len_1()),
+            (NameType::X500Principal, init_kerberos_string_len_1()),
+        ];
+
+        for (expected_name_type, name_string) in testcases {
+            let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+            assert!(principal_name.is_ok());
+            let principal_name = principal_name.unwrap();
+            assert_eq!(principal_name.name_type(), expected_name_type);
+            assert_eq!(principal_name.name_string(), &name_string);
+        }
     }
 
     ////////////////////////// HostAddress //////////////////////////
+    fn init_random_octet_string() -> OctetString {
+        OctetString::new(vec![1, 2, 3, 4]).unwrap()
+    }
+
     #[test]
-    fn predefined_address_type_should_return_correct_value() {
+    fn host_address_works_fine() {
         let testcases = vec![
-            (PredefinedAddressType::Ipv4, [0x02]),
-            (PredefinedAddressType::Directional, [0x03]),
-            (PredefinedAddressType::ChaosNet, [0x05]),
-            (PredefinedAddressType::Xns, [0x06]),
-            (PredefinedAddressType::Iso, [0x07]),
-            (PredefinedAddressType::DecnetPhaseIV, [0x0C]),
-            (PredefinedAddressType::AppleTalkDDP, [0x10]),
-            (PredefinedAddressType::NetBios, [0x14]),
-            (PredefinedAddressType::Ipv6, [0x18]),
+            AddressType::IPv4,
+            AddressType::Directional,
+            AddressType::ChaosNet,
+            AddressType::Xns,
+            AddressType::Iso,
+            AddressType::DecnetPhaseIV,
+            AddressType::AppletalkDDP,
+            AddressType::Netbios,
+            AddressType::IPv6,
         ];
-        for (addr_type, expected_bytes) in testcases {
-            let addr_type_bytes = Int32::from(addr_type);
-            assert_eq!(addr_type_bytes.as_bytes(), &expected_bytes);
+        for address_type in testcases {
+            let host_address = HostAddress::new(address_type, init_random_octet_string());
+            assert_eq!(host_address.addr_type(), address_type);
+            assert_eq!(host_address.address(), &init_random_octet_string());
         }
     }
 
     #[test]
-    fn predefined_address_type_should_return_correct_enum() {
-        let testcases = vec![
-            (PredefinedAddressType::Ipv4, [0x02]),
-            (PredefinedAddressType::Directional, [0x03]),
-            (PredefinedAddressType::ChaosNet, [0x05]),
-            (PredefinedAddressType::Xns, [0x06]),
-            (PredefinedAddressType::Iso, [0x07]),
-            (PredefinedAddressType::DecnetPhaseIV, [0x0C]),
-            (PredefinedAddressType::AppleTalkDDP, [0x10]),
-            (PredefinedAddressType::NetBios, [0x14]),
-            (PredefinedAddressType::Ipv6, [0x18]),
+    fn init_host_addresses_with_non_zero_length() {
+        let provided = [
+            HostAddress::new(AddressType::IPv4, init_random_octet_string()),
+            HostAddress::new(AddressType::IPv6, init_random_octet_string()),
+            HostAddress::new(AddressType::Directional, init_random_octet_string()),
+            HostAddress::new(AddressType::ChaosNet, init_random_octet_string()),
         ];
-        for (expected_addr_type, addr_type_bytes) in testcases {
-            let addr_type =
-                PredefinedAddressType::from(Int32::new(&addr_type_bytes).unwrap().as_bytes());
-            assert_eq!(addr_type, expected_addr_type);
-        }
+
+        let addresses = HostAddresses::<4>::new(provided);
+
+        assert!(addresses.is_some());
+    }
+
+    #[test]
+    fn init_host_addresses_with_zero_length() {
+        let provided = [];
+
+        let addresses = HostAddresses::<0>::new(provided);
+
+        assert!(addresses.is_none());
     }
 
     ///////////////////////// PaData //////////////////////////
