@@ -15,3 +15,7 @@ pub mod kdc_req_body;
 pub mod last_req;
 pub mod tgs_rep;
 pub mod tgs_req;
+
+// Section 5.7
+pub mod krb_priv;
+pub mod enc_krb_priv_part;
