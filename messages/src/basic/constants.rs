@@ -70,3 +70,33 @@ pub mod flags {
     pub const RENEW: &[u8] = &[0x00, 0x00, 0x40, 0x00]; // Bit 30
     pub const VALIDATE: &[u8] = &[0x00, 0x00, 0x80, 0x00]; // Bit 31
 }
+
+pub mod application_tags {
+    // 0 unused
+    pub const TICKET: u8 = 1;
+    pub const AUTHENTICATOR: u8 = 2;
+    pub const ENC_TICKET_PART: u8 = 3;
+
+    // 4-9 unused
+    pub const AS_REQ: u8 = 10;
+    pub const AS_REP: u8 = 11;
+    pub const TGS_REQ: u8 = 12;
+    pub const TGS_REP: u8 = 13;
+    pub const AP_REQ: u8 = 14;
+    pub const AP_REP: u8 = 15;
+    pub const RESERVED16: u8 = 16; // TGT-REQ (for user-to-user)
+    pub const RESERVED17: u8 = 17; // TGT-REP (for user-to-user)
+
+    // 18-19 unused
+    pub const KRB_SAFE: u8 = 20;
+    pub const KRB_PRIV: u8 = 21;
+    pub const KRB_CRED: u8 = 22;
+
+    // 23-24 unused
+    pub const ENC_AS_REP_PART: u8 = 25;
+    pub const ENC_TGS_REP_PART: u8 = 26;
+    pub const ENC_AP_REP_PART: u8 = 27;
+    pub const ENC_KRB_PRIV_PART: u8 = 28;
+    pub const ENC_KRB_CRED_PART: u8 = 29;
+    pub const KRB_ERROR: u8 = 30;
+}
