@@ -7,7 +7,7 @@ use std::{
 use der::{
     self,
     asn1::{GeneralizedTime, Ia5String},
-    Decode, DecodeValue, Encode, EncodeValue, Sequence,
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Sequence,
 };
 
 pub use constants::*;
@@ -627,6 +627,10 @@ impl Encode for KerberosFlags {
     fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
         self.inner.encode(encoder)
     }
+}
+
+impl FixedTag for KerberosFlags {
+    const TAG: der::Tag = der::Tag::BitString;
 }
 
 impl<'a> Decode<'a> for KerberosFlags {

@@ -17,5 +17,10 @@ pub mod tgs_rep;
 pub mod tgs_req;
 
 // Section 5.7
-pub mod krb_priv;
 pub mod enc_krb_priv_part;
+pub mod krb_priv;
+
+// Section 5.8
+pub mod enc_krb_cred_part;
+pub mod krb_cred;
+pub mod krb_cred_info;
