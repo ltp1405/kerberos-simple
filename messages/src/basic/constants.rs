@@ -63,4 +63,10 @@ pub mod flags {
 
     pub const TRANSITED_POLICY_CHECKED: &[u8] = &[0x00, 0x08, 0x00, 0x00]; // Bit 11
     pub const OK_AS_DELEGATE: &[u8] = &[0x00, 0x10, 0x00, 0x00]; // Bit 12
+
+    pub const DISABLE_TRANSITED_CHECK: &[u8] = &[0x00, 0x00, 0x04, 0x00]; // Bit 26
+    pub const RENEWABLE_OK: &[u8] = &[0x00, 0x00, 0x08, 0x00]; // Bit 27
+    pub const ENC_TKT_IN_SKEY: &[u8] = &[0x00, 0x00, 0x10, 0x00]; // Bit 28
+    pub const RENEW: &[u8] = &[0x00, 0x00, 0x40, 0x00]; // Bit 30
+    pub const VALIDATE: &[u8] = &[0x00, 0x00, 0x80, 0x00]; // Bit 31
 }
