@@ -96,87 +96,11 @@ impl HostAddress {
 
 // RFC4120 5.2.5
 // HostAddresses is always used as an OPTIONAL field and should not be empty.
-pub struct HostAddresses<const N: usize> {
-    inner: SequenceOf<HostAddress, N>,
-}
-
-impl<const N: usize> HostAddresses<N> {
-    pub fn new(host_addresses: [HostAddress; N]) -> Option<Self> {
-        if host_addresses.is_empty() {
-            return None;
-        }
-        Some(Self {
-            inner: {
-                let mut inner = SequenceOf::new();
-                for host_address in host_addresses {
-                    inner
-                        .add(host_address)
-                        .expect("Cannot add HostAddress to HostAddresses");
-                }
-                inner
-            },
-        })
-    }
-}
-
-impl<const N: usize> Deref for HostAddresses<N> {
-    type Target = SequenceOf<HostAddress, N>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
+pub type HostAddresses<const N: usize> = SequenceOf<HostAddress, N>;
 
 // RFC4120 5.2.6
 // AuthorizationData is always used as an OPTIONAL field and should not be empty.
-pub struct AuthorizationData<const N: usize = DEFAULT_LEN> {
-    inner: Option<SequenceOf<ADEntry, N>>,
-}
-
-impl<'a, const N: usize> Decode<'a> for AuthorizationData<N> {
-    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
-        let inner = decoder.decode()?;
-        Ok(Self { inner })
-    }
-}
-
-impl<const N: usize> Encode for AuthorizationData<N> {
-    fn encoded_len(&self) -> der::Result<der::Length> {
-        self.inner
-            .as_ref()
-            .map_or(Ok(der::Length::ZERO), |inner| inner.encoded_len())
-    }
-
-    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.inner.encode(encoder)
-    }
-}
-
-impl<const N: usize> AuthorizationData<N> {
-    pub fn new(entries: [ADEntry; N]) -> Self {
-        let inner = if entries.is_empty() {
-            None
-        } else {
-            Some({
-                let mut inner = SequenceOf::new();
-                for ad_entry in entries {
-                    inner
-                        .add(ad_entry)
-                        .expect("Possible overflow when adding ADEntry to AuthorizationData")
-                }
-                inner
-            })
-        };
-        Self { inner }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &ADEntry> {
-        self.inner
-            .as_ref()
-            .into_iter()
-            .flat_map(|inner| inner.iter())
-    }
-}
+pub type AuthorizationData<const N: usize = DEFAULT_LEN> = SequenceOf<ADEntry, N>;
 
 #[derive(Sequence)]
 pub struct ADEntry {
@@ -611,92 +535,87 @@ pub enum KerberosFlagsKind {
 }
 
 impl KerberosFlags {
-    pub fn new<T: Into<BitSring>>(inner: T) -> Self {
-        Self {
-            inner: inner.into(),
-        }
-    }
-
-    pub fn kind(&self) -> Option<KerberosFlagsKind> {
-        if let Some(bytes) = self.as_bytes() {
-            match &bytes[..32] {
-                flags::RESERVED => Some(KerberosFlagsKind::Reserved),
-                flags::FORWARDABLE => Some(KerberosFlagsKind::Forwardable),
-                flags::FORWARDED => Some(KerberosFlagsKind::Forwarded),
-                flags::PROXIABLE => Some(KerberosFlagsKind::Proxiable),
-                flags::PROXY => Some(KerberosFlagsKind::Proxy),
-                flags::MAY_POSTDATE => Some(KerberosFlagsKind::MayPostdate),
-                flags::POSTDATED => Some(KerberosFlagsKind::Postdated),
-                flags::INVALID => Some(KerberosFlagsKind::Invalid),
-                flags::RENEWABLE => Some(KerberosFlagsKind::Renewable),
-                flags::INITIAL => Some(KerberosFlagsKind::Initial),
-                flags::PRE_AUTHENT => Some(KerberosFlagsKind::PreAuthenticated),
-                flags::HW_AUTHENT => Some(KerberosFlagsKind::HWAuthenticated),
-                flags::TRANSITED_POLICY_CHECKED => Some(KerberosFlagsKind::TransitedPolicyChecked),
-                flags::OK_AS_DELEGATE => Some(KerberosFlagsKind::OkAsDelegate),
-                _ => Some(KerberosFlagsKind::Other),
-            }
-        } else {
-            None
+    pub fn kind(&self) -> KerberosFlagsKind {
+        let bytes = self
+            .inner
+            .as_bytes()
+            .expect("TryFrom<&[u8] forces BitString to be at least 32 bits long");
+        match &bytes[..4] {
+            // only the first 4 bytes are used (32 bits)
+            flags::RESERVED => KerberosFlagsKind::Reserved,
+            flags::FORWARDABLE => KerberosFlagsKind::Forwardable,
+            flags::FORWARDED => KerberosFlagsKind::Forwarded,
+            flags::PROXIABLE => KerberosFlagsKind::Proxiable,
+            flags::PROXY => KerberosFlagsKind::Proxy,
+            flags::MAY_POSTDATE => KerberosFlagsKind::MayPostdate,
+            flags::POSTDATED => KerberosFlagsKind::Postdated,
+            flags::INVALID => KerberosFlagsKind::Invalid,
+            flags::RENEWABLE => KerberosFlagsKind::Renewable,
+            flags::INITIAL => KerberosFlagsKind::Initial,
+            flags::PRE_AUTHENT => KerberosFlagsKind::PreAuthenticated,
+            flags::HW_AUTHENT => KerberosFlagsKind::HWAuthenticated,
+            flags::TRANSITED_POLICY_CHECKED => KerberosFlagsKind::TransitedPolicyChecked,
+            flags::OK_AS_DELEGATE => KerberosFlagsKind::OkAsDelegate,
+            _ => KerberosFlagsKind::Other,
         }
     }
 }
 
 impl KerberosFlags {
     pub fn reserve() -> Self {
-        Self::new(BitSring::from_bytes(flags::RESERVED).unwrap())
+        Self::try_from(flags::RESERVED).expect("Cannot fail")
     }
 
     pub fn forwardable() -> Self {
-        Self::new(BitSring::from_bytes(flags::FORWARDABLE).unwrap())
+        Self::try_from(flags::FORWARDABLE).expect("Cannot fail")
     }
 
     pub fn forwarded() -> Self {
-        Self::new(BitSring::from_bytes(flags::FORWARDED).unwrap())
+        Self::try_from(flags::FORWARDED).expect("Cannot fail")
     }
 
     pub fn proxiable() -> Self {
-        Self::new(BitSring::from_bytes(flags::PROXIABLE).unwrap())
+        Self::try_from(flags::PROXIABLE).expect("Cannot fail")
     }
 
     pub fn proxy() -> Self {
-        Self::new(BitSring::from_bytes(flags::PROXY).unwrap())
+        Self::try_from(flags::PROXY).expect("Cannot fail")
     }
 
     pub fn may_postdate() -> Self {
-        Self::new(BitSring::from_bytes(flags::MAY_POSTDATE).unwrap())
+        Self::try_from(flags::MAY_POSTDATE).expect("Cannot fail")
     }
 
     pub fn postdated() -> Self {
-        Self::new(BitSring::from_bytes(flags::POSTDATED).unwrap())
+        Self::try_from(flags::POSTDATED).expect("Cannot fail")
     }
 
     pub fn invalid() -> Self {
-        Self::new(BitSring::from_bytes(flags::INVALID).unwrap())
+        Self::try_from(flags::INVALID).expect("Cannot fail")
     }
 
     pub fn renewable() -> Self {
-        Self::new(BitSring::from_bytes(flags::RENEWABLE).unwrap())
+        Self::try_from(flags::RENEWABLE).expect("Cannot fail")
     }
 
     pub fn initial() -> Self {
-        Self::new(BitSring::from_bytes(flags::INITIAL).unwrap())
+        Self::try_from(flags::INITIAL).expect("Cannot fail")
     }
 
     pub fn pre_authent() -> Self {
-        Self::new(BitSring::from_bytes(flags::PRE_AUTHENT).unwrap())
+        Self::try_from(flags::PRE_AUTHENT).expect("Cannot fail")
     }
 
     pub fn hw_authent() -> Self {
-        Self::new(BitSring::from_bytes(flags::HW_AUTHENT).unwrap())
+        Self::try_from(flags::HW_AUTHENT).expect("Cannot fail")
     }
 
     pub fn transited_policy_checked() -> Self {
-        Self::new(BitSring::from_bytes(flags::TRANSITED_POLICY_CHECKED).unwrap())
+        Self::try_from(flags::TRANSITED_POLICY_CHECKED).expect("Cannot fail")
     }
 
     pub fn ok_as_delegate() -> Self {
-        Self::new(BitSring::from_bytes(flags::OK_AS_DELEGATE).unwrap())
+        Self::try_from(flags::OK_AS_DELEGATE).expect("Cannot fail")
     }
 }
 
