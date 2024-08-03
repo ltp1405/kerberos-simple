@@ -9,7 +9,7 @@ use der::{
     Decode, DecodeValue, Encode, EncodeValue, Sequence,
 };
 
-pub use constants::*;
+pub(super) use constants::*;
 use predefined_values::{AddressType, NameType};
 
 mod constants;

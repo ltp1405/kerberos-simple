@@ -1,4 +1,4 @@
-use der::Sequence;
+use der::{Encode, Sequence};
 
 use crate::basic::{
     AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags,
@@ -17,7 +17,10 @@ pub struct Ticket<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
 
 impl<const N: usize> Ticket<N> {
     pub fn new(realm: Realm, sname: PrincipalName<N>, enc_part: EncryptedData) -> Self {
-        let tkt_vno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
+        let tkt_vno = {
+            let bytes = 5.to_der().expect("Cannot encode Int32");
+            Int32::new(&bytes).expect("Cannot initialize Int32 from &[u8]")
+        };
         Self {
             tkt_vno,
             realm,
@@ -89,9 +92,11 @@ impl<const H: usize, const N: usize> EncTicketPart<H, N> {
         key: EncryptionKey,
         crealm: Realm,
         cname: PrincipalName<N>,
+        authtime: KerberosTime,
+        endtime: KerberosTime,
         transited: TransitedEncoding,
     ) -> TicketBuilder<H, N> {
-        TicketBuilder::new(flags, key, crealm, cname, transited)
+        TicketBuilder::new(flags, key, crealm, cname, authtime, endtime, transited)
     }
 
     pub fn flags(&self) -> &TicketFlags {
@@ -148,9 +153,9 @@ pub struct TicketBuilder<
     crealm: Realm,
     cname: PrincipalName<N>,
     transited: TransitedEncoding,
-    authtime: Option<KerberosTime>,
+    authtime: KerberosTime,
     starttime: Option<KerberosTime>,
-    endtime: Option<KerberosTime>,
+    endtime: KerberosTime,
     renew_till: Option<KerberosTime>,
     caddr: Option<HostAddresses<H>>,
     authorization_data: Option<AuthorizationData<N>>,
@@ -162,6 +167,8 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
         key: EncryptionKey,
         crealm: Realm,
         cname: PrincipalName<N>,
+        authtime: KerberosTime,
+        endtime: KerberosTime,
         transited: TransitedEncoding,
     ) -> Self {
         Self {
@@ -170,35 +177,29 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
             crealm,
             cname,
             transited,
-            authtime: None,
+            authtime,
             starttime: None,
-            endtime: None,
+            endtime,
             renew_till: None,
             caddr: None,
             authorization_data: None,
         }
     }
 
-    pub fn build(self) -> Result<EncTicketPart<H, N>, &'static str> {
-        if self.authtime.is_none() {
-            return Err("authtime is required");
-        }
-        if self.endtime.is_none() {
-            return Err("endtime is required");
-        }
-        Ok(EncTicketPart {
+    pub fn build(self) -> EncTicketPart<H, N> {
+        EncTicketPart {
             flags: self.flags,
             key: self.key,
             crealm: self.crealm,
             cname: self.cname,
             transited: self.transited,
-            authtime: self.authtime.unwrap(),
+            authtime: self.authtime,
             starttime: self.starttime,
-            endtime: self.endtime.unwrap(),
+            endtime: self.endtime,
             renew_till: self.renew_till,
             caddr: self.caddr,
             authorization_data: self.authorization_data,
-        })
+        }
     }
 
     pub fn flags(mut self, flags: TicketFlags) -> Self {
@@ -227,7 +228,7 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
     }
 
     pub fn authtime(mut self, authtime: KerberosTime) -> Self {
-        self.authtime = Some(authtime);
+        self.authtime = authtime;
         self
     }
 
@@ -237,7 +238,7 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
     }
 
     pub fn endtime(mut self, endtime: KerberosTime) -> Self {
-        self.endtime = Some(endtime);
+        self.endtime = endtime;
         self
     }
 
