@@ -1,11 +1,13 @@
 use der::Sequence;
 
 use crate::basic::{
-    AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags, KerberosString, KerberosTime, OctetString, PrincipalName, Realm, DEFAULT_HOSTS, DEFAULT_PRINCIPAL_COMPONENTS_LEN
+    AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags,
+    KerberosString, KerberosTime, OctetString, PrincipalName, Realm, DEFAULT_HOSTS,
+    DEFAULT_PRINCIPAL_COMPONENTS_LEN,
 };
 
 // RFC 4120 Section 5.3
-#[derive(Sequence)]
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct Ticket<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
     tkt_vno: Int32,
     realm: Realm,
@@ -43,7 +45,7 @@ impl<const N: usize> Ticket<N> {
 
 pub type TicketFlags = KerberosFlags;
 
-#[derive(Sequence)]
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct TransitedEncoding {
     tr_type: Int32, // must be registered
     contents: OctetString,
@@ -63,7 +65,7 @@ impl TransitedEncoding {
     }
 }
 
-#[derive(Sequence)]
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct EncTicketPart<
     const H: usize = DEFAULT_HOSTS,
     const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN,
