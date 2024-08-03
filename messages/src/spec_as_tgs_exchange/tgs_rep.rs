@@ -1,8 +1,8 @@
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, DEFAULT_LEN},
-    kdc_rep::KdcRep,
+    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
+    spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
 
@@ -12,7 +12,7 @@ pub struct TgsRep {
 
 impl TgsRep {
     pub fn new(
-        padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
+        padata: Option<SequenceOf<PaData>>,
         crealm: Realm,
         cname: PrincipalName,
         ticket: Ticket,

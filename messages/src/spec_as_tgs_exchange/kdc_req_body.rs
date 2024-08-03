@@ -1,9 +1,9 @@
 use crate::{
     basic::{
         EncryptedData, HostAddresses, Int32, KerberosTime, PrincipalName, Realm, SequenceOf,
-        UInt32, DEFAULT_LEN,
+        UInt32,
     },
-    kdc_options::KdcOptions,
+    spec_as_tgs_exchange::kdc_options::KdcOptions,
     tickets::Ticket,
 };
 use der::Sequence;
@@ -30,16 +30,16 @@ pub struct KdcReqBody {
 
     pub nonce: UInt32,
 
-    pub etype: SequenceOf<Int32, DEFAULT_LEN>,
+    pub etype: SequenceOf<Int32>,
 
     #[asn1(optional = "true")]
-    pub addresses: Option<HostAddresses<DEFAULT_LEN>>,
+    pub addresses: Option<HostAddresses>,
 
     #[asn1(optional = "true")]
     pub enc_authorization_data: Option<EncryptedData>,
 
     #[asn1(optional = "true")]
-    pub additional_tickets: Option<SequenceOf<Ticket, DEFAULT_LEN>>,
+    pub additional_tickets: Option<SequenceOf<Ticket>>,
 }
 
 impl KdcReqBody {
@@ -52,10 +52,10 @@ impl KdcReqBody {
         till: KerberosTime,
         rtime: Option<KerberosTime>,
         nonce: UInt32,
-        etype: SequenceOf<Int32, DEFAULT_LEN>,
-        addresses: Option<HostAddresses<DEFAULT_LEN>>,
+        etype: SequenceOf<Int32>,
+        addresses: Option<HostAddresses>,
         enc_authorization_data: Option<EncryptedData>,
-        additional_tickets: Option<SequenceOf<Ticket, DEFAULT_LEN>>,
+        additional_tickets: Option<SequenceOf<Ticket>>,
     ) -> Self {
         Self {
             kdc_options,

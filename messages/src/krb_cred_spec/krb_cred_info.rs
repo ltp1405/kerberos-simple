@@ -1,6 +1,6 @@
 use der::Sequence;
 
-use crate::basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, DEFAULT_LEN};
+use crate::basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm};
 use crate::tickets::TicketFlags;
 
 #[derive(Sequence)]
@@ -35,7 +35,7 @@ pub struct KrbCredInfo {
     sname: Option<PrincipalName>,
 
     #[asn1(optional = "true")]
-    caddr: Option<HostAddresses<DEFAULT_LEN>>,
+    caddr: Option<HostAddresses>,
 }
 
 impl KrbCredInfo {
@@ -50,7 +50,7 @@ impl KrbCredInfo {
         renew_till: Option<KerberosTime>,
         srealm: Option<Realm>,
         sname: Option<PrincipalName>,
-        caddr: Option<HostAddresses<DEFAULT_LEN>>,
+        caddr: Option<HostAddresses>,
     ) -> Self {
         Self {
             key,
@@ -107,7 +107,7 @@ impl KrbCredInfo {
         self.sname.as_ref()
     }
 
-    pub fn caddr(&self) -> Option<&HostAddresses<DEFAULT_LEN>> {
+    pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
     }
 }

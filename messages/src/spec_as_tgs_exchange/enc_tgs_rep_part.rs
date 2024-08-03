@@ -1,12 +1,12 @@
 use der::{FixedTag, Tag, TagNumber};
 
-use crate::enc_kdc_rep_part::EncKdcRepPart;
+use crate::spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
 
-pub struct EncAsRepPart {
+pub struct EncTgsRepPart {
     inner: EncKdcRepPart,
 }
 
-impl EncAsRepPart {
+impl EncTgsRepPart {
     pub fn new(inner: EncKdcRepPart) -> Self {
         Self { inner }
     }
@@ -16,9 +16,9 @@ impl EncAsRepPart {
     }
 }
 
-impl FixedTag for EncAsRepPart {
+impl FixedTag for EncTgsRepPart {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(25),
+        number: TagNumber::new(26),
     };
 }

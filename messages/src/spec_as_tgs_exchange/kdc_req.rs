@@ -1,8 +1,8 @@
 use der::Sequence;
 
 use crate::{
-    basic::{Int32, PaData, SequenceOf, DEFAULT_LEN},
-    kdc_req_body::KdcReqBody,
+    basic::{Int32, PaData, SequenceOf},
+    spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
 
 #[derive(Sequence)]
@@ -14,7 +14,7 @@ pub struct KdcReq {
     msg_type: Int32,
 
     #[asn1(context_specific = "3", optional = "true")]
-    padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
+    padata: Option<SequenceOf<PaData>>,
 
     #[asn1(context_specific = "4")]
     req_body: KdcReqBody,
@@ -23,7 +23,7 @@ pub struct KdcReq {
 impl KdcReq {
     pub fn new(
         msg_type: Int32,
-        padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
+        padata: Option<SequenceOf<PaData>>,
         req_body: KdcReqBody,
     ) -> Self {
         let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
@@ -43,7 +43,7 @@ impl KdcReq {
         &self.msg_type
     }
 
-    pub fn padata(&self) -> Option<&SequenceOf<PaData, DEFAULT_LEN>> {
+    pub fn padata(&self) -> Option<&SequenceOf<PaData>> {
         self.padata.as_ref()
     }
 

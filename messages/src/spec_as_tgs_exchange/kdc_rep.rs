@@ -1,7 +1,7 @@
 use der::Sequence;
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, DEFAULT_LEN},
+    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
     tickets::Ticket,
 };
 
@@ -14,7 +14,7 @@ pub struct KdcRep {
     msg_type: Int32,
 
     #[asn1(context_specific = "2", optional = "true")]
-    padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
+    padata: Option<SequenceOf<PaData>>,
 
     #[asn1(context_specific = "3")]
     crealm: Realm,
@@ -32,7 +32,7 @@ pub struct KdcRep {
 impl KdcRep {
     pub fn new(
         msg_type: Int32,
-        padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
+        padata: Option<SequenceOf<PaData>>,
         crealm: Realm,
         cname: PrincipalName,
         ticket: Ticket,
@@ -58,7 +58,7 @@ impl KdcRep {
         &self.msg_type
     }
 
-    pub fn padata(&self) -> Option<&SequenceOf<PaData, DEFAULT_LEN>> {
+    pub fn padata(&self) -> Option<&SequenceOf<PaData>> {
         self.padata.as_ref()
     }
 

@@ -1,12 +1,12 @@
 use der::Sequence;
 
-use crate::basic::{HostAddress, KerberosTime, Microseconds, SequenceOf, UInt32, DEFAULT_LEN};
-use crate::krb_cred_info::KrbCredInfo;
+use crate::basic::{HostAddress, KerberosTime, Microseconds, SequenceOf, UInt32};
+use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
 
 #[derive(Sequence)]
 pub struct EncKrbCredPart {
     #[asn1(context_specific = "0")]
-    ticket_info: SequenceOf<KrbCredInfo, DEFAULT_LEN>,
+    ticket_info: SequenceOf<KrbCredInfo>,
 
     #[asn1(context_specific = "1", optional = "true")]
     nonce: Option<UInt32>,
@@ -26,7 +26,7 @@ pub struct EncKrbCredPart {
 
 impl EncKrbCredPart {
     pub fn new(
-        ticket_info: SequenceOf<KrbCredInfo, DEFAULT_LEN>,
+        ticket_info: SequenceOf<KrbCredInfo>,
         nonce: Option<UInt32>,
         timestamp: Option<KerberosTime>,
         usec: Option<Microseconds>,
@@ -43,7 +43,7 @@ impl EncKrbCredPart {
         }
     }
 
-    pub fn ticket_info(&self) -> &SequenceOf<KrbCredInfo, DEFAULT_LEN> {
+    pub fn ticket_info(&self) -> &SequenceOf<KrbCredInfo> {
         &self.ticket_info
     }
 

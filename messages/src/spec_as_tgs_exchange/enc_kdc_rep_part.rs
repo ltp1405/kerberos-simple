@@ -2,9 +2,9 @@ use der::Sequence;
 
 use crate::{
     basic::{
-        EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32, DEFAULT_LEN,
+        EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32,
     },
-    last_req::LastReq,
+    spec_as_tgs_exchange::last_req::LastReq,
     tickets::TicketFlags,
 };
 
@@ -36,7 +36,7 @@ pub struct EncKdcRepPart {
     sname: PrincipalName,
 
     #[asn1(optional = "true")]
-    caddr: Option<HostAddresses<DEFAULT_LEN>>,
+    caddr: Option<HostAddresses>,
 }
 
 impl EncKdcRepPart {
@@ -52,7 +52,7 @@ impl EncKdcRepPart {
         renew_till: Option<KerberosTime>,
         srealm: Realm,
         sname: PrincipalName,
-        caddr: Option<HostAddresses<DEFAULT_LEN>>,
+        caddr: Option<HostAddresses>,
     ) -> Self {
         Self {
             key,
@@ -114,7 +114,7 @@ impl EncKdcRepPart {
         &self.sname
     }
 
-    pub fn caddr(&self) -> Option<&HostAddresses<DEFAULT_LEN>> {
+    pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
     }
 }

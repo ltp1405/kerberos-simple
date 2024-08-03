@@ -1,6 +1,6 @@
 use der::Sequence;
 
-use crate::basic::{Int32, KerberosTime, SequenceOf, DEFAULT_LEN};
+use crate::basic::{Int32, KerberosTime, SequenceOf};
 
 #[derive(Sequence)]
 pub struct LastReqEntry {
@@ -11,4 +11,4 @@ pub struct LastReqEntry {
     pub lr_value: KerberosTime,
 }
 
-pub type LastReq = SequenceOf<LastReqEntry, DEFAULT_LEN>;
+pub type LastReq = SequenceOf<LastReqEntry>;

@@ -1,9 +1,9 @@
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{Int32, PaData, SequenceOf, DEFAULT_PRINCIPAL_COMPONENTS_LEN},
-    kdc_req::KdcReq,
-    kdc_req_body::KdcReqBody,
+    basic::{Int32, PaData, SequenceOf},
+    spec_as_tgs_exchange::kdc_req::KdcReq,
+    spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
 
 pub struct TgsReq {
@@ -12,7 +12,7 @@ pub struct TgsReq {
 
 impl TgsReq {
     pub fn new(
-        padata: Option<SequenceOf<PaData, DEFAULT_PRINCIPAL_COMPONENTS_LEN>>,
+        padata: Option<SequenceOf<PaData>>,
         req_body: KdcReqBody,
     ) -> Self {
         let msg_type = Int32::new(b"\x0C").expect("Cannot initialize Int32 from &[u8]");
