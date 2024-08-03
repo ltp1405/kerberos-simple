@@ -1,5 +1,7 @@
+// Section 5.2
 pub mod basic;
-pub mod krb_error;
+
+// Section 5.3
 pub mod tickets;
 
 // Section 5.4
@@ -10,3 +12,6 @@ pub mod krb_priv_spec;
 
 // Section 5.8
 pub mod krb_cred_spec;
+
+// Section 5.9
+pub mod krb_error_spec;
