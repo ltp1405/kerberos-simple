@@ -138,6 +138,17 @@ impl ADEntry {
     }
 }
 
+pub trait CipherText: Encode {
+    fn to_cipher_text(&self) -> Result<OctetString, &'static str> {
+        let bytes = self.to_der().map_err(|_| {
+            "Could not encode the struct to DER bytes. Please check if all fields are set correctly"
+        })?;
+        let cipher_text = OctetString::new(bytes)
+            .map_err(|_| "Could not create cipher text from the encoded DER bytes")?;
+        Ok(cipher_text)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ADRegisteredEntry<const N: usize = DEFAULT_LEN> {
     IfRelevant(AdIfRelevant<N>),
@@ -207,6 +218,8 @@ impl<const N: usize> ADRegisteredEntry<N> {
 // RFC4120 5.2.6.1
 pub type AdIfRelevant<const N: usize = DEFAULT_LEN> = AuthorizationData<N>;
 
+impl<const N: usize> CipherText for AdIfRelevant<N> {}
+
 // RFC4120 5.2.6.2
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct AdKdcIssued<const N: usize = DEFAULT_LEN> {
@@ -215,6 +228,8 @@ pub struct AdKdcIssued<const N: usize = DEFAULT_LEN> {
     i_sname: Option<PrincipalName<N>>,
     elements: AuthorizationData<N>,
 }
+
+impl<const N: usize> CipherText for AdKdcIssued<N> {}
 
 impl<const N: usize> AdKdcIssued<N> {
     pub fn new(
@@ -288,6 +303,8 @@ pub struct AdAndOr<const N: usize = DEFAULT_LEN> {
     condition_count: Int32,
     elements: AuthorizationData<N>,
 }
+
+impl<const N: usize> CipherText for AdAndOr<N> {}
 
 impl<const N: usize> AdAndOr<N> {
     pub fn new(condition_count: Int32, elements: AuthorizationData<N>) -> Self {
@@ -445,6 +462,8 @@ impl<const N: usize> PaDataRegisteredType<N> {
 // key and a key usage value of 1.
 pub type PaEncTimestamp = EncryptedData;
 
+impl CipherText for PaEncTimestamp {}
+
 // todo(phatalways_sleeping): implement TryFrom<EncryptedData> for PaEncTsEnc
 
 // RFC4120 5.2.7.2
@@ -453,6 +472,8 @@ pub struct PaEncTsEnc {
     pa_timestamp: KerberosTime,    // client's time
     pa_usec: Option<Microseconds>, // client's microseconds
 }
+
+impl CipherText for PaEncTsEnc {}
 
 impl PaEncTsEnc {
     pub fn new<T: Into<KerberosTime>, U: Into<Option<Microseconds>>>(
@@ -512,6 +533,8 @@ impl ETypeInfoEntry {
 // RFC4120 5.2.7.4
 pub type ETypeInfo<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> = SequenceOf<ETypeInfoEntry, N>;
 
+impl<const N: usize> CipherText for ETypeInfo<N> {}
+
 // RFC4120 5.2.7.5
 // If ETYPE-INFO2 is sent in an AS-REP, there shall be exactly one
 // ETYPE-INFO2-ENTRY, and its etype shall match that of the enc-part in
@@ -551,6 +574,8 @@ impl ETypeInfo2Entry {
 
 // RFC4120 5.2.7.5
 pub type ETypeInfo2<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> = SequenceOf<ETypeInfo2Entry, N>;
+
+impl<const N: usize> CipherText for ETypeInfo2<N> {}
 
 // RFC4120 5.2.8
 #[derive(PartialEq, Eq, Clone, Debug)]
