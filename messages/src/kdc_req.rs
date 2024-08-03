@@ -1,7 +1,7 @@
 use der::Sequence;
 
 use crate::{
-    basic::{Int32, PaData, SequenceOf, DEFAULT_PRINCIPAL_COMPONENTS_LEN},
+    basic::{Int32, PaData, SequenceOf, DEFAULT_LEN},
     kdc_req_body::KdcReqBody,
 };
 
@@ -14,7 +14,7 @@ pub struct KdcReq {
     msg_type: Int32,
 
     #[asn1(context_specific = "3", optional = "true")]
-    padata: Option<SequenceOf<PaData, DEFAULT_PRINCIPAL_COMPONENTS_LEN>>,
+    padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
 
     #[asn1(context_specific = "4")]
     req_body: KdcReqBody,
@@ -23,7 +23,7 @@ pub struct KdcReq {
 impl KdcReq {
     pub fn new(
         msg_type: Int32,
-        padata: Option<SequenceOf<PaData, DEFAULT_PRINCIPAL_COMPONENTS_LEN>>,
+        padata: Option<SequenceOf<PaData, DEFAULT_LEN>>,
         req_body: KdcReqBody,
     ) -> Self {
         let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
@@ -43,7 +43,7 @@ impl KdcReq {
         &self.msg_type
     }
 
-    pub fn padata(&self) -> Option<&SequenceOf<PaData, DEFAULT_PRINCIPAL_COMPONENTS_LEN>> {
+    pub fn padata(&self) -> Option<&SequenceOf<PaData, DEFAULT_LEN>> {
         self.padata.as_ref()
     }
 
