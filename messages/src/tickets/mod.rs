@@ -1,17 +1,56 @@
-use der::{Encode, Sequence};
+use der::{Decode, Encode, EncodeValue, FixedTag, Sequence, TagNumber};
 
 use crate::basic::{
-    AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags,
-    KerberosString, KerberosTime, OctetString, PrincipalName, Realm,
+    application_tags, AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32,
+    KerberosFlags, KerberosString, KerberosTime, OctetString, PrincipalName, Realm,
 };
 
 // RFC 4120 Section 5.3
-#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Ticket {
     tkt_vno: Int32,
     realm: Realm,
     sname: PrincipalName,
     enc_part: EncryptedData,
+}
+
+impl EncodeValue for Ticket {
+    fn value_len(&self) -> der::Result<der::Length> {
+        self.tkt_vno.value_len()?
+            + self.realm.value_len()?
+            + self.sname.value_len()?
+            + self.enc_part.value_len()?
+    }
+
+    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.tkt_vno.encode(encoder)?;
+        self.realm.encode(encoder)?;
+        self.sname.encode(encoder)?;
+        self.enc_part.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<'a> Decode<'a> for Ticket {
+    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
+        let tkt_vno = Int32::decode(decoder)?;
+        let realm = Realm::decode(decoder)?;
+        let sname = PrincipalName::decode(decoder)?;
+        let enc_part = EncryptedData::decode(decoder)?;
+        Ok(Self {
+            tkt_vno,
+            realm,
+            sname,
+            enc_part,
+        })
+    }
+}
+
+impl FixedTag for Ticket {
+    const TAG: der::Tag = der::Tag::Application {
+        constructed: true,
+        number: TagNumber::new(application_tags::TICKET),
+    };
 }
 
 impl Ticket {
@@ -49,7 +88,9 @@ pub type TicketFlags = KerberosFlags;
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct TransitedEncoding {
+    #[asn1(context_specific = "0")]
     tr_type: Int32, // must be registered
+    #[asn1(context_specific = "1")]
     contents: OctetString,
 }
 
@@ -67,7 +108,7 @@ impl TransitedEncoding {
     }
 }
 
-#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EncTicketPart {
     flags: TicketFlags,
     key: EncryptionKey,
@@ -80,6 +121,73 @@ pub struct EncTicketPart {
     renew_till: Option<KerberosTime>,
     caddr: Option<HostAddresses>,
     authorization_data: Option<AuthorizationData>,
+}
+
+impl FixedTag for EncTicketPart {
+    const TAG: der::Tag = der::Tag::ContextSpecific {
+        constructed: true,
+        number: TagNumber::new(application_tags::ENC_TICKET_PART),
+    };
+}
+
+impl EncodeValue for EncTicketPart {
+    fn value_len(&self) -> der::Result<der::Length> {
+        self.flags.encoded_len()?
+            + self.key.value_len()?
+            + self.crealm.value_len()?
+            + self.cname.value_len()?
+            + self.transited.value_len()?
+            + self.authtime.value_len()?
+            + self.starttime.encoded_len()?
+            + self.endtime.value_len()?
+            + self.renew_till.encoded_len()?
+            + self.caddr.encoded_len()?
+            + self.authorization_data.encoded_len()?
+    }
+
+    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.flags.encode(encoder)?;
+        self.key.encode(encoder)?;
+        self.crealm.encode(encoder)?;
+        self.cname.encode(encoder)?;
+        self.transited.encode(encoder)?;
+        self.authtime.encode(encoder)?;
+        self.starttime.encode(encoder)?;
+        self.endtime.encode(encoder)?;
+        self.renew_till.encode(encoder)?;
+        self.caddr.encode(encoder)?;
+        self.authorization_data.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<'a> Decode<'a> for EncTicketPart {
+    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
+        let flags = TicketFlags::decode(decoder)?;
+        let key = EncryptionKey::decode(decoder)?;
+        let crealm = Realm::decode(decoder)?;
+        let cname = PrincipalName::decode(decoder)?;
+        let transited = TransitedEncoding::decode(decoder)?;
+        let authtime = KerberosTime::decode(decoder)?;
+        let starttime = Option::<KerberosTime>::decode(decoder)?;
+        let endtime = KerberosTime::decode(decoder)?;
+        let renew_till = Option::<KerberosTime>::decode(decoder)?;
+        let caddr = Option::<HostAddresses>::decode(decoder)?;
+        let authorization_data = Option::<AuthorizationData>::decode(decoder)?;
+        Ok(Self {
+            flags,
+            key,
+            crealm,
+            cname,
+            transited,
+            authtime,
+            starttime,
+            endtime,
+            renew_till,
+            caddr,
+            authorization_data,
+        })
+    }
 }
 
 impl EncTicketPart {

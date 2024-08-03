@@ -1,10 +1,10 @@
-use der::{Encode, Sequence};
+use der::{Decode, Encode, EncodeValue, FixedTag, TagNumber};
 
 use crate::basic::{
-    Int32, KerberosString, KerberosTime, Microseconds, OctetString, PrincipalName, Realm,
+    application_tags, Int32, KerberosString, KerberosTime, Microseconds, OctetString,
+    PrincipalName, Realm,
 };
 
-#[derive(Sequence)]
 pub struct KrbErrorMsg {
     pvno: Int32,
     msg_type: Int32,
@@ -19,6 +19,81 @@ pub struct KrbErrorMsg {
     sname: PrincipalName, // service name
     e_text: Option<KerberosString>,
     e_data: Option<OctetString>,
+}
+
+impl EncodeValue for KrbErrorMsg {
+    fn value_len(&self) -> der::Result<der::Length> {
+        self.pvno.value_len()?
+            + self.msg_type.value_len()?
+            + self.ctime.encoded_len()?
+            + self.cusec.encoded_len()?
+            + self.stime.value_len()?
+            + self.susec.value_len()?
+            + self.error_code.value_len()?
+            + self.crealm.encoded_len()?
+            + self.cname.encoded_len()?
+            + self.realm.value_len()?
+            + self.sname.value_len()?
+            + self.e_text.encoded_len()?
+            + self.e_data.encoded_len()?
+    }
+
+    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.pvno.encode(encoder)?;
+        self.msg_type.encode(encoder)?;
+        self.ctime.encode(encoder)?;
+        self.cusec.encode(encoder)?;
+        self.stime.encode(encoder)?;
+        self.susec.encode(encoder)?;
+        self.error_code.encode(encoder)?;
+        self.crealm.encode(encoder)?;
+        self.cname.encode(encoder)?;
+        self.realm.encode(encoder)?;
+        self.sname.encode(encoder)?;
+        self.e_text.encode(encoder)?;
+        self.e_data.encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl<'a> Decode<'a> for KrbErrorMsg {
+    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
+        let pvno = Int32::decode(decoder)?;
+        let msg_type = Int32::decode(decoder)?;
+        let ctime = Option::<KerberosTime>::decode(decoder)?;
+        let cusec = Option::<Microseconds>::decode(decoder)?;
+        let stime = KerberosTime::decode(decoder)?;
+        let susec = Microseconds::decode(decoder)?;
+        let error_code = Int32::decode(decoder)?;
+        let crealm = Option::<Realm>::decode(decoder)?;
+        let cname = Option::<PrincipalName>::decode(decoder)?;
+        let realm = Realm::decode(decoder)?;
+        let sname = PrincipalName::decode(decoder)?;
+        let e_text = Option::<KerberosString>::decode(decoder)?;
+        let e_data = Option::<OctetString>::decode(decoder)?;
+        Ok(Self {
+            pvno,
+            msg_type,
+            ctime,
+            cusec,
+            stime,
+            susec,
+            error_code,
+            crealm,
+            cname,
+            realm,
+            sname,
+            e_text,
+            e_data,
+        })
+    }
+}
+
+impl FixedTag for KrbErrorMsg {
+    const TAG: der::Tag = der::Tag::Application {
+        constructed: true,
+        number: TagNumber::new(application_tags::KRB_ERROR),
+    };
 }
 
 impl KrbErrorMsg {

@@ -1,4 +1,6 @@
-use der::{Decode, Encode};
+use std::ops::Add;
+
+use der::{Decode, DecodeValue, Encode, EncodeValue};
 
 use super::{atypes, ntypes, Int32};
 
@@ -102,7 +104,19 @@ impl Encode for AddressType {
     }
 
     fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.as_der_int32().encode(encoder)
+        self.as_der_int32().encode(encoder)?;
+        Ok(())
+    }
+}
+
+impl EncodeValue for AddressType {
+    fn value_len(&self) -> der::Result<der::Length> {
+        self.as_der_int32().value_len()
+    }
+
+    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
+        self.as_der_int32().encode_value(encoder)?;
+        Ok(())
     }
 }
 
@@ -294,7 +308,7 @@ mod test {
             assert_eq!(expected, actual);
         }
     }
-    
+
     #[test]
     fn encode_decode_for_address_type_works_fine() {
         let testcases = vec![

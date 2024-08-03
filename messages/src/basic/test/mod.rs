@@ -230,7 +230,6 @@ fn encode_decode_ad_and_or_works_fine() {
 }
 
 #[test]
-#[ignore = "This test is ignored because the encoding and decoding of this type is facing some issues in the library itself"]
 fn encode_decode_ad_kdc_issued_works_fine() {
     let entries = mock_ad_kdc_issue_data();
 
@@ -269,7 +268,6 @@ fn encode_decode_ad_mandatory_for_kdc_works_fine() {
 }
 
 #[test]
-#[ignore = "This test is ignored as AdKdcIssued is facing some issues in encoding and decoding in the library itself"]
 fn upgrade_registered_ad_entry_should_return_ok_when_given_predefined_code() {
     let testcases = generate_random_ad_entry(45, 47, |_, rng| -> i32 {
         let codes = [1, 4, 5, 8];

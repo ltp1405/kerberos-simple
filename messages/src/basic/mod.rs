@@ -1,12 +1,9 @@
-use std::{
-    marker::PhantomData,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use der::{
     self,
     asn1::{GeneralizedTime, Ia5String, OctetStringRef},
-    Decode, DecodeValue, Encode, EncodeValue, Sequence,
+    Decode, Encode, FixedTag, Sequence,
 };
 
 pub(super) use constants::*;
@@ -103,7 +100,9 @@ pub type AuthorizationData = SequenceOf<ADEntry>;
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct ADEntry {
+    #[asn1(context_specific = "0")]
     ad_type: Int32, // All negative values are reserved for local use. Non-negative values are reserved for registered use.
+    #[asn1(context_specific = "1")]
     ad_data: OctetString,
 }
 
@@ -221,11 +220,15 @@ pub type AdIfRelevant = AuthorizationData;
 impl CipherText for AdIfRelevant {}
 
 // RFC4120 5.2.6.2
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct AdKdcIssued {
+    #[asn1(context_specific = "0")]
     ad_checksum: Checksum,
+    #[asn1(context_specific = "1", optional = "true")]
     i_realm: Option<Realm>,
+    #[asn1(context_specific = "2", optional = "true")]
     i_sname: Option<PrincipalName>,
+    #[asn1(context_specific = "3")]
     elements: AuthorizationData,
 }
 
@@ -263,44 +266,12 @@ impl AdKdcIssued {
     }
 }
 
-impl<'a> DecodeValue<'a> for AdKdcIssued {
-    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
-        let ad_checksum = reader.decode()?;
-        let i_realm = Option::<Realm>::decode(reader)?;
-        let i_sname = Option::<PrincipalName>::decode(reader)?;
-        let elements = reader.decode()?;
-        Ok(Self {
-            ad_checksum,
-            i_realm,
-            i_sname,
-            elements,
-        })
-    }
-}
-
-impl EncodeValue for AdKdcIssued {
-    fn value_len(&self) -> der::Result<der::Length> {
-        self.ad_checksum.encoded_len()?
-            + self.i_realm.encoded_len()?
-            + self.i_sname.encoded_len()?
-            + self.elements.encoded_len()?
-    }
-
-    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.ad_checksum.encode(encoder)?;
-        self.i_realm.encode(encoder)?;
-        self.i_sname.encode(encoder)?;
-        self.elements.encode(encoder)?;
-        Ok(())
-    }
-}
-
-impl<'a> Sequence<'a> for AdKdcIssued {}
-
 // RFC4120 5.2.6.3
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct AdAndOr {
+    #[asn1(context_specific = "0")]
     condition_count: Int32,
+    #[asn1(context_specific = "1")]
     elements: AuthorizationData,
 }
 
@@ -323,48 +294,23 @@ impl AdAndOr {
     }
 }
 
-impl<'a> DecodeValue<'a> for AdAndOr {
-    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
-        let condition_count = reader.decode()?;
-        let elements = AuthorizationData::decode(reader)?;
-        Ok(Self {
-            condition_count,
-            elements,
-        })
-    }
-}
-
-impl EncodeValue for AdAndOr {
-    fn value_len(&self) -> der::Result<der::Length> {
-        self.condition_count.encoded_len()? + self.elements.encoded_len()?
-    }
-
-    fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.condition_count.encode(encoder)?;
-        self.elements.encode(encoder)?;
-        Ok(())
-    }
-}
-
-impl<'a> Sequence<'a> for AdAndOr {}
-
 // RFC4120 5.2.6.4
 pub type AdMandatoryForKdc = AuthorizationData;
 
 // RFC4120 5.2.7
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct PaData {
-    phantom: PhantomData<Int32>, // NOTE: first tag is [1], not [0]
     // Negative values of padata-type are reserved for unregistered use;
     // non-negative values are used for a registered interpretation of the element type.
+    #[asn1(context_specific = "1")]
     padata_type: Int32,
+    #[asn1(context_specific = "2")]
     padata_value: OctetString,
 }
 
 impl PaData {
     pub fn new<T: Into<Int32>, V: Into<OctetString>>(padata_type: T, padata_value: V) -> Self {
         Self {
-            phantom: PhantomData,
             padata_type: padata_type.into(),
             padata_value: padata_value.into(),
         }
@@ -390,7 +336,7 @@ pub enum PaDataRegisteredType {
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
     // decrypting the encrypted part of an AS-REP message.
-    PwSalt(OctetString),       // salt (not ASN.1 encoded)
+    PwSalt(OctetString),    // salt (not ASN.1 encoded)
     ETypeInfo(ETypeInfo),   // DER encoding of ETYPE-INFO
     ETypeInfo2(ETypeInfo2), // DER encoding of ETYPE-INFO2
 }
@@ -469,7 +415,9 @@ impl CipherText for PaEncTimestamp {}
 // RFC4120 5.2.7.2
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct PaEncTsEnc {
-    pa_timestamp: KerberosTime,    // client's time
+    #[asn1(context_specific = "0")]
+    pa_timestamp: KerberosTime, // client's time
+    #[asn1(context_specific = "1", optional = "true")]
     pa_usec: Option<Microseconds>, // client's microseconds
 }
 
@@ -509,7 +457,9 @@ impl PaEncTsEnc {
 // RFC4120 5.2.7.4
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct ETypeInfoEntry {
+    #[asn1(context_specific = "0")]
     etype: Int32,
+    #[asn1(context_specific = "1", optional = "true")]
     salt: Option<OctetString>,
 }
 
@@ -541,8 +491,11 @@ impl CipherText for ETypeInfo {}
 // the AS-REP.
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct ETypeInfo2Entry {
+    #[asn1(context_specific = "0")]
     etype: Int32,
+    #[asn1(context_specific = "1", optional = "true")]
     salt: Option<KerberosString>,
+    #[asn1(context_specific = "2", optional = "true")]
     s2kparams: Option<OctetString>,
 }
 
@@ -610,6 +563,10 @@ impl KerberosFlags {
         });
         options
     }
+}
+
+impl FixedTag for KerberosFlags {
+    const TAG: der::Tag = der::Tag::BitString;
 }
 
 impl Encode for KerberosFlags {
@@ -715,6 +672,31 @@ impl KerberosFlagsBuilder {
         self.inner[1] |= flags::OK_AS_DELEGATE;
         self
     }
+
+    pub fn set_disable_transited_check(mut self) -> Self {
+        self.inner[3] |= flags::DISABLE_TRANSITED_CHECK;
+        self
+    }
+
+    pub fn set_renewable_ok(mut self) -> Self {
+        self.inner[3] |= flags::RENEWABLE_OK;
+        self
+    }
+
+    pub fn set_enc_tkt_in_skey(mut self) -> Self {
+        self.inner[3] |= flags::ENC_TKT_IN_SKEY;
+        self
+    }
+
+    pub fn set_renew(mut self) -> Self {
+        self.inner[3] |= flags::RENEW;
+        self
+    }
+
+    pub fn set_validate(mut self) -> Self {
+        self.inner[3] |= flags::VALIDATE;
+        self
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -733,6 +715,11 @@ pub enum KerberosFlagsOption {
     HWAuthenticated,
     TransitedPolicyChecked,
     OkAsDelegate,
+    DisableTransitedCheck,
+    RenewableOk,
+    EncTktInSkey,
+    Renew,
+    Validate,
 }
 
 impl KerberosFlagsOption {
@@ -752,6 +739,11 @@ impl KerberosFlagsOption {
             Self::HWAuthenticated => 11,
             Self::TransitedPolicyChecked => 12,
             Self::OkAsDelegate => 13,
+            Self::DisableTransitedCheck => 26,
+            Self::RenewableOk => 27,
+            Self::EncTktInSkey => 28,
+            Self::Renew => 30,
+            Self::Validate => 31,
         }
     }
 
@@ -771,6 +763,11 @@ impl KerberosFlagsOption {
             11 => Some(Self::HWAuthenticated),
             12 => Some(Self::TransitedPolicyChecked),
             13 => Some(Self::OkAsDelegate),
+            26 => Some(Self::DisableTransitedCheck),
+            27 => Some(Self::RenewableOk),
+            28 => Some(Self::EncTktInSkey),
+            30 => Some(Self::Renew),
+            31 => Some(Self::Validate),
             _ => None,
         }
     }
@@ -779,8 +776,11 @@ impl KerberosFlagsOption {
 // RFC4120 5.2.9
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct EncryptedData {
+    #[asn1(context_specific = "0")]
     etype: Int32,
+    #[asn1(context_specific = "1", optional = "true")]
     kvno: Option<UInt32>,
+    #[asn1(context_specific = "2")]
     cipher: OctetString,
 }
 
@@ -813,7 +813,9 @@ impl EncryptedData {
 // RFC4120 5.2.9
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct EncryptionKey {
+    #[asn1(context_specific = "0")]
     keytype: Int32,
+    #[asn1(context_specific = "1")]
     keyvalue: OctetString,
 }
 
@@ -837,7 +839,9 @@ impl EncryptionKey {
 // RFC4120 5.2.9
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct Checksum {
+    #[asn1(context_specific = "0")]
     cksumtype: Int32,
+    #[asn1(context_specific = "1")]
     checksum: OctetString,
 }
 
