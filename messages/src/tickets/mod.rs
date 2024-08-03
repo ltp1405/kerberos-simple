@@ -2,21 +2,20 @@ use der::{Encode, Sequence};
 
 use crate::basic::{
     AuthorizationData, EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags,
-    KerberosString, KerberosTime, OctetString, PrincipalName, Realm, DEFAULT_HOSTS,
-    DEFAULT_PRINCIPAL_COMPONENTS_LEN,
+    KerberosString, KerberosTime, OctetString, PrincipalName, Realm,
 };
 
 // RFC 4120 Section 5.3
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct Ticket<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
+pub struct Ticket {
     tkt_vno: Int32,
     realm: Realm,
-    sname: PrincipalName<N>,
+    sname: PrincipalName,
     enc_part: EncryptedData,
 }
 
-impl<const N: usize> Ticket<N> {
-    pub fn new(realm: Realm, sname: PrincipalName<N>, enc_part: EncryptedData) -> Self {
+impl Ticket {
+    pub fn new(realm: Realm, sname: PrincipalName, enc_part: EncryptedData) -> Self {
         let tkt_vno = {
             let bytes = 5.to_der().expect("Cannot encode Int32");
             Int32::new(&bytes).expect("Cannot initialize Int32 from &[u8]")
@@ -37,7 +36,7 @@ impl<const N: usize> Ticket<N> {
         &self.realm
     }
 
-    pub fn sname(&self) -> &PrincipalName<N> {
+    pub fn sname(&self) -> &PrincipalName {
         &self.sname
     }
 
@@ -69,33 +68,30 @@ impl TransitedEncoding {
 }
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct EncTicketPart<
-    const H: usize = DEFAULT_HOSTS,
-    const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN,
-> {
+pub struct EncTicketPart {
     flags: TicketFlags,
     key: EncryptionKey,
     crealm: Realm,
-    cname: PrincipalName<N>,
+    cname: PrincipalName,
     transited: TransitedEncoding,
     authtime: KerberosTime,
     starttime: Option<KerberosTime>,
     endtime: KerberosTime,
     renew_till: Option<KerberosTime>,
-    caddr: Option<HostAddresses<H>>,
-    authorization_data: Option<AuthorizationData<N>>,
+    caddr: Option<HostAddresses>,
+    authorization_data: Option<AuthorizationData>,
 }
 
-impl<const H: usize, const N: usize> EncTicketPart<H, N> {
+impl EncTicketPart {
     pub fn builder(
         flags: TicketFlags,
         key: EncryptionKey,
         crealm: Realm,
-        cname: PrincipalName<N>,
+        cname: PrincipalName,
         authtime: KerberosTime,
         endtime: KerberosTime,
         transited: TransitedEncoding,
-    ) -> TicketBuilder<H, N> {
+    ) -> TicketBuilder {
         TicketBuilder::new(flags, key, crealm, cname, authtime, endtime, transited)
     }
 
@@ -111,7 +107,7 @@ impl<const H: usize, const N: usize> EncTicketPart<H, N> {
         self.crealm.as_ref()
     }
 
-    pub fn cname(&self) -> &PrincipalName<N> {
+    pub fn cname(&self) -> &PrincipalName {
         &self.cname
     }
 
@@ -135,38 +131,35 @@ impl<const H: usize, const N: usize> EncTicketPart<H, N> {
         self.renew_till
     }
 
-    pub fn caddr(&self) -> Option<&HostAddresses<H>> {
+    pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
     }
 
-    pub fn authorization_data(&self) -> Option<&AuthorizationData<N>> {
+    pub fn authorization_data(&self) -> Option<&AuthorizationData> {
         self.authorization_data.as_ref()
     }
 }
 
-pub struct TicketBuilder<
-    const H: usize = DEFAULT_HOSTS,
-    const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN,
-> {
+pub struct TicketBuilder {
     flags: TicketFlags,
     key: EncryptionKey,
     crealm: Realm,
-    cname: PrincipalName<N>,
+    cname: PrincipalName,
     transited: TransitedEncoding,
     authtime: KerberosTime,
     starttime: Option<KerberosTime>,
     endtime: KerberosTime,
     renew_till: Option<KerberosTime>,
-    caddr: Option<HostAddresses<H>>,
-    authorization_data: Option<AuthorizationData<N>>,
+    caddr: Option<HostAddresses>,
+    authorization_data: Option<AuthorizationData>,
 }
 
-impl<const H: usize, const N: usize> TicketBuilder<H, N> {
+impl TicketBuilder {
     fn new(
         flags: TicketFlags,
         key: EncryptionKey,
         crealm: Realm,
-        cname: PrincipalName<N>,
+        cname: PrincipalName,
         authtime: KerberosTime,
         endtime: KerberosTime,
         transited: TransitedEncoding,
@@ -186,7 +179,7 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
         }
     }
 
-    pub fn build(self) -> EncTicketPart<H, N> {
+    pub fn build(self) -> EncTicketPart {
         EncTicketPart {
             flags: self.flags,
             key: self.key,
@@ -217,7 +210,7 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
         self
     }
 
-    pub fn cname(mut self, cname: PrincipalName<N>) -> Self {
+    pub fn cname(mut self, cname: PrincipalName) -> Self {
         self.cname = cname;
         self
     }
@@ -247,12 +240,12 @@ impl<const H: usize, const N: usize> TicketBuilder<H, N> {
         self
     }
 
-    pub fn caddr(mut self, caddr: HostAddresses<H>) -> Self {
+    pub fn caddr(mut self, caddr: HostAddresses) -> Self {
         self.caddr = Some(caddr);
         self
     }
 
-    pub fn authorization_data(mut self, authorization_data: AuthorizationData<N>) -> Self {
+    pub fn authorization_data(mut self, authorization_data: AuthorizationData) -> Self {
         self.authorization_data = Some(authorization_data);
         self
     }

@@ -189,7 +189,7 @@ fn upgrade_local_ad_entry_should_return_err() {
         r
     });
     for entry in testcases {
-        assert!(ADRegisteredEntry::<1>::upgrade(&entry).is_err());
+        assert!(ADRegisteredEntry::upgrade(&entry).is_err());
     }
 }
 
@@ -199,7 +199,7 @@ fn encode_decode_if_relevant_works_fine() {
 
     let encoded = entry.to_der().unwrap();
 
-    let decoded = AdIfRelevant::<1>::from_der(&encoded);
+    let decoded = AdIfRelevant::from_der(&encoded);
 
     assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -217,7 +217,7 @@ fn encode_decode_ad_and_or_works_fine() {
 
     let encoded = entry.to_der().unwrap();
 
-    let decoded = AdAndOr::<1>::from_der(&encoded);
+    let decoded = AdAndOr::from_der(&encoded);
 
     assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -237,7 +237,7 @@ fn encode_decode_ad_kdc_issued_works_fine() {
     for entry in entries {
         let encoded = entry.to_der().unwrap();
 
-        let decoded = AdKdcIssued::<1>::from_der(&encoded);
+        let decoded = AdKdcIssued::from_der(&encoded);
 
         assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -256,7 +256,7 @@ fn encode_decode_ad_mandatory_for_kdc_works_fine() {
 
     let encoded = entry.to_der().unwrap();
 
-    let decoded = AdMandatoryForKdc::<1>::from_der(&encoded);
+    let decoded = AdMandatoryForKdc::from_der(&encoded);
 
     assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -277,7 +277,7 @@ fn upgrade_registered_ad_entry_should_return_ok_when_given_predefined_code() {
         codes[idx]
     });
     for entry in testcases {
-        let result = ADRegisteredEntry::<1>::upgrade(&entry);
+        let result = ADRegisteredEntry::upgrade(&entry);
         if let Err(err) = result.clone() {
             println!("Error: {:?}", err);
         }
@@ -382,7 +382,7 @@ fn encode_decode_for_etype_info_works_fine() {
 
         let encoded = encoded.unwrap();
 
-        let decoded = ETypeInfo::<1>::from_der(&encoded);
+        let decoded = ETypeInfo::from_der(&encoded);
 
         assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -407,7 +407,7 @@ fn encode_decode_for_etype_info2_works_fine() {
 
         let encoded = encoded.unwrap();
 
-        let decoded = ETypeInfo2::<1>::from_der(&encoded);
+        let decoded = ETypeInfo2::from_der(&encoded);
 
         assert!(decoded.is_ok(), "Failed to decode: {:?}", decoded);
 
@@ -429,7 +429,7 @@ fn upgrade_registered_pa_data_should_return_ok_when_given_predefined_code() {
         codes[idx]
     });
     for scope in testcases {
-        let result = PaDataRegisteredType::<1>::upgrade(&scope.entry);
+        let result = PaDataRegisteredType::upgrade(&scope.entry);
         assert!(result.is_ok());
     }
 }
@@ -447,7 +447,7 @@ fn upgrade_unregistered_pa_data_should_return_err() {
     });
 
     for scope in testcases {
-        assert!(PaDataRegisteredType::<1>::upgrade(&scope.entry).is_err());
+        assert!(PaDataRegisteredType::upgrade(&scope.entry).is_err());
     }
 }
 

@@ -15,7 +15,7 @@ use predefined_values::{AddressType, NameType};
 mod constants;
 mod predefined_values;
 
-pub type SequenceOf<T, const U: usize> = der::asn1::SequenceOf<T, U>;
+pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
 pub type BitSring = der::asn1::BitString;
 
@@ -37,14 +37,14 @@ pub type Realm = KerberosString;
 
 // RFC4120 5.2.2
 #[derive(Sequence, Debug, PartialEq, Eq, Clone)]
-pub struct PrincipalName<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
+pub struct PrincipalName {
     name_type: NameType,
     // Most PrincipalNames will have only a few components (typically one or two).
-    name_string: SequenceOf<KerberosString, N>,
+    name_string: SequenceOf<KerberosString>,
 }
 
-impl<const N: usize> PrincipalName<N> {
-    pub fn new<K: Into<SequenceOf<KerberosString, N>>>(
+impl PrincipalName {
+    pub fn new<K: Into<SequenceOf<KerberosString>>>(
         name_type: NameType,
         components: K,
     ) -> Result<Self, &'static str> {
@@ -64,7 +64,7 @@ impl<const N: usize> PrincipalName<N> {
         self.name_type
     }
 
-    pub fn name_string(&self) -> &SequenceOf<KerberosString, N> {
+    pub fn name_string(&self) -> &SequenceOf<KerberosString> {
         &self.name_string
     }
 }
@@ -95,11 +95,11 @@ impl HostAddress {
 
 // RFC4120 5.2.5
 // HostAddresses is always used as an OPTIONAL field and should not be empty.
-pub type HostAddresses<const N: usize> = SequenceOf<HostAddress, N>;
+pub type HostAddresses = SequenceOf<HostAddress>;
 
 // RFC4120 5.2.6
 // AuthorizationData is always used as an OPTIONAL field and should not be empty.
-pub type AuthorizationData<const N: usize = DEFAULT_LEN> = SequenceOf<ADEntry, N>;
+pub type AuthorizationData = SequenceOf<ADEntry>;
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct ADEntry {
@@ -150,14 +150,14 @@ pub trait CipherText: Encode {
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum ADRegisteredEntry<const N: usize = DEFAULT_LEN> {
-    IfRelevant(AdIfRelevant<N>),
-    KdcIssued(AdKdcIssued<N>),
-    AndOr(AdAndOr<N>),
-    MandatoryForKdc(AdMandatoryForKdc<N>),
+pub enum ADRegisteredEntry {
+    IfRelevant(AdIfRelevant),
+    KdcIssued(AdKdcIssued),
+    AndOr(AdAndOr),
+    MandatoryForKdc(AdMandatoryForKdc),
 }
 
-impl<const N: usize> ADRegisteredEntry<N> {
+impl ADRegisteredEntry {
     pub fn upgrade(entry: &ADEntry) -> Result<Self, String> {
         match entry.for_local_use() {
             Ok(ans) if ans => return Err("AD type is for local use".to_string()),
@@ -190,22 +190,22 @@ impl<const N: usize> ADRegisteredEntry<N> {
         let decoded_element = match ad_type {
             adtypes::AD_IF_RELEVANT => ADRegisteredEntry::IfRelevant(
                 octet_str_ref
-                    .decode_into::<AdIfRelevant<N>>()
+                    .decode_into::<AdIfRelevant>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdIfRelevant", e))?,
             ),
             adtypes::AD_KDC_ISSUED => ADRegisteredEntry::KdcIssued(
                 octet_str_ref
-                    .decode_into::<AdKdcIssued<N>>()
+                    .decode_into::<AdKdcIssued>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdKdcIssued", e))?,
             ),
             adtypes::AD_AND_OR => ADRegisteredEntry::AndOr(
                 octet_str_ref
-                    .decode_into::<AdAndOr<N>>()
+                    .decode_into::<AdAndOr>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdAndOr", e))?,
             ),
             adtypes::AD_MANDATORY_FOR_KDC => ADRegisteredEntry::MandatoryForKdc(
                 octet_str_ref
-                    .decode_into::<AdMandatoryForKdc<N>>()
+                    .decode_into::<AdMandatoryForKdc>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdMandatoryForKdc", e))?,
             ),
             _ => return Err("Unsupported ad-type value. Please refer to RFC4120".to_string()),
@@ -216,27 +216,27 @@ impl<const N: usize> ADRegisteredEntry<N> {
 }
 
 // RFC4120 5.2.6.1
-pub type AdIfRelevant<const N: usize = DEFAULT_LEN> = AuthorizationData<N>;
+pub type AdIfRelevant = AuthorizationData;
 
-impl<const N: usize> CipherText for AdIfRelevant<N> {}
+impl CipherText for AdIfRelevant {}
 
 // RFC4120 5.2.6.2
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct AdKdcIssued<const N: usize = DEFAULT_LEN> {
+pub struct AdKdcIssued {
     ad_checksum: Checksum,
     i_realm: Option<Realm>,
-    i_sname: Option<PrincipalName<N>>,
-    elements: AuthorizationData<N>,
+    i_sname: Option<PrincipalName>,
+    elements: AuthorizationData,
 }
 
-impl<const N: usize> CipherText for AdKdcIssued<N> {}
+impl CipherText for AdKdcIssued {}
 
-impl<const N: usize> AdKdcIssued<N> {
+impl AdKdcIssued {
     pub fn new(
         ad_checksum: Checksum,
         i_realm: Option<Realm>,
-        i_sname: Option<PrincipalName<N>>,
-        elements: AuthorizationData<N>,
+        i_sname: Option<PrincipalName>,
+        elements: AuthorizationData,
     ) -> Self {
         Self {
             ad_checksum,
@@ -254,20 +254,20 @@ impl<const N: usize> AdKdcIssued<N> {
         self.i_realm.as_ref()
     }
 
-    pub fn i_sname(&self) -> Option<&PrincipalName<N>> {
+    pub fn i_sname(&self) -> Option<&PrincipalName> {
         self.i_sname.as_ref()
     }
 
-    pub fn elements(&self) -> &AuthorizationData<N> {
+    pub fn elements(&self) -> &AuthorizationData {
         &self.elements
     }
 }
 
-impl<'a, const N: usize> DecodeValue<'a> for AdKdcIssued<N> {
+impl<'a> DecodeValue<'a> for AdKdcIssued {
     fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let ad_checksum = reader.decode()?;
         let i_realm = Option::<Realm>::decode(reader)?;
-        let i_sname = Option::<PrincipalName<N>>::decode(reader)?;
+        let i_sname = Option::<PrincipalName>::decode(reader)?;
         let elements = reader.decode()?;
         Ok(Self {
             ad_checksum,
@@ -278,7 +278,7 @@ impl<'a, const N: usize> DecodeValue<'a> for AdKdcIssued<N> {
     }
 }
 
-impl<const N: usize> EncodeValue for AdKdcIssued<N> {
+impl EncodeValue for AdKdcIssued {
     fn value_len(&self) -> der::Result<der::Length> {
         self.ad_checksum.encoded_len()?
             + self.i_realm.encoded_len()?
@@ -295,19 +295,19 @@ impl<const N: usize> EncodeValue for AdKdcIssued<N> {
     }
 }
 
-impl<'a, const N: usize> Sequence<'a> for AdKdcIssued<N> {}
+impl<'a> Sequence<'a> for AdKdcIssued {}
 
 // RFC4120 5.2.6.3
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct AdAndOr<const N: usize = DEFAULT_LEN> {
+pub struct AdAndOr {
     condition_count: Int32,
-    elements: AuthorizationData<N>,
+    elements: AuthorizationData,
 }
 
-impl<const N: usize> CipherText for AdAndOr<N> {}
+impl CipherText for AdAndOr {}
 
-impl<const N: usize> AdAndOr<N> {
-    pub fn new(condition_count: Int32, elements: AuthorizationData<N>) -> Self {
+impl AdAndOr {
+    pub fn new(condition_count: Int32, elements: AuthorizationData) -> Self {
         Self {
             condition_count,
             elements,
@@ -318,12 +318,12 @@ impl<const N: usize> AdAndOr<N> {
         &self.condition_count
     }
 
-    pub fn elements(&self) -> &AuthorizationData<N> {
+    pub fn elements(&self) -> &AuthorizationData {
         &self.elements
     }
 }
 
-impl<'a, const N: usize> DecodeValue<'a> for AdAndOr<N> {
+impl<'a> DecodeValue<'a> for AdAndOr {
     fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let condition_count = reader.decode()?;
         let elements = AuthorizationData::decode(reader)?;
@@ -334,7 +334,7 @@ impl<'a, const N: usize> DecodeValue<'a> for AdAndOr<N> {
     }
 }
 
-impl<const N: usize> EncodeValue for AdAndOr<N> {
+impl EncodeValue for AdAndOr {
     fn value_len(&self) -> der::Result<der::Length> {
         self.condition_count.encoded_len()? + self.elements.encoded_len()?
     }
@@ -346,10 +346,10 @@ impl<const N: usize> EncodeValue for AdAndOr<N> {
     }
 }
 
-impl<'a, const N: usize> Sequence<'a> for AdAndOr<N> {}
+impl<'a> Sequence<'a> for AdAndOr {}
 
 // RFC4120 5.2.6.4
-pub type AdMandatoryForKdc<const N: usize = DEFAULT_LEN> = AuthorizationData<N>;
+pub type AdMandatoryForKdc = AuthorizationData;
 
 // RFC4120 5.2.7
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
@@ -384,18 +384,18 @@ impl PaData {
     }
 }
 
-pub enum PaDataRegisteredType<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> {
+pub enum PaDataRegisteredType {
     TgsReq,                       // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
     // decrypting the encrypted part of an AS-REP message.
     PwSalt(OctetString),       // salt (not ASN.1 encoded)
-    ETypeInfo(ETypeInfo<N>),   // DER encoding of ETYPE-INFO
-    ETypeInfo2(ETypeInfo2<N>), // DER encoding of ETYPE-INFO2
+    ETypeInfo(ETypeInfo),   // DER encoding of ETYPE-INFO
+    ETypeInfo2(ETypeInfo2), // DER encoding of ETYPE-INFO2
 }
 
-impl<const N: usize> PaDataRegisteredType<N> {
+impl PaDataRegisteredType {
     // Attempt to upgrade from the current PaData to a registered type.
     // If the PaData is not for registered use, an error is returned.
     // If the PaData is for registered use, but the type is not recognized, an error is returned.
@@ -439,13 +439,13 @@ impl<const N: usize> PaDataRegisteredType<N> {
             }
             patypes::PA_ETYPE_INFO => {
                 let decoded = octet_str_ref
-                    .decode_into::<ETypeInfo<N>>()
+                    .decode_into::<ETypeInfo>()
                     .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO, "ETYPE-INFO", e))?;
                 PaDataRegisteredType::ETypeInfo(decoded)
             }
             patypes::PA_ETYPE_INFO2 => {
                 let decoded = octet_str_ref
-                    .decode_into::<ETypeInfo2<N>>()
+                    .decode_into::<ETypeInfo2>()
                     .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO2, "ETYPE-INFO2", e))?;
                 PaDataRegisteredType::ETypeInfo2(decoded)
             }
@@ -531,9 +531,9 @@ impl ETypeInfoEntry {
 }
 
 // RFC4120 5.2.7.4
-pub type ETypeInfo<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> = SequenceOf<ETypeInfoEntry, N>;
+pub type ETypeInfo = SequenceOf<ETypeInfoEntry>;
 
-impl<const N: usize> CipherText for ETypeInfo<N> {}
+impl CipherText for ETypeInfo {}
 
 // RFC4120 5.2.7.5
 // If ETYPE-INFO2 is sent in an AS-REP, there shall be exactly one
@@ -573,9 +573,9 @@ impl ETypeInfo2Entry {
 }
 
 // RFC4120 5.2.7.5
-pub type ETypeInfo2<const N: usize = DEFAULT_AS_REP_ENTRIES_LEN> = SequenceOf<ETypeInfo2Entry, N>;
+pub type ETypeInfo2 = SequenceOf<ETypeInfo2Entry>;
 
-impl<const N: usize> CipherText for ETypeInfo2<N> {}
+impl CipherText for ETypeInfo2 {}
 
 // RFC4120 5.2.8
 #[derive(PartialEq, Eq, Clone, Debug)]

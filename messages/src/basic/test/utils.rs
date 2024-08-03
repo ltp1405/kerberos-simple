@@ -1,4 +1,4 @@
-use der::{Decode, Encode, DateTime};
+use der::{DateTime, Decode, Encode};
 use fake::{Fake, Faker};
 use rand::{Rng, SeedableRng};
 
@@ -39,7 +39,7 @@ const ADDRESS_TYPES: [AddressType; 9] = [
     AddressType::IPv6,
 ];
 
-pub fn mock_etype_info2(seed: usize) -> ETypeInfo2<1> {
+pub fn mock_etype_info2(seed: usize) -> ETypeInfo2 {
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed as u64);
     let etype = Int32::new(&rng.gen_range(0..100).to_der().unwrap()).unwrap();
     let size = rng.gen_range(50..1000);
@@ -58,12 +58,11 @@ pub fn mock_etype_info2(seed: usize) -> ETypeInfo2<1> {
     } else if rng.gen_range(0..100) > 50 {
         entry = ETypeInfo2Entry::new(etype, Some(salt), Some(s2kparams));
     }
-    let mut etype_info = ETypeInfo2::new();
-    etype_info.add(entry).unwrap();
+    let etype_info = vec![entry];
     etype_info
 }
 
-pub fn mock_etype_info(seed: usize) -> ETypeInfo<1> {
+pub fn mock_etype_info(seed: usize) -> ETypeInfo {
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed as u64);
     let etype = Int32::new(&rng.gen_range(0..100).to_der().unwrap()).unwrap();
     let salt = random_octet_string(seed);
@@ -72,8 +71,7 @@ pub fn mock_etype_info(seed: usize) -> ETypeInfo<1> {
     } else {
         ETypeInfoEntry::new(etype, None)
     };
-    let mut etype_info = ETypeInfo::new();
-    etype_info.add(entry).unwrap();
+    let etype_info = vec![entry];
     etype_info
 }
 
@@ -87,17 +85,7 @@ pub fn mock_pa_enc_ts_enc(seed: usize) -> PaEncTsEnc {
             pa_usec = Some(UInt32::new(&rng.gen_range(0..100).to_der().unwrap()).unwrap());
         }
         PaEncTsEnc::new(
-            KerberosTime::from_date_time(
-                DateTime::new(
-                    rng.gen_range(0..2100),
-                    rng.gen_range(1..13),
-                    rng.gen_range(1..29),
-                    rng.gen_range(0..23),
-                    rng.gen_range(0..59),
-                    rng.gen_range(0..59),
-                )
-                .unwrap(),
-            ),
+            KerberosTime::from_date_time(DateTime::new(2023, 1, 1, 0, 0, 0).unwrap()),
             pa_usec,
         )
     }
@@ -114,63 +102,57 @@ pub fn mock_pa_enc_timestamp(seed: usize) -> PaEncTimestamp {
     PaEncTimestamp::new(etype, kvno, cipher)
 }
 
-pub fn mock_ad_if_relevant_data() -> AdIfRelevant<1> {
-    let mut ad_if_relevant = AdIfRelevant::<1>::new();
+pub fn mock_ad_if_relevant_data() -> AdIfRelevant {
+    let mut ad_if_relevant = AdIfRelevant::new();
     let mock_ad_entry = ADEntry::new(
         Int32::new(&1.to_der().unwrap()).unwrap(),
         random_octet_string(12),
     );
-    ad_if_relevant.add(mock_ad_entry).unwrap();
+    ad_if_relevant.push(mock_ad_entry);
     ad_if_relevant
 }
 
-pub fn mock_ad_kdc_issue_data() -> [AdKdcIssued<1>; 4] {
+pub fn mock_ad_kdc_issue_data() -> [AdKdcIssued; 4] {
     let checksum = Checksum::new(
         Int32::new(&1.to_der().unwrap()).unwrap(),
         random_octet_string(12),
     );
-    let mut auth = AuthorizationData::<1>::new();
+    let mut auth = AuthorizationData::new();
     let mock_ad_entry = ADEntry::new(
         Int32::new(&1.to_der().unwrap()).unwrap(),
         random_octet_string(12),
     );
-    auth.add(mock_ad_entry).unwrap();
+    auth.push(mock_ad_entry);
     let realm = Realm::new(b"\x00").unwrap();
-    let data = {
-        let mut data = SequenceOf::<KerberosString, 1>::new();
-        data.add(KerberosString::new(&Faker.fake::<String>()).unwrap())
-            .unwrap();
-        data
-    };
-    let sname =
-        PrincipalName::<1>::new(crate::basic::predefined_values::NameType::Uid, data).unwrap();
+    let data = vec![KerberosString::new(&Faker.fake::<String>()).unwrap()];
+    let sname = PrincipalName::new(crate::basic::predefined_values::NameType::Uid, data).unwrap();
     [
-        AdKdcIssued::<1>::new(
+        AdKdcIssued::new(
             checksum.clone(),
             Some(realm.clone()),
             Some(sname.clone()),
             auth.clone(),
         ),
-        AdKdcIssued::<1>::new(checksum.clone(), Some(realm), None, auth.clone()),
-        AdKdcIssued::<1>::new(checksum.clone(), None, Some(sname), auth.clone()),
-        AdKdcIssued::<1>::new(checksum, None, None, auth),
+        AdKdcIssued::new(checksum.clone(), Some(realm), None, auth.clone()),
+        AdKdcIssued::new(checksum.clone(), None, Some(sname), auth.clone()),
+        AdKdcIssued::new(checksum, None, None, auth),
     ]
 }
 
-pub fn mock_ad_and_or_data() -> AdAndOr<1> {
-    AdAndOr::<1>::new(
+pub fn mock_ad_and_or_data() -> AdAndOr {
+    AdAndOr::new(
         Int32::new(&1.to_der().unwrap()).unwrap(),
-        AuthorizationData::<1>::new(),
+        AuthorizationData::new(),
     )
 }
 
-pub fn mock_ad_mandatory_for_kdc_data() -> AdMandatoryForKdc<1> {
-    let mut ad_if_relevant = AdMandatoryForKdc::<1>::new();
+pub fn mock_ad_mandatory_for_kdc_data() -> AdMandatoryForKdc {
+    let mut ad_if_relevant = AdMandatoryForKdc::new();
     let mock_ad_entry = ADEntry::new(
         Int32::new(&1.to_der().unwrap()).unwrap(),
         random_octet_string(12),
     );
-    ad_if_relevant.add(mock_ad_entry).unwrap();
+    ad_if_relevant.push(mock_ad_entry);
     ad_if_relevant
 }
 
@@ -296,7 +278,7 @@ pub fn random_testcases_of_address_type(
 pub fn random_testcases_of_principal_name_1(
     size: usize,
     empty: bool,
-) -> Vec<(NameType, SequenceOf<KerberosString, 1>)> {
+) -> Vec<(NameType, SequenceOf<KerberosString>)> {
     let mut testcases = Vec::new();
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % NAME_TYPES.len();
@@ -312,7 +294,7 @@ pub fn random_testcases_of_principal_name_1(
 pub fn random_testcases_of_principal_name_2(
     size: usize,
     empty: bool,
-) -> Vec<(NameType, SequenceOf<KerberosString, 2>)> {
+) -> Vec<(NameType, SequenceOf<KerberosString>)> {
     let mut testcases = Vec::new();
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % NAME_TYPES.len();
@@ -325,20 +307,15 @@ pub fn random_testcases_of_principal_name_2(
     testcases
 }
 
-fn random_seq_of_ker_str_len_1() -> SequenceOf<KerberosString, 1> {
-    let mut kerberos_strings = SequenceOf::new();
-    kerberos_strings
-        .add(KerberosString::new(&Faker.fake::<String>()).unwrap())
-        .unwrap();
+fn random_seq_of_ker_str_len_1() -> SequenceOf<KerberosString> {
+    let kerberos_strings = vec![KerberosString::new(&Faker.fake::<String>()).unwrap()];
     kerberos_strings
 }
 
-fn random_seq_of_ker_str_len_2() -> SequenceOf<KerberosString, 2> {
+fn random_seq_of_ker_str_len_2() -> SequenceOf<KerberosString> {
     let mut kerberos_strings = SequenceOf::new();
     for _ in 0..2 {
-        kerberos_strings
-            .add(KerberosString::new(&Faker.fake::<String>()).unwrap())
-            .unwrap();
+        kerberos_strings.push(KerberosString::new(&Faker.fake::<String>()).unwrap());
     }
     kerberos_strings
 }

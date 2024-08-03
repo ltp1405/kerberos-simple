@@ -1,11 +1,3 @@
-pub const DEFAULT_LEN: usize = 8;
-
-pub const DEFAULT_PRINCIPAL_COMPONENTS_LEN: usize = 2;
-
-pub const DEFAULT_AS_REP_ENTRIES_LEN: usize = 1;
-
-pub const DEFAULT_HOSTS: usize = 4;
-
 pub mod ntypes {
     pub const UNKNOWN: i32 = 0x00;
     pub const PRINCIPAL: i32 = 0x01;

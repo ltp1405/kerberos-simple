@@ -2,11 +2,10 @@ use der::{Encode, Sequence};
 
 use crate::basic::{
     Int32, KerberosString, KerberosTime, Microseconds, OctetString, PrincipalName, Realm,
-    DEFAULT_PRINCIPAL_COMPONENTS_LEN,
 };
 
 #[derive(Sequence)]
-pub struct KrbErrorMsg<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
+pub struct KrbErrorMsg {
     pvno: Int32,
     msg_type: Int32,
     ctime: Option<KerberosTime>,
@@ -15,21 +14,21 @@ pub struct KrbErrorMsg<const N: usize = DEFAULT_PRINCIPAL_COMPONENTS_LEN> {
     susec: Microseconds,
     error_code: Int32,
     crealm: Option<Realm>,
-    cname: Option<PrincipalName<N>>,
-    realm: Realm,            // service realm
-    sname: PrincipalName<N>, // service name
+    cname: Option<PrincipalName>,
+    realm: Realm,         // service realm
+    sname: PrincipalName, // service name
     e_text: Option<KerberosString>,
     e_data: Option<OctetString>,
 }
 
-impl<const N: usize> KrbErrorMsg<N> {
+impl KrbErrorMsg {
     pub fn builder(
         stime: KerberosTime,
         susec: Microseconds,
         error_code: Int32,
         realm: Realm,
-        sname: PrincipalName<N>,
-    ) -> KrbErrorMsgBuilder<N> {
+        sname: PrincipalName,
+    ) -> KrbErrorMsgBuilder {
         KrbErrorMsgBuilder::new(stime, susec, error_code, realm, sname)
     }
 
@@ -65,7 +64,7 @@ impl<const N: usize> KrbErrorMsg<N> {
         self.crealm.as_ref()
     }
 
-    pub fn cname(&self) -> Option<&PrincipalName<N>> {
+    pub fn cname(&self) -> Option<&PrincipalName> {
         self.cname.as_ref()
     }
 
@@ -73,7 +72,7 @@ impl<const N: usize> KrbErrorMsg<N> {
         self.realm.as_ref()
     }
 
-    pub fn sname(&self) -> &PrincipalName<N> {
+    pub fn sname(&self) -> &PrincipalName {
         &self.sname
     }
 
@@ -86,27 +85,27 @@ impl<const N: usize> KrbErrorMsg<N> {
     }
 }
 
-pub struct KrbErrorMsgBuilder<const N: usize> {
+pub struct KrbErrorMsgBuilder {
     stime: KerberosTime,
     susec: Microseconds,
     error_code: Int32,
     realm: Realm,
-    sname: PrincipalName<N>,
+    sname: PrincipalName,
     crealm: Option<Realm>,
     ctime: Option<KerberosTime>,
     cusec: Option<Microseconds>,
-    cname: Option<PrincipalName<N>>,
+    cname: Option<PrincipalName>,
     e_text: Option<KerberosString>,
     e_data: Option<OctetString>,
 }
 
-impl<const N: usize> KrbErrorMsgBuilder<N> {
+impl KrbErrorMsgBuilder {
     fn new(
         stime: KerberosTime,
         susec: Microseconds,
         error_code: Int32,
         realm: Realm,
-        sname: PrincipalName<N>,
+        sname: PrincipalName,
     ) -> Self {
         Self {
             stime,
@@ -123,7 +122,7 @@ impl<const N: usize> KrbErrorMsgBuilder<N> {
         }
     }
 
-    pub fn build(self) -> KrbErrorMsg<N> {
+    pub fn build(self) -> KrbErrorMsg {
         let pvno = {
             let bytes = 5.to_der().expect("pvno");
             Int32::new(&bytes).expect("pvno")
@@ -164,7 +163,7 @@ impl<const N: usize> KrbErrorMsgBuilder<N> {
         self
     }
 
-    pub fn cname(mut self, cname: PrincipalName<N>) -> Self {
+    pub fn cname(mut self, cname: PrincipalName) -> Self {
         self.cname = Some(cname);
         self
     }

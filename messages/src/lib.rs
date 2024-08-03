@@ -1,3 +1,3 @@
 pub mod basic;
 pub mod tickets;
-pub mod krb_error;
+pub mod krb_error_spec; 
