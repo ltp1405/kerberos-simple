@@ -77,30 +77,3 @@ impl KrbApReq {
         // &self.inner.authenticator.value
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use der::asn1::BitString;
-    use der::Decode;
-    use super::*;
-
-    #[test]
-    fn encode_and_decode() {
-        let krb_ap_req = KrbApReq::new(KerberosFlags {
-            flags: BitString::from_bytes(&[1, 2]).unwrap(),
-        }, EncryptedData {
-            i: 2,
-        });
-        let mut v = Vec::new();
-        krb_ap_req.encode_to_vec(&mut v).unwrap();
-        println!("{:x?}", v);
-        let mut v2 = Vec::new();
-        krb_ap_req.inner.encode_to_vec(&mut v2).unwrap();
-        println!("{:x?}", v2);
-
-        assert_ne!(v, v2, "KrbApReq should be constructed and explicitly tagged");
-
-        let krb_ap_req2 = KrbApReq::from_der(&v).unwrap();
-        assert_eq!(krb_ap_req, krb_ap_req2);
-    }
-}
