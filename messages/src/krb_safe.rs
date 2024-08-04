@@ -84,6 +84,19 @@ impl KrbSafeBody {
     }
 }
 
+#[derive(Debug)]
+pub struct KrbSafeBuildError {
+    missing_field: &'static str,
+}
+
+impl std::fmt::Display for KrbSafeBuildError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "field is required: {}", self.missing_field)
+    }
+}
+
+impl std::error::Error for KrbSafeBuildError {}
+
 pub struct KrbSafeBuilder {
     user_data: Option<OctetString>,
     timestamp: Option<KerberosTime>,
@@ -141,6 +154,26 @@ impl KrbSafeBuilder {
         self.cksum = Some(cksum);
         self
     }
+
+    pub fn build(self) -> Result<KrbSafe, KrbSafeBuildError> {
+        if self.user_data.is_none() {
+            return Err(KrbSafeBuildError {
+                missing_field: "user_data",
+            });
+        }
+        if self.s_address.is_none() {
+            return Err(KrbSafeBuildError {
+                missing_field: "s_address",
+            });
+        }
+        if self.cksum.is_none() {
+            return Err(KrbSafeBuildError {
+                missing_field: "cksum",
+            });
+        }
+        Ok(self.build_unsafe())
+    }
+
 
     pub fn build_unsafe(self) -> KrbSafe {
         KrbSafe {
