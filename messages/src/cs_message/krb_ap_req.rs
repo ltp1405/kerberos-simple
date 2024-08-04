@@ -1,21 +1,19 @@
-use der::asn1::ContextSpecific;
-use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag, Tagged, TagNumber, Writer};
-use der::Tag::Application;
 use crate::basic::{EncryptedData, KerberosFlags};
+use crate::tickets::Ticket;
+use der::asn1::ContextSpecific;
+use der::Tag::Application;
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
+    TagNumber, Writer,
+};
 
 #[derive(Sequence, Debug, PartialEq)]
 struct KrbApReqInner {
     pvno: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,
-
-    // TODO: Wait for APOptions to be Sequence
-    // ap_options: ContextSpecific<KerberosFlags>,
-
-    // TODO: Wait for Ticket
-    // ticket: ContextSpecific<Ticket>,
-
-    // TODO: Wait for EncryptedData to be Sequence
-    // authenticator: ContextSpecific<EncryptedData>,
+    ap_options: ContextSpecific<KerberosFlags>,
+    ticket: ContextSpecific<Ticket>,
+    authenticator: ContextSpecific<EncryptedData>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,14 +46,35 @@ impl<'a> DecodeValue<'a> for KrbApReq {
 }
 
 impl KrbApReq {
-    pub fn new(ap_options: KerberosFlags, authenticator: EncryptedData) -> Self {
+    pub fn new(ap_options: KerberosFlags, ticket: Ticket, authenticator: EncryptedData) -> Self {
         KrbApReq {
             inner: KrbApReqInner {
-                pvno: ContextSpecific { value: 5, tag_number: TagNumber::new(0), tag_mode: der::TagMode::Explicit },
-                msg_type: ContextSpecific { value: 14, tag_number: TagNumber::new(1), tag_mode: der::TagMode::Explicit },
-                // ap_options: ContextSpecific { value: ap_options, tag_number: TagNumber::new(2), tag_mode: der::TagMode::Explicit },
-                // authenticator: ContextSpecific { value: authenticator, tag_number: TagNumber::new(3), tag_mode: der::TagMode::Explicit },
-            }
+                pvno: ContextSpecific {
+                    value: 5,
+                    tag_number: TagNumber::new(0),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                msg_type: ContextSpecific {
+                    value: 14,
+                    tag_number: TagNumber::new(1),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                ap_options: ContextSpecific {
+                    value: ap_options,
+                    tag_number: TagNumber::new(2),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                ticket: ContextSpecific {
+                    value: ticket,
+                    tag_number: TagNumber::new(3),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                authenticator: ContextSpecific {
+                    value: authenticator,
+                    tag_number: TagNumber::new(4),
+                    tag_mode: der::TagMode::Explicit,
+                },
+            },
         }
     }
 
@@ -68,12 +87,14 @@ impl KrbApReq {
     }
 
     pub fn ap_options(&self) -> &KerberosFlags {
-        todo!("Wait for APOptions to be Sequence")
-        // &self.inner.ap_options.value
+        &self.inner.ap_options.value
+    }
+
+    pub fn ticket(&self) -> &Ticket {
+        &self.inner.ticket.value
     }
 
     pub fn authenticator(&self) -> &EncryptedData {
-        todo!("Wait for EncryptedData to be Sequence")
-        // &self.inner.authenticator.value
+        &self.inner.authenticator.value
     }
 }
