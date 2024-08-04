@@ -68,9 +68,7 @@ struct KrbApReqInner {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct KrbApReq {
-    inner: KrbApReqInner,
-}
+pub struct KrbApReq(KrbApReqInner);
 
 impl FixedTag for KrbApReq {
     const TAG: Tag = Application {
@@ -81,72 +79,70 @@ impl FixedTag for KrbApReq {
 
 impl EncodeValue for KrbApReq {
     fn value_len(&self) -> der::Result<Length> {
-        self.inner.encoded_len()
+        self.0.encoded_len()
     }
 
     fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        self.inner.encode(encoder)
+        self.0.encode(encoder)
     }
 }
 
 impl<'a> DecodeValue<'a> for KrbApReq {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = KrbApReqInner::decode(reader)?;
-        Ok(Self { inner })
+        Ok(Self(inner))
     }
 }
 
 impl KrbApReq {
     pub fn new(ap_options: APOptions, ticket: Ticket, authenticator: EncryptedData) -> Self {
-        KrbApReq {
-            inner: KrbApReqInner {
-                pvno: ContextSpecific {
-                    value: 5,
-                    tag_number: TagNumber::new(0),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                msg_type: ContextSpecific {
-                    value: 14,
-                    tag_number: TagNumber::new(1),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                ap_options: ContextSpecific {
-                    value: ap_options,
-                    tag_number: TagNumber::new(2),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                ticket: ContextSpecific {
-                    value: ticket,
-                    tag_number: TagNumber::new(3),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                authenticator: ContextSpecific {
-                    value: authenticator,
-                    tag_number: TagNumber::new(4),
-                    tag_mode: der::TagMode::Explicit,
-                },
+        KrbApReq(KrbApReqInner {
+            pvno: ContextSpecific {
+                value: 5,
+                tag_number: TagNumber::new(0),
+                tag_mode: der::TagMode::Explicit,
             },
-        }
+            msg_type: ContextSpecific {
+                value: 14,
+                tag_number: TagNumber::new(1),
+                tag_mode: der::TagMode::Explicit,
+            },
+            ap_options: ContextSpecific {
+                value: ap_options,
+                tag_number: TagNumber::new(2),
+                tag_mode: der::TagMode::Explicit,
+            },
+            ticket: ContextSpecific {
+                value: ticket,
+                tag_number: TagNumber::new(3),
+                tag_mode: der::TagMode::Explicit,
+            },
+            authenticator: ContextSpecific {
+                value: authenticator,
+                tag_number: TagNumber::new(4),
+                tag_mode: der::TagMode::Explicit,
+            },
+        })
     }
 
     pub fn pvno(&self) -> u8 {
-        self.inner.pvno.value
+        self.0.pvno.value
     }
 
     pub fn msg_type(&self) -> u8 {
-        self.inner.msg_type.value
+        self.0.msg_type.value
     }
 
     pub fn ap_options(&self) -> &APOptions {
-        &self.inner.ap_options.value
+        &self.0.ap_options.value
     }
 
     pub fn ticket(&self) -> &Ticket {
-        &self.inner.ticket.value
+        &self.0.ticket.value
     }
 
     pub fn authenticator(&self) -> &EncryptedData {
-        &self.inner.authenticator.value
+        &self.0.authenticator.value
     }
 }
 
@@ -174,5 +170,9 @@ mod tests {
         assert_eq!(ap_options.mutual_required(), false);
         let buf = ap_options.to_der().expect("Cannot encode APOptions");
         assert_eq!(buf, [0x03, 5, 0, 0b0100_0000, 0x0, 0x0, 0x0]);
+    }
+
+    fn req_correct_header() {
+        let ap_options = APOptions::new(true, true);
     }
 }
