@@ -1,10 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use der::{
-    self,
-    asn1::{GeneralizedTime, Ia5String, OctetStringRef},
-    Decode, Encode, FixedTag, Sequence,
-};
+use der::{self, asn1::{GeneralizedTime, Ia5String, OctetStringRef}, Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer};
 
 pub(super) use constants::*;
 use predefined_values::{AddressType, NameType};
@@ -569,19 +565,19 @@ impl FixedTag for KerberosFlags {
     const TAG: der::Tag = der::Tag::BitString;
 }
 
-impl Encode for KerberosFlags {
-    fn encoded_len(&self) -> der::Result<der::Length> {
-        self.inner.encoded_len()
+impl EncodeValue for KerberosFlags {
+    fn value_len(&self) -> der::Result<Length> {
+        self.inner.value_len()
     }
 
-    fn encode(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.inner.encode(encoder)
+    fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
+        self.inner.encode_value(encoder)
     }
 }
 
-impl<'a> Decode<'a> for KerberosFlags {
-    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
-        let inner = BitSring::decode(decoder)?;
+impl<'a> DecodeValue<'a> for KerberosFlags {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let inner = BitSring::decode_value(reader, header)?;
         Ok(Self { inner })
     }
 }
