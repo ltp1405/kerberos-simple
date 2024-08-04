@@ -10,7 +10,6 @@ use der::{
 pub struct EncApRepPartInner {
     ctime: ContextSpecific<KerberosTime>,
     cusec: ContextSpecific<Microseconds>,
-
     subkey: Option<ContextSpecific<EncryptionKey>>,
     seq_number: Option<ContextSpecific<UInt32>>,
 }
