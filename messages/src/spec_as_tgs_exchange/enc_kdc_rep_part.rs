@@ -10,32 +10,40 @@ use crate::{
 
 #[derive(Sequence)]
 pub struct EncKdcRepPart {
+    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
     key: EncryptionKey,
 
+    #[asn1(context_specific = "1", tag_mode = "EXPLICIT")]
     last_req: LastReq,
 
+    #[asn1(context_specific = "2", tag_mode = "EXPLICIT")]
     nonce: UInt32,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
     key_expiration: Option<KerberosTime>,
 
+    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
     flags: TicketFlags,
 
+    #[asn1(context_specific = "5", tag_mode = "EXPLICIT")]
     authtime: KerberosTime,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "6", tag_mode = "EXPLICIT", optional = "true")]
     starttime: Option<KerberosTime>,
 
+    #[asn1(context_specific = "7", tag_mode = "EXPLICIT")]
     endtime: KerberosTime,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "8", tag_mode = "EXPLICIT", optional = "true")]
     renew_till: Option<KerberosTime>,
 
+    #[asn1(context_specific = "9", tag_mode = "EXPLICIT")]
     srealm: Realm,
 
+    #[asn1(context_specific = "10", tag_mode = "EXPLICIT")]
     sname: PrincipalName,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "11", tag_mode = "EXPLICIT", optional = "true")]
     caddr: Option<HostAddresses>,
 }
 

@@ -5,6 +5,7 @@ use crate::{
     spec_as_tgs_exchange::kdc_req::KdcReq,
     spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
+use crate::basic::application_tags;
 
 pub struct TgsReq {
     inner: KdcReq,
@@ -28,6 +29,6 @@ impl TgsReq {
 impl FixedTag for TgsReq {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(12),
+        number: TagNumber::new(application_tags::TGS_REQ),
     };
 }

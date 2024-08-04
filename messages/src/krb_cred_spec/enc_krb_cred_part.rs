@@ -1,27 +1,31 @@
-use der::Sequence;
+use der::{FixedTag, Sequence, Tag, TagNumber};
 
-use crate::basic::{HostAddress, KerberosTime, Microseconds, SequenceOf, UInt32};
+use crate::basic::{application_tags, HostAddress, KerberosTime, Microseconds, SequenceOf, UInt32};
 use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
 
 #[derive(Sequence)]
-pub struct EncKrbCredPart {
-    #[asn1(context_specific = "0")]
+pub struct EncKrbCredPartInner {
+    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
     ticket_info: SequenceOf<KrbCredInfo>,
 
-    #[asn1(context_specific = "1", optional = "true")]
+    #[asn1(context_specific = "1", tag_mode = "EXPLICIT", optional = "true")]
     nonce: Option<UInt32>,
 
-    #[asn1(context_specific = "2", optional = "true")]
+    #[asn1(context_specific = "2", tag_mode = "EXPLICIT", optional = "true")]
     timestamp: Option<KerberosTime>,
 
-    #[asn1(context_specific = "3", optional = "true")]
+    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
     usec: Option<Microseconds>,
 
-    #[asn1(context_specific = "4", optional = "true")]
+    #[asn1(context_specific = "4", tag_mode = "EXPLICIT", optional = "true")]
     s_address: Option<HostAddress>,
 
-    #[asn1(context_specific = "5", optional = "true")]
+    #[asn1(context_specific = "5", tag_mode = "EXPLICIT", optional = "true")]
     r_address: Option<HostAddress>,
+}
+
+pub struct EncKrbCredPart {
+    inner: EncKrbCredPartInner,
 }
 
 impl EncKrbCredPart {
@@ -33,37 +37,45 @@ impl EncKrbCredPart {
         s_address: Option<HostAddress>,
         r_address: Option<HostAddress>,
     ) -> Self {
-        Self {
+        let inner = EncKrbCredPartInner {
             ticket_info,
             nonce,
             timestamp,
             usec,
             s_address,
             r_address,
-        }
+        };
+        Self { inner }
     }
 
     pub fn ticket_info(&self) -> &SequenceOf<KrbCredInfo> {
-        &self.ticket_info
+        &self.inner.ticket_info
     }
 
     pub fn nonce(&self) -> Option<&UInt32> {
-        self.nonce.as_ref()
+        self.inner.nonce.as_ref()
     }
 
     pub fn timestamp(&self) -> Option<&KerberosTime> {
-        self.timestamp.as_ref()
+        self.inner.timestamp.as_ref()
     }
 
     pub fn usec(&self) -> Option<&Microseconds> {
-        self.usec.as_ref()
+        self.inner.usec.as_ref()
     }
 
     pub fn s_address(&self) -> Option<&HostAddress> {
-        self.s_address.as_ref()
+        self.inner.s_address.as_ref()
     }
 
     pub fn r_address(&self) -> Option<&HostAddress> {
-        self.r_address.as_ref()
+        self.inner.r_address.as_ref()
     }
+}
+
+impl FixedTag for EncKrbCredPart {
+    const TAG: Tag = Tag::Application {
+        constructed: true,
+        number: TagNumber::new(application_tags::ENC_KRB_CRED_PART),
+    };
 }

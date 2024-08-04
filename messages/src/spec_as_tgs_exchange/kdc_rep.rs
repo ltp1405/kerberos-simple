@@ -7,25 +7,25 @@ use crate::{
 
 #[derive(Sequence)]
 pub struct KdcRep {
-    #[asn1(context_specific = "0")]
+    #[asn1(context_specific = "0", tag_mode= "EXPLICIT")]
     pvno: Int32,
 
-    #[asn1(context_specific = "1")]
+    #[asn1(context_specific = "1", tag_mode= "EXPLICIT")]
     msg_type: Int32,
 
-    #[asn1(context_specific = "2", optional = "true")]
+    #[asn1(context_specific = "2", tag_mode= "EXPLICIT", optional = "true")]
     padata: Option<SequenceOf<PaData>>,
 
-    #[asn1(context_specific = "3")]
+    #[asn1(context_specific = "3", tag_mode= "EXPLICIT")]
     crealm: Realm,
 
-    #[asn1(context_specific = "4")]
+    #[asn1(context_specific = "4", tag_mode= "EXPLICIT")]
     cname: PrincipalName,
 
-    #[asn1(context_specific = "5")]
+    #[asn1(context_specific = "5", tag_mode= "EXPLICIT")]
     ticket: Ticket,
 
-    #[asn1(context_specific = "6")]
+    #[asn1(context_specific = "6", tag_mode= "EXPLICIT")]
     enc_part: EncryptedData,
 }
 

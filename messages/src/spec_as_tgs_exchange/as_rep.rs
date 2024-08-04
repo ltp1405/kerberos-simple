@@ -1,7 +1,7 @@
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
+    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, application_tags},
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
@@ -31,6 +31,6 @@ impl AsRep {
 impl FixedTag for AsRep {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(11),
+        number: TagNumber::new(application_tags::AS_REP),
     };
 }

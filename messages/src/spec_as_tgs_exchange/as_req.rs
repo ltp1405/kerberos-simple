@@ -1,9 +1,9 @@
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{Int32, PaData, SequenceOf},
+    basic::{Int32, PaData, SequenceOf, application_tags},
     spec_as_tgs_exchange::{kdc_req::KdcReq,
-    kdc_req_body::KdcReqBody},
+                           kdc_req_body::KdcReqBody},
 };
 
 pub struct AsReq {
@@ -28,6 +28,6 @@ impl AsReq {
 impl FixedTag for AsReq {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(10),
+        number: TagNumber::new(application_tags::AS_REQ),
     };
 }

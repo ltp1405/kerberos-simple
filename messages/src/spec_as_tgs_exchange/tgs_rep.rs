@@ -5,6 +5,7 @@ use crate::{
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
+use crate::basic::application_tags;
 
 pub struct TgsRep {
     inner: KdcRep,
@@ -31,6 +32,6 @@ impl TgsRep {
 impl FixedTag for TgsRep {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(13),
+        number: TagNumber::new(application_tags::TGS_REP),
     };
 }

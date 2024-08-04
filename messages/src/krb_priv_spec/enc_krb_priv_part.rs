@@ -1,27 +1,30 @@
-use der::Sequence;
+use der::{FixedTag, Sequence, Tag, TagNumber};
 
-use crate::basic::{HostAddress, KerberosTime, Microseconds, OctetString, UInt32};
+use crate::basic::{application_tags, HostAddress, KerberosTime, Microseconds, OctetString, UInt32};
 
 #[derive(Sequence)]
-// Missing Application tag
-pub struct EncKrbPrivPart {
-    #[asn1(context_specific = "0")]
+pub struct EncKrbPrivPartInner {
+    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
     user_data: OctetString,
 
-    #[asn1(context_specific = "1", optional = "true")]
+    #[asn1(context_specific = "1", tag_mode = "EXPLICIT", optional = "true")]
     timestamp: Option<KerberosTime>,
 
-    #[asn1(context_specific = "2", optional = "true")]
+    #[asn1(context_specific = "2", tag_mode = "EXPLICIT", optional = "true")]
     usec: Option<Microseconds>,
 
-    #[asn1(context_specific = "3", optional = "true")]
+    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
     seq_number: Option<UInt32>,
 
-    #[asn1(context_specific = "4")]
+    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
     s_address: HostAddress,
 
-    #[asn1(context_specific = "5", optional = "true")]
+    #[asn1(context_specific = "5", tag_mode = "EXPLICIT", optional = "true")]
     r_address: Option<HostAddress>,
+}
+
+pub struct EncKrbPrivPart {
+    inner: EncKrbPrivPartInner,
 }
 
 impl EncKrbPrivPart {
@@ -33,37 +36,45 @@ impl EncKrbPrivPart {
         s_address: HostAddress,
         r_address: Option<HostAddress>,
     ) -> Self {
-        Self {
+        let inner = EncKrbPrivPartInner {
             user_data,
             timestamp,
             usec,
             seq_number,
             s_address,
             r_address,
-        }
+        };
+        Self { inner }
     }
 
     pub fn user_data(&self) -> &OctetString {
-        &self.user_data
+        &self.inner.user_data
     }
 
     pub fn timestamp(&self) -> Option<&KerberosTime> {
-        self.timestamp.as_ref()
+        self.inner.timestamp.as_ref()
     }
 
     pub fn usec(&self) -> Option<&Microseconds> {
-        self.usec.as_ref()
+        self.inner.usec.as_ref()
     }
 
     pub fn seq_number(&self) -> Option<&UInt32> {
-        self.seq_number.as_ref()
+        self.inner.seq_number.as_ref()
     }
 
     pub fn s_address(&self) -> &HostAddress {
-        &self.s_address
+        &self.inner.s_address
     }
 
     pub fn r_address(&self) -> Option<&HostAddress> {
-        self.r_address.as_ref()
+        self.inner.r_address.as_ref()
     }
+}
+
+impl FixedTag for EncKrbPrivPart {
+    const TAG: Tag = Tag::Application {
+        constructed: true,
+        number: TagNumber::new(application_tags::ENC_KRB_PRIV_PART),
+    };
 }
