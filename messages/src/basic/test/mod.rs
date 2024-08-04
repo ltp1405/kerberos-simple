@@ -16,8 +16,8 @@ use crate::basic::{
 };
 
 use super::{
-    ADEntry, AdKdcIssued, Checksum, EncryptedData, EncryptionKey, HostAddress, KerberosFlags,
-    KerberosFlagsOption, PaData, PrincipalName,
+    flags, ADEntry, AdKdcIssued, Checksum, EncryptedData, EncryptionKey, HostAddress,
+    KerberosFlags, PaData, PrincipalName,
 };
 
 mod utils;
@@ -452,37 +452,37 @@ fn upgrade_unregistered_pa_data_should_return_err() {
 ///////////////////////// KerberosFlag //////////////////////////
 #[test]
 fn kerberos_flags_should_correctly_identify_its_options() {
-    let testcases: Vec<(Result<KerberosFlags, &'static str>, &[KerberosFlagsOption])> = vec![
+    let testcases: Vec<(Result<KerberosFlags, &'static str>, &[usize])> = vec![
         (
-            KerberosFlags::builder().set_proxy().build(),
-            &[KerberosFlagsOption::Proxy],
+            KerberosFlags::builder().set(flags::PROXY).build(),
+            &[flags::PROXY],
         ),
         (
             KerberosFlags::builder()
-                .set_proxy()
-                .set_initial()
-                .set_postdated()
-                .set_forwardable()
+                .set(flags::PROXY)
+                .set(flags::INITIAL)
+                .set(flags::POSTDATED)
+                .set(flags::FORWARDABLE)
                 .build(),
             &[
-                KerberosFlagsOption::Proxy,
-                KerberosFlagsOption::Initial,
-                KerberosFlagsOption::Postdated,
-                KerberosFlagsOption::Forwardable,
+                flags::PROXY,
+                flags::INITIAL,
+                flags::POSTDATED,
+                flags::FORWARDABLE,
             ],
         ),
         (
             KerberosFlags::builder()
-                .set_renewable()
-                .set_ok_as_delegate()
-                .set_may_postdate()
-                .set_transited_policy_checked()
+                .set(flags::RENEWABLE)
+                .set(flags::OK_AS_DELEGATE)
+                .set(flags::MAY_POSTDATE)
+                .set(flags::TRANSITED_POLICY_CHECKED)
                 .build(),
             &[
-                KerberosFlagsOption::Renewable,
-                KerberosFlagsOption::OkAsDelegate,
-                KerberosFlagsOption::MayPostdate,
-                KerberosFlagsOption::TransitedPolicyChecked,
+                flags::RENEWABLE,
+                flags::OK_AS_DELEGATE,
+                flags::MAY_POSTDATE,
+                flags::TRANSITED_POLICY_CHECKED,
             ],
         ),
         (KerberosFlags::builder().build(), &[]),
@@ -494,17 +494,7 @@ fn kerberos_flags_should_correctly_identify_its_options() {
         let flags = flags.unwrap();
 
         for option in options {
-            assert!(flags.is_set(option), "Flag {:?} is not set", option);
-        }
-
-        let flags_options = flags.options();
-
-        for option in options {
-            assert!(
-                flags_options.contains(option),
-                "Flag {:?} is not set",
-                option
-            );
+            assert!(flags.is_set(*option), "Flag {:?} is not set", option);
         }
     }
 }
@@ -512,19 +502,19 @@ fn kerberos_flags_should_correctly_identify_its_options() {
 #[test]
 fn encode_decode_kerberos_flags_works_fine() {
     let testcases: Vec<KerberosFlags> = vec![
-        KerberosFlags::builder().set_proxy().build().unwrap(),
+        KerberosFlags::builder().set(flags::PROXY).build().unwrap(),
         KerberosFlags::builder()
-            .set_proxy()
-            .set_initial()
-            .set_postdated()
-            .set_forwardable()
+            .set(flags::PROXY)
+            .set(flags::INITIAL)
+            .set(flags::POSTDATED)
+            .set(flags::FORWARDABLE)
             .build()
             .unwrap(),
         KerberosFlags::builder()
-            .set_renewable()
-            .set_ok_as_delegate()
-            .set_may_postdate()
-            .set_transited_policy_checked()
+            .set(flags::RENEWABLE)
+            .set(flags::OK_AS_DELEGATE)
+            .set(flags::MAY_POSTDATE)
+            .set(flags::TRANSITED_POLICY_CHECKED)
             .build()
             .unwrap(),
         KerberosFlags::builder().build().unwrap(),
