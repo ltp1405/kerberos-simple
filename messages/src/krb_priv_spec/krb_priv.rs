@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use der::{FixedTag, Sequence, Tag, TagNumber};
 
 use crate::basic::{application_tags, EncryptedData};
