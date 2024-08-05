@@ -77,4 +77,52 @@ impl KdcReqBody {
             additional_tickets,
         }
     }
+
+    pub fn kdc_options(&self) -> &KdcOptions {
+        &self.kdc_options
+    }
+
+    pub fn cname(&self) -> Option<&PrincipalName> {
+        self.cname.as_ref()
+    }
+
+    pub fn realm(&self) -> &Realm {
+        &self.realm
+    }
+
+    pub fn sname(&self) -> Option<&PrincipalName> {
+        self.sname.as_ref()
+    }
+
+    pub fn from(&self) -> Option<&KerberosTime> {
+        self.from.as_ref()
+    }
+
+    pub fn till(&self) -> &KerberosTime {
+        &self.till
+    }
+
+    pub fn rtime(&self) -> Option<&KerberosTime> {
+        self.rtime.as_ref()
+    }
+
+    pub fn nonce(&self) -> &UInt32 {
+        &self.nonce
+    }
+
+    pub fn etype(&self) -> &SequenceOf<Int32> {
+        &self.etype
+    }
+
+    pub fn addresses(&self) -> Option<&HostAddresses> {
+        self.addresses.as_ref()
+    }
+
+    pub fn enc_authorization_data(&self) -> Option<&EncryptedData> {
+        self.enc_authorization_data.as_ref()
+    }
+
+    pub fn additional_tickets(&self) -> Option<&SequenceOf<Ticket>> {
+        self.additional_tickets.as_ref()
+    }
 }

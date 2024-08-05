@@ -3,7 +3,7 @@ use der::{FixedTag, Sequence, Tag, TagNumber};
 use crate::basic::{application_tags, HostAddress, KerberosTime, Microseconds, OctetString, UInt32};
 
 #[derive(Sequence)]
-pub struct EncKrbPrivPartInner {
+struct EncKrbPrivPartInner {
     #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
     user_data: OctetString,
 
@@ -23,9 +23,7 @@ pub struct EncKrbPrivPartInner {
     r_address: Option<HostAddress>,
 }
 
-pub struct EncKrbPrivPart {
-    inner: EncKrbPrivPartInner,
-}
+pub struct EncKrbPrivPart(EncKrbPrivPartInner);
 
 impl EncKrbPrivPart {
     pub fn new(
@@ -36,39 +34,38 @@ impl EncKrbPrivPart {
         s_address: HostAddress,
         r_address: Option<HostAddress>,
     ) -> Self {
-        let inner = EncKrbPrivPartInner {
+        Self(EncKrbPrivPartInner {
             user_data,
             timestamp,
             usec,
             seq_number,
             s_address,
             r_address,
-        };
-        Self { inner }
+        })
     }
 
     pub fn user_data(&self) -> &OctetString {
-        &self.inner.user_data
+        &self.0.user_data
     }
 
     pub fn timestamp(&self) -> Option<&KerberosTime> {
-        self.inner.timestamp.as_ref()
+        self.0.timestamp.as_ref()
     }
 
     pub fn usec(&self) -> Option<&Microseconds> {
-        self.inner.usec.as_ref()
+        self.0.usec.as_ref()
     }
 
     pub fn seq_number(&self) -> Option<&UInt32> {
-        self.inner.seq_number.as_ref()
+        self.0.seq_number.as_ref()
     }
 
     pub fn s_address(&self) -> &HostAddress {
-        &self.inner.s_address
+        &self.0.s_address
     }
 
     pub fn r_address(&self) -> Option<&HostAddress> {
-        self.inner.r_address.as_ref()
+        self.0.r_address.as_ref()
     }
 }
 

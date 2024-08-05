@@ -1,15 +1,13 @@
+use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
+    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, application_tags},
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
-use crate::basic::application_tags;
 
-pub struct TgsRep {
-    inner: KdcRep,
-}
+pub struct TgsRep(KdcRep);
 
 impl TgsRep {
     pub fn new(
@@ -20,12 +18,15 @@ impl TgsRep {
         enc_part: EncryptedData,
     ) -> Self {
         let msg_type = Int32::new(b"\x0D").expect("Cannot initialize Int32 from &[u8]");
-        let inner = KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part);
-        Self { inner }
+        Self(KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part))
     }
+}
 
-    pub fn inner(&self) -> &KdcRep {
-        &self.inner
+impl Deref for TgsRep {
+    type Target = KdcRep;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

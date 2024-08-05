@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
@@ -6,9 +7,7 @@ use crate::{
                            kdc_req_body::KdcReqBody},
 };
 
-pub struct AsReq {
-    inner: KdcReq,
-}
+pub struct AsReq(KdcReq);
 
 impl AsReq {
     pub fn new(
@@ -16,12 +15,15 @@ impl AsReq {
         req_body: KdcReqBody,
     ) -> Self {
         let msg_type = Int32::new(b"\x0A").expect("Cannot initialize Int32 from &[u8]");
-        let inner = KdcReq::new(msg_type, padata, req_body);
-        Self { inner }
+        Self(KdcReq::new(msg_type, padata, req_body))
     }
+}
 
-    pub fn inner(&self) -> &KdcReq {
-        &self.inner
+impl Deref for AsReq {
+    type Target = KdcReq;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

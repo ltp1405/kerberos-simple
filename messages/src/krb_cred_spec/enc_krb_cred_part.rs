@@ -24,9 +24,7 @@ pub struct EncKrbCredPartInner {
     r_address: Option<HostAddress>,
 }
 
-pub struct EncKrbCredPart {
-    inner: EncKrbCredPartInner,
-}
+pub struct EncKrbCredPart(EncKrbCredPartInner);
 
 impl EncKrbCredPart {
     pub fn new(
@@ -45,31 +43,32 @@ impl EncKrbCredPart {
             s_address,
             r_address,
         };
-        Self { inner }
+
+        Self(inner)
     }
 
     pub fn ticket_info(&self) -> &SequenceOf<KrbCredInfo> {
-        &self.inner.ticket_info
+        &self.0.ticket_info
     }
 
     pub fn nonce(&self) -> Option<&UInt32> {
-        self.inner.nonce.as_ref()
+        self.0.nonce.as_ref()
     }
 
     pub fn timestamp(&self) -> Option<&KerberosTime> {
-        self.inner.timestamp.as_ref()
+        self.0.timestamp.as_ref()
     }
 
     pub fn usec(&self) -> Option<&Microseconds> {
-        self.inner.usec.as_ref()
+        self.0.usec.as_ref()
     }
 
     pub fn s_address(&self) -> Option<&HostAddress> {
-        self.inner.s_address.as_ref()
+        self.0.s_address.as_ref()
     }
 
     pub fn r_address(&self) -> Option<&HostAddress> {
-        self.inner.r_address.as_ref()
+        self.0.r_address.as_ref()
     }
 }
 

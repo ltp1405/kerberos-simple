@@ -1,15 +1,13 @@
+use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{Int32, PaData, SequenceOf},
+    basic::{Int32, PaData, SequenceOf, application_tags},
     spec_as_tgs_exchange::kdc_req::KdcReq,
     spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
-use crate::basic::application_tags;
 
-pub struct TgsReq {
-    inner: KdcReq,
-}
+pub struct TgsReq(KdcReq);
 
 impl TgsReq {
     pub fn new(
@@ -17,12 +15,15 @@ impl TgsReq {
         req_body: KdcReqBody,
     ) -> Self {
         let msg_type = Int32::new(b"\x0C").expect("Cannot initialize Int32 from &[u8]");
-        let inner = KdcReq::new(msg_type, padata, req_body);
-        Self { inner }
+        Self(KdcReq::new(msg_type, padata, req_body))
     }
+}
 
-    pub fn inner(&self) -> &KdcReq {
-        &self.inner
+impl Deref for TgsReq {
+    type Target = KdcReq;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

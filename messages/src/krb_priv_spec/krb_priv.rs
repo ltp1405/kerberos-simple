@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use der::{FixedTag, Sequence, Tag, TagNumber};
 
 use crate::basic::{application_tags, EncryptedData};
@@ -16,31 +17,27 @@ pub struct KrbPrivInner {
     enc_part: EncryptedData,
 }
 
-pub struct KrbPriv {
-    inner: KrbPrivInner,
-}
+pub struct KrbPriv(KrbPrivInner);
 
 impl KrbPriv {
     pub fn new(pvno: Int32, msg_type: Int32, enc_part: EncryptedData) -> Self {
-        let inner = KrbPrivInner {
+        Self(KrbPrivInner {
             pvno,
             msg_type,
             enc_part,
-        };
-
-        Self { inner }
+        })
     }
 
     pub fn pvno(&self) -> &Int32 {
-        &self.inner.pvno
+        &self.0.pvno
     }
 
     pub fn msg_type(&self) -> &Int32 {
-        &self.inner.msg_type
+        &self.0.msg_type
     }
 
     pub fn enc_part(&self) -> &EncryptedData {
-        &self.inner.enc_part
+        &self.0.enc_part
     }
 }
 

@@ -18,9 +18,7 @@ pub struct KrbCredInner {
     enc_part: EncryptedData,
 }
 
-pub struct KrbCred {
-    inner: KrbCredInner,
-}
+pub struct KrbCred(KrbCredInner);
 
 impl KrbCred {
     pub fn new(pvno: Int32, msg_type: Int32, tickets: SequenceOf<Ticket>, enc_part: EncryptedData) -> Self {
@@ -31,23 +29,23 @@ impl KrbCred {
             enc_part,
         };
 
-        Self { inner }
+        Self(inner)
     }
 
     pub fn pvno(&self) -> &Int32 {
-        &self.inner.pvno
+        &self.0.pvno
     }
 
     pub fn msg_type(&self) -> &Int32 {
-        &self.inner.msg_type
+        &self.0.msg_type
     }
 
     pub fn tickets(&self) -> &SequenceOf<Ticket> {
-        &self.inner.tickets
+        &self.0.tickets
     }
 
     pub fn enc_part(&self) -> &EncryptedData {
-        &self.inner.enc_part
+        &self.0.enc_part
     }
 }
 

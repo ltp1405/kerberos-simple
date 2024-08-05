@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
@@ -6,9 +7,7 @@ use crate::{
     tickets::Ticket,
 };
 
-pub struct AsRep {
-    inner: KdcRep,
-}
+pub struct AsRep(KdcRep);
 
 impl AsRep {
     pub fn new(
@@ -19,12 +18,15 @@ impl AsRep {
         enc_part: EncryptedData,
     ) -> Self {
         let msg_type = Int32::new(b"\x0B").expect("Cannot initialize Int32 from &[u8]");
-        let inner = KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part);
-        Self { inner }
+        Self(KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part))
     }
+}
 
-    pub fn inner(&self) -> &KdcRep {
-        &self.inner
+impl Deref for AsRep {
+    type Target = KdcRep;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
