@@ -5,7 +5,7 @@ use der::{
 };
 
 /// KRB_AP_REP message - 5.5.1
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct KrbApRep(KrbApRepInner);
 
 impl<'a> DecodeValue<'a> for KrbApRep {
@@ -32,7 +32,7 @@ impl EncodeValue for KrbApRep {
     }
 }
 
-#[derive(Sequence, Debug, PartialEq)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 struct KrbApRepInner {
     pvno: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,

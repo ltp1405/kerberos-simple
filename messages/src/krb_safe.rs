@@ -6,6 +6,7 @@ const KRB_SAFE_PVNO: u8 = 5;
 const KRB_SAFE_MSG_TYPE: u8 = 20;
 const KRB_SAFE_TAG: TagNumber = TagNumber::new(20);
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct KrbSafe(KrbSafeInner);
 
 impl KrbSafe {
@@ -38,7 +39,7 @@ impl FixedTag for KrbSafe {
     };
 }
 
-#[derive(Sequence)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 struct KrbSafeInner {
     pnvo: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,
@@ -46,7 +47,7 @@ struct KrbSafeInner {
     cksum: ContextSpecific<Checksum>,
 }
 
-#[derive(Sequence)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 pub struct KrbSafeBody {
     user_data: ContextSpecific<OctetString>,
     timestamp: Option<ContextSpecific<KerberosTime>>,

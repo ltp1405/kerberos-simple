@@ -6,7 +6,7 @@ use der::{
     TagNumber, Writer,
 };
 
-#[derive(Sequence, Debug)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 pub struct EncApRepPartInner {
     ctime: ContextSpecific<KerberosTime>,
     cusec: ContextSpecific<Microseconds>,
@@ -14,6 +14,7 @@ pub struct EncApRepPartInner {
     seq_number: Option<ContextSpecific<UInt32>>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 struct EncApRepPart(EncApRepPartInner);
 
 impl<'a> DecodeValue<'a> for EncApRepPart {

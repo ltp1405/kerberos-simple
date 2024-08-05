@@ -59,7 +59,7 @@ impl<'a> DecodeValue<'a> for APOptions {
     }
 }
 
-#[derive(Sequence, Debug, PartialEq)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 struct KrbApReqInner {
     pvno: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,
@@ -68,7 +68,7 @@ struct KrbApReqInner {
     authenticator: ContextSpecific<EncryptedData>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct KrbApReq(KrbApReqInner);
 
 impl FixedTag for KrbApReq {
