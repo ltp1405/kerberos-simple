@@ -14,14 +14,12 @@ pub struct EncApRepPartInner {
     seq_number: Option<ContextSpecific<UInt32>>,
 }
 
-struct EncApRepPart {
-    inner: EncApRepPartInner,
-}
+struct EncApRepPart(EncApRepPartInner);
 
 impl<'a> DecodeValue<'a> for EncApRepPart {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = EncApRepPartInner::decode(reader)?;
-        Ok(Self { inner })
+        Ok(Self(inner))
     }
 }
 
@@ -34,14 +32,14 @@ impl FixedTag for EncApRepPart {
 
 impl EncodeValue for EncApRepPart {
     fn value_len(&self) -> der::Result<Length> {
-        self.inner.encoded_len()
+        self.0.encoded_len()
     }
 
     fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        self.inner.ctime.encode(encoder)?;
-        self.inner.cusec.encode(encoder)?;
-        self.inner.subkey.encode(encoder)?;
-        self.inner.seq_number.encode(encoder)
+        self.0.ctime.encode(encoder)?;
+        self.0.cusec.encode(encoder)?;
+        self.0.subkey.encode(encoder)?;
+        self.0.seq_number.encode(encoder)
     }
 }
 
@@ -59,36 +57,31 @@ impl EncApRepPart {
                 tag_mode: der::TagMode::Explicit,
             }
         }
-        EncApRepPart {
-            inner: EncApRepPartInner {
-                ctime: make_tag(ctime.into(), 0),
-                cusec: make_tag(cusec.into(), 1),
-                subkey: subkey.map(|subkey| make_tag(subkey.into(), 2)),
-                seq_number: seq_number.map(|seq_number| make_tag(seq_number.into(), 3)),
-            },
-        }
+        EncApRepPart(EncApRepPartInner {
+            ctime: make_tag(ctime.into(), 0),
+            cusec: make_tag(cusec.into(), 1),
+            subkey: subkey.map(|subkey| make_tag(subkey.into(), 2)),
+            seq_number: seq_number.map(|seq_number| make_tag(seq_number.into(), 3)),
+        })
     }
 
     pub fn ctime(&self) -> KerberosTime {
-        self.inner.ctime.value
+        self.0.ctime.value
     }
 
     pub fn cusec(&self) -> Microseconds {
         todo!("Wait for Microseconds to be ready")
-        // self.inner.cusec.value
+        // self.0.cusec.value
     }
 
     pub fn seq_number(&self) -> Option<UInt32> {
-        self.inner
+        self.0
             .seq_number
             .as_ref()
             .map(|seq_number| seq_number.value.to_owned())
     }
 
     pub fn subkey(&self) -> Option<EncryptionKey> {
-        self.inner
-            .subkey
-            .as_ref()
-            .map(|subkey| subkey.value.to_owned())
+        self.0.subkey.as_ref().map(|subkey| subkey.value.to_owned())
     }
 }
