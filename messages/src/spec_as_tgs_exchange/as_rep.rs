@@ -11,11 +11,11 @@ pub struct AsRep(KdcRep);
 
 impl AsRep {
     pub fn new(
-        padata: Option<SequenceOf<PaData>>,
-        crealm: Realm,
-        cname: PrincipalName,
-        ticket: Ticket,
-        enc_part: EncryptedData,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        crealm: impl Into<Realm>,
+        cname: impl Into<PrincipalName>,
+        ticket: impl Into<Ticket>,
+        enc_part: impl Into<EncryptedData>,
     ) -> Self {
         let msg_type = Int32::new(b"\x0B").expect("Cannot initialize Int32 from &[u8]");
         Self(KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part))

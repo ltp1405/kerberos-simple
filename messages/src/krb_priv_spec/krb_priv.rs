@@ -19,11 +19,15 @@ pub struct KrbPrivInner {
 pub struct KrbPriv(KrbPrivInner);
 
 impl KrbPriv {
-    pub fn new(pvno: Int32, msg_type: Int32, enc_part: EncryptedData) -> Self {
+    pub fn new(
+        pvno: impl Into<Int32>,
+        msg_type: impl Into<Int32>,
+        enc_part: impl Into<EncryptedData>,
+    ) -> Self {
         Self(KrbPrivInner {
-            pvno,
-            msg_type,
-            enc_part,
+            pvno: pvno.into(),
+            msg_type: msg_type.into(),
+            enc_part: enc_part.into(),
         })
     }
 

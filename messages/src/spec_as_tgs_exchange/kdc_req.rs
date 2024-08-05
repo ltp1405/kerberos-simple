@@ -7,31 +7,31 @@ use crate::{
 
 #[derive(Sequence)]
 pub struct KdcReq {
-    #[asn1(context_specific = "1", tag_mode= "EXPLICIT")]
+    #[asn1(context_specific = "1", tag_mode = "EXPLICIT")]
     pvno: Int32,
 
-    #[asn1(context_specific = "2", tag_mode= "EXPLICIT")]
+    #[asn1(context_specific = "2", tag_mode = "EXPLICIT")]
     msg_type: Int32,
 
-    #[asn1(context_specific = "3", tag_mode= "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
     padata: Option<SequenceOf<PaData>>,
 
-    #[asn1(context_specific = "4", tag_mode= "EXPLICIT")]
+    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
     req_body: KdcReqBody,
 }
 
 impl KdcReq {
     pub fn new(
-        msg_type: Int32,
-        padata: Option<SequenceOf<PaData>>,
-        req_body: KdcReqBody,
+        msg_type: impl Into<Int32>,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        req_body: impl Into<KdcReqBody>,
     ) -> Self {
         let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
         Self {
             pvno,
-            msg_type,
-            padata,
-            req_body,
+            msg_type: msg_type.into(),
+            padata: padata.into(),
+            req_body: req_body.into(),
         }
     }
 

@@ -31,22 +31,22 @@ pub struct KdcRep {
 
 impl KdcRep {
     pub fn new(
-        msg_type: Int32,
-        padata: Option<SequenceOf<PaData>>,
-        crealm: Realm,
-        cname: PrincipalName,
-        ticket: Ticket,
-        enc_part: EncryptedData,
+        msg_type: impl Into<Int32>,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        crealm: impl Into<Realm>,
+        cname: impl Into<PrincipalName>,
+        ticket: impl Into<Ticket>,
+        enc_part: impl Into<EncryptedData>,
     ) -> Self {
         let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
         Self {
             pvno,
-            msg_type,
-            padata,
-            crealm,
-            cname,
-            ticket,
-            enc_part,
+            msg_type: msg_type.into(),
+            padata: padata.into(),
+            crealm: crealm.into(),
+            cname: cname.into(),
+            ticket: ticket.into(),
+            enc_part: enc_part.into(),
         }
     }
 

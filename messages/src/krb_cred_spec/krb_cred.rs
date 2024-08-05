@@ -21,12 +21,17 @@ pub struct KrbCredInner {
 pub struct KrbCred(KrbCredInner);
 
 impl KrbCred {
-    pub fn new(pvno: Int32, msg_type: Int32, tickets: SequenceOf<Ticket>, enc_part: EncryptedData) -> Self {
+    pub fn new(
+        pvno: impl Into<Int32>,
+        msg_type: impl Into<Int32>,
+        tickets: impl Into<SequenceOf<Ticket>>,
+        enc_part: impl Into<EncryptedData>,
+    ) -> Self {
         let inner = KrbCredInner {
-            pvno,
-            msg_type,
-            tickets,
-            enc_part,
+            pvno: pvno.into(),
+            msg_type: msg_type.into(),
+            tickets: tickets.into(),
+            enc_part: enc_part.into(),
         };
 
         Self(inner)

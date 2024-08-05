@@ -11,8 +11,8 @@ pub struct TgsReq(KdcReq);
 
 impl TgsReq {
     pub fn new(
-        padata: Option<SequenceOf<PaData>>,
-        req_body: KdcReqBody,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        req_body: impl Into<KdcReqBody>,
     ) -> Self {
         let msg_type = Int32::new(b"\x0C").expect("Cannot initialize Int32 from &[u8]");
         Self(KdcReq::new(msg_type, padata, req_body))

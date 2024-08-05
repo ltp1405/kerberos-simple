@@ -27,20 +27,20 @@ pub struct EncKrbPrivPart(EncKrbPrivPartInner);
 
 impl EncKrbPrivPart {
     pub fn new(
-        user_data: OctetString,
-        timestamp: Option<KerberosTime>,
-        usec: Option<Microseconds>,
-        seq_number: Option<UInt32>,
-        s_address: HostAddress,
-        r_address: Option<HostAddress>,
+        user_data: impl Into<OctetString>,
+        timestamp: impl Into<Option<KerberosTime>>,
+        usec: impl Into<Option<Microseconds>>,
+        seq_number: impl Into<Option<UInt32>>,
+        s_address: impl Into<HostAddress>,
+        r_address: impl Into<Option<HostAddress>>,
     ) -> Self {
         Self(EncKrbPrivPartInner {
-            user_data,
-            timestamp,
-            usec,
-            seq_number,
-            s_address,
-            r_address,
+            user_data: user_data.into(),
+            timestamp: timestamp.into(),
+            usec: usec.into(),
+            seq_number: seq_number.into(),
+            s_address: s_address.into(),
+            r_address: r_address.into(),
         })
     }
 

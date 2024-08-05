@@ -1,9 +1,7 @@
 use der::Sequence;
 
 use crate::{
-    basic::{
-        EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32,
-    },
+    basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32},
     spec_as_tgs_exchange::last_req::LastReq,
     tickets::TicketFlags,
 };
@@ -49,32 +47,32 @@ pub struct EncKdcRepPart {
 
 impl EncKdcRepPart {
     pub fn new(
-        key: EncryptionKey,
-        last_req: LastReq,
-        nonce: UInt32,
-        key_expiration: Option<KerberosTime>,
-        flags: TicketFlags,
-        authtime: KerberosTime,
-        starttime: Option<KerberosTime>,
-        endtime: KerberosTime,
-        renew_till: Option<KerberosTime>,
-        srealm: Realm,
-        sname: PrincipalName,
-        caddr: Option<HostAddresses>,
+        key: impl Into<EncryptionKey>,
+        last_req: impl Into<LastReq>,
+        nonce: impl Into<UInt32>,
+        key_expiration: impl Into<Option<KerberosTime>>,
+        flags: impl Into<TicketFlags>,
+        authtime: impl Into<KerberosTime>,
+        starttime: impl Into<Option<KerberosTime>>,
+        endtime: impl Into<KerberosTime>,
+        renew_till: impl Into<Option<KerberosTime>>,
+        srealm: impl Into<Realm>,
+        sname: impl Into<PrincipalName>,
+        caddr: impl Into<Option<HostAddresses>>,
     ) -> Self {
         Self {
-            key,
-            last_req,
-            nonce,
-            key_expiration,
-            flags,
-            authtime,
-            starttime,
-            endtime,
-            renew_till,
-            srealm,
-            sname,
-            caddr,
+            key: key.into(),
+            last_req: last_req.into(),
+            nonce: nonce.into(),
+            key_expiration: key_expiration.into(),
+            flags: flags.into(),
+            authtime: authtime.into(),
+            starttime: starttime.into(),
+            endtime: endtime.into(),
+            renew_till: renew_till.into(),
+            srealm: srealm.into(),
+            sname: sname.into(),
+            caddr: caddr.into(),
         }
     }
 

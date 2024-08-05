@@ -28,20 +28,20 @@ pub struct EncKrbCredPart(EncKrbCredPartInner);
 
 impl EncKrbCredPart {
     pub fn new(
-        ticket_info: SequenceOf<KrbCredInfo>,
-        nonce: Option<UInt32>,
-        timestamp: Option<KerberosTime>,
-        usec: Option<Microseconds>,
-        s_address: Option<HostAddress>,
-        r_address: Option<HostAddress>,
+        ticket_info: impl Into<SequenceOf<KrbCredInfo>>,
+        nonce: impl Into<Option<UInt32>>,
+        timestamp: impl Into<Option<KerberosTime>>,
+        usec: impl Into<Option<Microseconds>>,
+        s_address: impl Into<Option<HostAddress>>,
+        r_address: impl Into<Option<HostAddress>>,
     ) -> Self {
         let inner = EncKrbCredPartInner {
-            ticket_info,
-            nonce,
-            timestamp,
-            usec,
-            s_address,
-            r_address,
+            ticket_info: ticket_info.into(),
+            nonce: nonce.into(),
+            timestamp: timestamp.into(),
+            usec: usec.into(),
+            s_address: s_address.into(),
+            r_address: r_address.into(),
         };
 
         Self(inner)

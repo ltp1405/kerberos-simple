@@ -6,8 +6,8 @@ use crate::spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
 pub struct EncTgsRepPart(EncKdcRepPart);
 
 impl EncTgsRepPart {
-    pub fn new(inner: EncKdcRepPart) -> Self {
-        Self(inner)
+    pub fn new(inner: impl Into<EncKdcRepPart>) -> Self {
+        Self(inner.into())
     }
 }
 
