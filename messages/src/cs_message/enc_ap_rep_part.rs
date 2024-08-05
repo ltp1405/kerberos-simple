@@ -38,7 +38,10 @@ impl EncodeValue for EncApRepPart {
     }
 
     fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        todo!()
+        self.inner.ctime.encode(encoder)?;
+        self.inner.cusec.encode(encoder)?;
+        self.inner.subkey.encode(encoder)?;
+        self.inner.seq_number.encode(encoder)
     }
 }
 
