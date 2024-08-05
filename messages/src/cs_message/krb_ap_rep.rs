@@ -41,22 +41,17 @@ struct KrbApRepInner {
 
 impl KrbApRep {
     pub fn new(enc_part: EncryptedData) -> Self {
+        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
+            ContextSpecific {
+                value,
+                tag_number: TagNumber::new(number),
+                tag_mode: der::TagMode::Explicit,
+            }
+        }
         KrbApRep(KrbApRepInner {
-            pvno: ContextSpecific {
-                value: 5,
-                tag_number: TagNumber::new(0),
-                tag_mode: der::TagMode::Explicit,
-            },
-            msg_type: ContextSpecific {
-                value: 15,
-                tag_number: TagNumber::new(1),
-                tag_mode: der::TagMode::Explicit,
-            },
-            enc_part: ContextSpecific {
-                value: enc_part,
-                tag_number: TagNumber::new(2),
-                tag_mode: der::TagMode::Explicit,
-            },
+            pvno: make_tag(5, 0),
+            msg_type: make_tag(15, 1),
+            enc_part: make_tag(enc_part, 2),
         })
     }
 

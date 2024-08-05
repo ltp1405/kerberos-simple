@@ -64,7 +64,7 @@ impl EncApRepPart {
                 ctime: make_tag(ctime.into(), 0),
                 cusec: make_tag(cusec.into(), 1),
                 subkey: subkey.map(|subkey| make_tag(subkey.into(), 2)),
-                seq_number: seq_number.map(|seq_number| make_tag(seq_number.into(), 3)):
+                seq_number: seq_number.map(|seq_number| make_tag(seq_number.into(), 3)),
             },
         }
     }

@@ -96,12 +96,15 @@ impl<'a> DecodeValue<'a> for KrbApReq {
 
 impl KrbApReq {
     pub fn new(ap_options: APOptions, ticket: Ticket, authenticator: EncryptedData) -> Self {
-        KrbApReq(KrbApReqInner {
-            pvno: ContextSpecific {
-                value: 5,
-                tag_number: TagNumber::new(0),
+        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
+            ContextSpecific {
+                value,
+                tag_number: TagNumber::new(number),
                 tag_mode: der::TagMode::Explicit,
-            },
+            }
+        }
+        KrbApReq(KrbApReqInner {
+            pvno: make_tag(5, 0),
             msg_type: ContextSpecific {
                 value: 14,
                 tag_number: TagNumber::new(1),
