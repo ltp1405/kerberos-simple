@@ -19,7 +19,7 @@ struct EncApRepPart {
 }
 
 impl<'a> DecodeValue<'a> for EncApRepPart {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = EncApRepPartInner::decode(reader)?;
         Ok(Self { inner })
     }
@@ -52,28 +52,19 @@ impl EncApRepPart {
         subkey: Option<impl Into<EncryptionKey>>,
         seq_number: Option<impl Into<UInt32>>,
     ) -> Self {
+        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
+            ContextSpecific {
+                value,
+                tag_number: TagNumber::new(number),
+                tag_mode: der::TagMode::Explicit,
+            }
+        }
         EncApRepPart {
             inner: EncApRepPartInner {
-                ctime: ContextSpecific {
-                    value: ctime.into(),
-                    tag_number: TagNumber::new(0),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                cusec: ContextSpecific {
-                    value: cusec.into(),
-                    tag_number: TagNumber::new(1),
-                    tag_mode: der::TagMode::Explicit,
-                },
-                subkey: subkey.map(|subkey| ContextSpecific {
-                    value: subkey.into(),
-                    tag_number: TagNumber::new(2),
-                    tag_mode: der::TagMode::Explicit,
-                }),
-                seq_number: seq_number.map(|seq_number| ContextSpecific {
-                    value: seq_number.into(),
-                    tag_number: TagNumber::new(3),
-                    tag_mode: der::TagMode::Explicit,
-                }),
+                ctime: make_tag(ctime.into(), 0),
+                cusec: make_tag(cusec.into(), 1),
+                subkey: subkey.map(|subkey| make_tag(subkey.into(), 2)),
+                seq_number: seq_number.map(|seq_number| make_tag(seq_number.into(), 3)):
             },
         }
     }
