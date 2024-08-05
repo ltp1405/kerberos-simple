@@ -46,7 +46,7 @@ impl EncApRepPart {
     pub fn new(
         ctime: impl Into<KerberosTime>,
         cusec: impl Into<Microseconds>,
-        subkey: Option<EncryptionKey>,
+        subkey: Option<impl Into<EncryptionKey>>,
         seq_number: Option<impl Into<UInt32>>,
     ) -> Self {
         EncApRepPart {
@@ -62,7 +62,7 @@ impl EncApRepPart {
                     tag_mode: der::TagMode::Explicit,
                 },
                 subkey: subkey.map(|subkey| ContextSpecific {
-                    value: subkey,
+                    value: subkey.into(),
                     tag_number: TagNumber::new(2),
                     tag_mode: der::TagMode::Explicit,
                 }),
