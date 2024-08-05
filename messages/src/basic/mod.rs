@@ -10,8 +10,8 @@ pub(super) use constants::*;
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
 use predefined_values::{AddressType, NameType};
 
-mod constants;
-mod predefined_values;
+pub mod constants;
+pub mod predefined_values;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
