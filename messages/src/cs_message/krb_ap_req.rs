@@ -1,11 +1,12 @@
-use crate::basic::{BitSring, EncryptedData, KerberosFlags};
-use crate::tickets::Ticket;
-use der::asn1::{BitString, ContextSpecific};
-use der::Tag::Application;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
     TagNumber, Writer,
 };
+use der::asn1::{BitString, ContextSpecific};
+use der::Tag::Application;
+
+use crate::basic::EncryptedData;
+use crate::tickets::Ticket;
 
 // TODO: Should replace BitString with KerberosFlags when it is correctly implemented
 #[derive(Debug, PartialEq, Clone)]
