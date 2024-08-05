@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 der = { version = "0.7.9", features = ["alloc", "derive"] }
 serde = { version = "1.0.204", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7.11"
 
 [dev-dependencies]
 fake = "2.9.2"
