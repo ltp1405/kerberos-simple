@@ -38,29 +38,39 @@ pub mod patypes {
 }
 
 pub mod flags {
-    pub const RESERVED: u8 = 0b0000_0001; // Bit 0
+    pub const RESERVED: usize = 0; // Bit 0
 
-    pub const FORWARDABLE: u8 = 0b0000_0010; // Bit 1
-    pub const FORWARDED: u8 = 0b0000_0100; // Bit 2
-    pub const PROXIABLE: u8 = 0b0000_1000; // Bit 3
-    pub const PROXY: u8 = 0b0001_0000; // Bit 4
-    pub const MAY_POSTDATE: u8 = 0b0010_0000; // Bit 5
-    pub const POSTDATED: u8 = 0b0100_0000; // Bit 6
-    pub const INVALID: u8 = 0b1000_0000; // Bit 7
-    pub const RENEWABLE: u8 = 0b0000_0001; // Bit 8
+    pub const FORWARDABLE: usize = 1; // Bit 1
+    pub const FORWARDED: usize = 2; // Bit 2
+    pub const PROXIABLE: usize = 3; // Bit 3
+    pub const PROXY: usize = 4; // Bit 4
+    pub const MAY_POSTDATE: usize = 5; // Bit 5
+    pub const POSTDATED: usize = 6; // Bit 6
+    pub const INVALID: usize = 7; // Bit 7
+    pub const RENEWABLE: usize = 8; // Bit 8
 
-    pub const INITIAL: u8 = 0b0000_0010; // Bit 9
-    pub const PRE_AUTHENT: u8 = 0b0000_0100; // Bit 10
-    pub const HW_AUTHENT: u8 = 0b0000_1000; // Bit 11
+    pub const INITIAL: usize = 9; // Bit 9
+    pub const PRE_AUTHENT: usize = 10; // Bit 10
+    pub const HW_AUTHENT: usize = 11; // Bit 11
 
-    pub const TRANSITED_POLICY_CHECKED: u8 = 0b0001_0000; // Bit 12
-    pub const OK_AS_DELEGATE: u8 = 0b0010_0000; // Bit 13
+    pub const TRANSITED_POLICY_CHECKED: usize = 12; // Bit 12
+    pub const OK_AS_DELEGATE: usize = 13; // Bit 13
+    
+    pub const UNUSED9: usize = 9; // Bit 9
+    pub const UNUSED10: usize = 10; // Bit 10
+    pub const OPT_HARDWARE_AUTH: usize = 11; // Bit 11
+    pub const UNUSED12: usize = 12; // Bit 12
+    pub const UNUSED13: usize = 13; // Bit 13
+    pub const UNUSED15: usize = 15; // Bit 15
 
-    pub const DISABLE_TRANSITED_CHECK: u8 = 0b0000_0100; // Bit 26
-    pub const RENEWABLE_OK: u8 = 0b0000_1000; // Bit 27
-    pub const ENC_TKT_IN_SKEY: u8 = 0b0001_0000; // Bit 28
-    pub const RENEW: u8 = 0b0100_0000; // Bit 30
-    pub const VALIDATE: u8 = 0b1000_0000; // Bit 31
+    pub const DISABLE_TRANSITED_CHECK: usize = 26; // Bit 26
+    pub const RENEWABLE_OK: usize = 27; // Bit 27
+    pub const ENC_TKT_IN_SKEY: usize = 28; // Bit 28
+    pub const RENEW: usize = 30; // Bit 30
+    pub const VALIDATE: usize = 31; // Bit 31
+    
+    pub const USE_SESSION_KEY: usize = 1; // Bit 1
+    pub const MUTUAL_REQUIRED: usize = 2; // Bit 2
 }
 
 pub mod application_tags {
