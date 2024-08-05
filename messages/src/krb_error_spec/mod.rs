@@ -324,3 +324,6 @@ pub mod ecodes {
     pub const KDC_ERR_CLIENT_NAME_MISMATCH: i32 = 75; // Reserved for PKINIT
     pub const KDC_ERR_KDC_NAME_MISMATCH: i32 = 76; // Reserved for PKINIT
 }
+
+#[cfg(test)]
+mod test;

@@ -6,12 +6,10 @@ use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
 };
 
-pub(super) use constants::*;
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
-use predefined_values::{AddressType, NameType};
+pub(super) use constants::*;
 
 mod constants;
-mod predefined_values;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
@@ -36,14 +34,16 @@ pub type Realm = KerberosString;
 // RFC4120 5.2.2
 #[derive(Sequence, Debug, PartialEq, Eq, Clone)]
 pub struct PrincipalName {
-    name_type: NameType,
+    #[asn1(context_specific = "0")]
+    name_type: Int32,
+    #[asn1(context_specific = "1")]
     // Most PrincipalNames will have only a few components (typically one or two).
     name_string: SequenceOf<KerberosString>,
 }
 
 impl PrincipalName {
-    pub fn new<K: Into<SequenceOf<KerberosString>>>(
-        name_type: NameType,
+    pub fn try_from<K: Into<SequenceOf<KerberosString>>>(
+        nt_code: i32,
         components: K,
     ) -> Result<Self, &'static str> {
         let name_string = components.into();
@@ -52,42 +52,140 @@ impl PrincipalName {
             return Err("PrincipalName must have at least one component");
         }
 
+        let guard = NTCodeGuard::try_from(nt_code)?;
+
         Ok(Self {
-            name_type,
+            name_type: guard.into(),
             name_string,
         })
     }
 
-    pub fn name_type(&self) -> NameType {
-        self.name_type
+    pub fn name_type(&self) -> &Int32 {
+        &self.name_type
+    }
+
+    pub fn has_name_type_of(&self, nt_code: i32) -> bool {
+        let bytes = nt_code
+            .to_der()
+            .expect("This operation is always successful");
+        let nt = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.name_type == nt
     }
 
     pub fn name_string(&self) -> &SequenceOf<KerberosString> {
         &self.name_string
     }
+
+    pub const CODES: [i32; 9] = [
+        ntypes::NT_UNKNOWN,
+        ntypes::NT_PRINCIPAL,
+        ntypes::NT_SRV_INST,
+        ntypes::NT_SRC_HST,
+        ntypes::NT_SRV_XHST,
+        ntypes::NT_UID,
+        ntypes::NT_X500_PRINCIPAL,
+        ntypes::NT_SMTP_NAME,
+        ntypes::NT_ENTERPRISE,
+    ];
 }
 
+struct NTCodeGuard(Int32);
+
+impl TryFrom<i32> for NTCodeGuard {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if !PrincipalName::CODES.contains(&value) {
+            return Err("Invalid NameType code");
+        }
+        let bytes = value.to_der().map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to convert i32 to DER"
+        })?;
+        let decoded = Int32::from_der(&bytes).map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to decode Int32 from DER"
+        })?;
+        Ok(Self(decoded))
+    }
+}
+
+impl From<NTCodeGuard> for Int32 {
+    fn from(value: NTCodeGuard) -> Self {
+        value.0
+    }
+}
 // RFC4120 5.2.5
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct HostAddress {
-    addr_type: AddressType,
+    #[asn1(context_specific = "0")]
+    addr_type: Int32,
+    #[asn1(context_specific = "1")]
     address: OctetString,
 }
 
 impl HostAddress {
-    pub fn new<S: Into<OctetString>>(addr_type: AddressType, address: S) -> Self {
-        Self {
-            addr_type,
+    pub fn try_from<S: Into<OctetString>>(at_code: i32, address: S) -> Result<Self, &'static str> {
+        let guard = ATCodeGuard::try_from(at_code)?;
+        Ok(Self {
+            addr_type: guard.into(),
             address: address.into(),
-        }
+        })
     }
 
-    pub fn addr_type(&self) -> AddressType {
-        self.addr_type
+    pub fn addr_type(&self) -> &Int32 {
+        &self.addr_type
+    }
+    
+    pub fn has_addr_type_of(&self, at_code: i32) -> bool {
+        let bytes = at_code
+            .to_der()
+            .expect("This operation is always successful");
+        let at = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.addr_type == at
     }
 
     pub fn address(&self) -> &OctetString {
         &self.address
+    }
+
+    pub const CODES: [i32; 9] = [
+        atypes::IPV4,
+        atypes::DIRECTIONAL,
+        atypes::CHAOS_NET,
+        atypes::XNS,
+        atypes::ISO,
+        atypes::DECNET_PHASE_IV,
+        atypes::APPLETALK_DDP,
+        atypes::NETBIOS,
+        atypes::IPV6,
+    ];
+}
+
+struct ATCodeGuard(Int32);
+
+impl TryFrom<i32> for ATCodeGuard {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if !HostAddress::CODES.contains(&value) {
+            return Err("Invalid AddressType code");
+        }
+        let bytes = value.to_der().map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to convert i32 to DER"
+        })?;
+        let decoded = Int32::from_der(&bytes).map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to decode Int32 from DER"
+        })?;
+        Ok(Self(decoded))
+    }
+}
+
+impl From<ATCodeGuard> for Int32 {
+    fn from(value: ATCodeGuard) -> Self {
+        value.0
     }
 }
 

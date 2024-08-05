@@ -358,3 +358,6 @@ impl TicketBuilder {
         self
     }
 }
+
+#[cfg(test)]
+mod test;
