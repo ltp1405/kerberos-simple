@@ -8,40 +8,40 @@ use crate::{
 
 #[derive(Sequence)]
 pub struct EncKdcRepPart {
-    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "0")]
     key: EncryptionKey,
 
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "1")]
     last_req: LastReq,
 
-    #[asn1(context_specific = "2", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "2")]
     nonce: UInt32,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     key_expiration: Option<KerberosTime>,
 
-    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "4")]
     flags: TicketFlags,
 
-    #[asn1(context_specific = "5", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "5")]
     authtime: KerberosTime,
 
-    #[asn1(context_specific = "6", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "6", optional = "true")]
     starttime: Option<KerberosTime>,
 
-    #[asn1(context_specific = "7", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "7")]
     endtime: KerberosTime,
 
-    #[asn1(context_specific = "8", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "8", optional = "true")]
     renew_till: Option<KerberosTime>,
 
-    #[asn1(context_specific = "9", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "9")]
     srealm: Realm,
 
-    #[asn1(context_specific = "10", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "10")]
     sname: PrincipalName,
 
-    #[asn1(context_specific = "11", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "11", optional = "true")]
     caddr: Option<HostAddresses>,
 }
 

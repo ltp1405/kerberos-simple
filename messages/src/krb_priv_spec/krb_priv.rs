@@ -6,13 +6,13 @@ use crate::basic::Int32;
 #[derive(Sequence)]
 // Missing Application tag
 pub struct KrbPrivInner {
-    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "0")]
     pvno: Int32,
 
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "1")]
     msg_type: Int32,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "3")]
     enc_part: EncryptedData,
 }
 

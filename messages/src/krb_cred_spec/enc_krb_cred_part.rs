@@ -5,22 +5,22 @@ use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
 
 #[derive(Sequence)]
 pub struct EncKrbCredPartInner {
-    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "0")]
     ticket_info: SequenceOf<KrbCredInfo>,
 
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "1", optional = "true")]
     nonce: Option<UInt32>,
 
-    #[asn1(context_specific = "2", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "2", optional = "true")]
     timestamp: Option<KerberosTime>,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     usec: Option<Microseconds>,
 
-    #[asn1(context_specific = "4", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "4", optional = "true")]
     s_address: Option<HostAddress>,
 
-    #[asn1(context_specific = "5", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "5", optional = "true")]
     r_address: Option<HostAddress>,
 }
 

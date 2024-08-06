@@ -7,16 +7,16 @@ use crate::{
 
 #[derive(Sequence)]
 pub struct KdcReq {
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "1")]
     pvno: Int32,
 
-    #[asn1(context_specific = "2", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "2")]
     msg_type: Int32,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     padata: Option<SequenceOf<PaData>>,
 
-    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "4")]
     req_body: KdcReqBody,
 }
 

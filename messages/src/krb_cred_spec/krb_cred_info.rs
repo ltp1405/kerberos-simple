@@ -5,37 +5,37 @@ use crate::tickets::TicketFlags;
 
 #[derive(Sequence)]
 pub struct KrbCredInfo {
-    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "0")]
     key: EncryptionKey,
 
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "1", optional = "true")]
     prealm: Option<Realm>,
 
-    #[asn1(context_specific = "2", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "2", optional = "true")]
     pname: Option<PrincipalName>,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     flags: Option<TicketFlags>,
 
-    #[asn1(context_specific = "4", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "4", optional = "true")]
     authtime: Option<KerberosTime>,
 
-    #[asn1(context_specific = "5", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "5", optional = "true")]
     starttime: Option<KerberosTime>,
 
-    #[asn1(context_specific = "6", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "6", optional = "true")]
     endtime: Option<KerberosTime>,
 
-    #[asn1(context_specific = "7", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "7", optional = "true")]
     renew_till: Option<KerberosTime>,
 
-    #[asn1(context_specific = "8", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "8", optional = "true")]
     srealm: Option<Realm>,
 
-    #[asn1(context_specific = "9", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "9", optional = "true")]
     sname: Option<PrincipalName>,
 
-    #[asn1(context_specific = "10", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "10", optional = "true")]
     caddr: Option<HostAddresses>,
 }
 

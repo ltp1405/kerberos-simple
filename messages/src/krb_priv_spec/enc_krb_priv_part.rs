@@ -4,22 +4,22 @@ use crate::basic::{application_tags, HostAddress, KerberosTime, Microseconds, Oc
 
 #[derive(Sequence)]
 struct EncKrbPrivPartInner {
-    #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "0")]
     user_data: OctetString,
 
-    #[asn1(context_specific = "1", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "1", optional = "true")]
     timestamp: Option<KerberosTime>,
 
-    #[asn1(context_specific = "2", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "2", optional = "true")]
     usec: Option<Microseconds>,
 
-    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     seq_number: Option<UInt32>,
 
-    #[asn1(context_specific = "4", tag_mode = "EXPLICIT")]
+    #[asn1(context_specific = "4")]
     s_address: HostAddress,
 
-    #[asn1(context_specific = "5", tag_mode = "EXPLICIT", optional = "true")]
+    #[asn1(context_specific = "5", optional = "true")]
     r_address: Option<HostAddress>,
 }
 
