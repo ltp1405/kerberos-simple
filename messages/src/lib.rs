@@ -18,4 +18,5 @@ pub mod krb_error_spec;
 
 pub mod client;
 pub mod servers;
+pub mod kdc;
 mod cs_message;
