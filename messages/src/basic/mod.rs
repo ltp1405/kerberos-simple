@@ -136,7 +136,7 @@ impl HostAddress {
     pub fn addr_type(&self) -> &Int32 {
         &self.addr_type
     }
-    
+
     pub fn has_addr_type_of(&self, at_code: i32) -> bool {
         let bytes = at_code
             .to_der()
@@ -711,7 +711,8 @@ impl KerberosFlagsBuilder {
             }
             let byte_pos = bit_pos / 8;
             let bit_pos = bit_pos % 8;
-            (*self.inner)[byte_pos] |= 1 << bit_pos;
+            let shift_bits = 7 - bit_pos;
+            (*self.inner)[byte_pos] |= 1 << shift_bits;
             self
         }
     }
