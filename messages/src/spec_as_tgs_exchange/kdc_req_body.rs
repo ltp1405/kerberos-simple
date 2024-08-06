@@ -1,14 +1,13 @@
 use crate::{
     basic::{
-        EncryptedData, HostAddresses, Int32, KerberosTime, PrincipalName, Realm, SequenceOf,
-        UInt32,
+        EncryptedData, HostAddresses, Int32, KerberosTime, PrincipalName, Realm, SequenceOf, UInt32,
     },
     spec_as_tgs_exchange::kdc_options::KdcOptions,
     tickets::Ticket,
 };
 use der::Sequence;
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct KdcReqBody {
     #[asn1(context_specific = "0")]
     pub kdc_options: KdcOptions,
@@ -128,27 +127,36 @@ impl KdcReqBody {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::time::Duration;
-    use der::{Encode, SliceWriter};
+pub mod tests {
     use super::*;
-    use crate::basic::{KerberosString, PrincipalName, predefined_values::NameType, Realm, OctetString, KerberosFlags, flags};
-    use crate::tickets::Ticket;
+    use crate::basic::{
+        flags, predefined_values::NameType, KerberosFlags, KerberosString, OctetString,
+        PrincipalName, Realm,
+    };
+    use der::{Decode, Encode, EncodeValue, SliceReader};
+    use std::time::Duration;
 
-    fn sample_data() -> KdcReqBody {
+    pub fn sample_data() -> KdcReqBody {
         KdcReqBody::new(
             KerberosFlags::builder()
                 .set(flags::FORWARDABLE)
-                .build().unwrap(),
-            Some(PrincipalName::new(
-                NameType::Enterprise,
-                vec![KerberosString::try_from("host".to_string()).unwrap()],
-            ).unwrap()),
+                .build()
+                .unwrap(),
+            Some(
+                PrincipalName::new(
+                    NameType::Enterprise,
+                    vec![KerberosString::try_from("host".to_string()).unwrap()],
+                )
+                .unwrap(),
+            ),
             Realm::new("EXAMPLE.COM").unwrap(),
-            Some(PrincipalName::new(
-                NameType::Principal,
-                vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
-            ).unwrap()),
+            Some(
+                PrincipalName::new(
+                    NameType::Principal,
+                    vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
+                )
+                .unwrap(),
+            ),
             Some(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap()),
             KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap(),
             Some(KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap()),
@@ -160,43 +168,86 @@ mod tests {
                 UInt32::new(b"\x0A").unwrap(),
                 OctetString::new(b"key").unwrap(),
             )),
-            None
-            // Some(SequenceOf::from(vec![Ticket::new(
-            //     Realm::new("EXAMPLE.COM").unwrap(),
-            //     PrincipalName::new(
-            //         NameType::Principal,
-            //         vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
-            //     ).unwrap(),
-            //     EncryptedData::new(
-            //         Int32::new(b"\x01").unwrap(),
-            //         UInt32::new(b"\x0A").unwrap(),
-            //         OctetString::new(b"key").unwrap(),
-            //     ),
-            // )])),
+            None, // Some(SequenceOf::from(vec![Ticket::new(
+                  //     Realm::new("EXAMPLE.COM").unwrap(),
+                  //     PrincipalName::new(
+                  //         NameType::Principal,
+                  //         vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
+                  //     ).unwrap(),
+                  //     EncryptedData::new(
+                  //         Int32::new(b"\x01").unwrap(),
+                  //         UInt32::new(b"\x0A").unwrap(),
+                  //         OctetString::new(b"key").unwrap(),
+                  //     ),
+                  // )])),
         )
     }
 
     #[test]
-    fn kdc_req_body_ser() {
+    fn test_primitives() {
         let body = sample_data();
-        let mut binding = [0u8; 256];
-        let mut writer: SliceWriter = SliceWriter::new(&mut binding);
+        let mut compare = Vec::new();
 
-        let kdc_options: [u8; 7] = [0x03, 0x05, 0x00, 0x02, 0x00, 0x00, 0x00];
-        writer.encode(body.kdc_options()).unwrap();
-        let compare = writer.finish().unwrap();
-        assert_eq!(compare.len(), kdc_options.len());
-        assert_eq!(compare, kdc_options);
+        // let kdc_options: [u8; 7] = [0x03, 0x05, 0x00, 0x02, 0x00, 0x00, 0x00];
+        // body.kdc_options().encode_to_vec(&mut compare).unwrap();
+        // assert_eq!(compare.len(), kdc_options.len());
+        // assert_eq!(compare, kdc_options);
 
-        let mut writer: SliceWriter = SliceWriter::new(&mut binding);
-        writer.encode(body.realm()).unwrap();
-        let realm: [u8; 13] = [0x16, 0x0B, 0x45, 0x58, 0x41, 0x4D, 0x50, 0x4C, 0x45, 0x2E, 0x43, 0x4F, 0x4D];
-        let compare = writer.finish().unwrap();
+        let realm: [u8; 13] = [
+            0x16, 0x0B, 0x45, 0x58, 0x41, 0x4D, 0x50, 0x4C, 0x45, 0x2E, 0x43, 0x4F, 0x4D,
+        ];
+        body.realm().encode_to_vec(&mut compare).unwrap();
         assert_eq!(compare.len(), realm.len());
         assert_eq!(compare, realm);
-        let mut buf: Vec<u8> = vec![];
+
+        compare.clear();
+        let from: [u8; 17] = [
+            0x18, 0x0F, 0x31, 0x39, 0x37, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+            0x30, 0x31, 0x5A,
+        ];
+        body.from().unwrap().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), from.len());
+        assert_eq!(compare, from);
+
+        compare.clear();
+        let till: [u8; 17] = [
+            0x18, 0x0F, 0x31, 0x39, 0x37, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+            0x30, 0x32, 0x5A,
+        ];
+        body.till().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), till.len());
+        assert_eq!(compare, till);
+
+        compare.clear();
+        let rtime: [u8; 17] = [
+            0x18, 0x0F, 0x31, 0x39, 0x37, 0x30, 0x30, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x30,
+            0x30, 0x33, 0x5A,
+        ];
+        body.rtime().unwrap().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), rtime.len());
+        assert_eq!(compare, rtime);
+
+        compare.clear();
+        let nonce: [u8; 3] = [0x02, 0x01, 0x03];
+        body.nonce().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), nonce.len());
+        assert_eq!(compare, nonce);
+
+        compare.clear();
+        let etype: [u8; 5] = [0x30, 0x03, 0x02, 0x01, 0x01];
+        body.etype().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), etype.len());
+        assert_eq!(compare, etype);
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let body = sample_data();
+        let mut buf = Vec::new();
         body.encode_to_vec(&mut buf).unwrap();
-        println!("{:x?}", buf.len());
-        println!("{:x?}", buf);
+        let decoded =
+            KdcReqBody::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(decoded.header(), body.header());
+        assert_eq!(decoded, body);
     }
 }

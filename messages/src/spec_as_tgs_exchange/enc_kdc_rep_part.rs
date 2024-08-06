@@ -6,7 +6,7 @@ use crate::{
     tickets::TicketFlags,
 };
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct EncKdcRepPart {
     #[asn1(context_specific = "0")]
     key: EncryptionKey,
@@ -122,5 +122,78 @@ impl EncKdcRepPart {
 
     pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::basic::predefined_values::NameType;
+    use crate::basic::{
+        flags, EncryptionKey, Int32, KerberosString, KerberosTime, PrincipalName, Realm, UInt32,
+    };
+    use crate::spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
+    use crate::spec_as_tgs_exchange::last_req::LastReq;
+    use crate::tickets::TicketFlags;
+    use der::asn1::OctetString;
+    use der::{Decode, Encode, SliceReader};
+    use std::time::Duration;
+
+    pub fn sample_data() -> EncKdcRepPart {
+        EncKdcRepPart::new(
+            EncryptionKey::new(
+                Int32::new(b"\xAB").unwrap(),
+                OctetString::new(b"keyvalue").unwrap(),
+            ),
+            LastReq::new(),
+            UInt32::new(b"\x01").unwrap(),
+            None,
+            TicketFlags::builder()
+                .set(flags::FORWARDABLE)
+                .build()
+                .unwrap(),
+            KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap(),
+            None,
+            KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap(),
+            None,
+            Realm::new("EXAMPLE.COM".as_bytes()).unwrap(),
+            PrincipalName::new(
+                NameType::Principal,
+                vec![KerberosString::new("krbtgt".as_bytes()).unwrap()],
+            )
+            .unwrap(),
+            None,
+        )
+    }
+
+    #[test]
+    fn test_primitives() {
+        let data = sample_data();
+        assert_eq!(*data.key().keytype(), Int32::new(b"\xAB").unwrap());
+        assert_eq!(
+            *data.key().keyvalue(),
+            OctetString::new(b"keyvalue").unwrap()
+        );
+        assert_eq!(*data.nonce(), UInt32::new(b"\x01").unwrap());
+        assert_eq!(
+            *data.flags(),
+            TicketFlags::builder()
+                .set(flags::FORWARDABLE)
+                .build()
+                .unwrap()
+        );
+        assert_eq!(
+            *data.srealm(),
+            Realm::new("EXAMPLE.COM".as_bytes()).unwrap()
+        );
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded_data: EncKdcRepPart =
+            EncKdcRepPart::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(decoded_data, data);
     }
 }
