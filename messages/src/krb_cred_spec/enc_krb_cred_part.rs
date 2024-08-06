@@ -1,9 +1,12 @@
-use der::{FixedTag, Sequence, Tag, TagNumber};
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
+    TagNumber, Writer,
+};
 
 use crate::basic::{application_tags, HostAddress, KerberosTime, Microseconds, SequenceOf, UInt32};
 use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct EncKrbCredPartInner {
     #[asn1(context_specific = "0")]
     ticket_info: SequenceOf<KrbCredInfo>,
@@ -24,6 +27,7 @@ pub struct EncKrbCredPartInner {
     r_address: Option<HostAddress>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct EncKrbCredPart(EncKrbCredPartInner);
 
 impl EncKrbCredPart {
@@ -72,9 +76,57 @@ impl EncKrbCredPart {
     }
 }
 
+impl<'a> DecodeValue<'a> for EncKrbCredPart {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let inner = EncKrbCredPartInner::decode(reader)?;
+        Ok(Self(inner))
+    }
+}
+
+impl EncodeValue for EncKrbCredPart {
+    fn value_len(&self) -> der::Result<Length> {
+        self.0.encoded_len()
+    }
+
+    fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
+        self.0.encode(encoder)
+    }
+}
+
 impl FixedTag for EncKrbCredPart {
     const TAG: Tag = Tag::Application {
         constructed: true,
         number: TagNumber::new(application_tags::ENC_KRB_CRED_PART),
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::basic::application_tags;
+    use crate::krb_cred_spec::enc_krb_cred_part::EncKrbCredPart;
+    use der::{Decode, Encode, SliceReader, Tag, TagNumber, Tagged};
+
+    pub fn sample_data() -> EncKrbCredPart {
+        EncKrbCredPart::new(vec![], None, None, None, None, None)
+    }
+
+    #[test]
+    fn test_tag() {
+        let data = sample_data();
+        let tag = Tag::Application {
+            constructed: true,
+            number: TagNumber::new(application_tags::ENC_KRB_CRED_PART),
+        };
+        assert_eq!(data.tag(), tag);
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded =
+            EncKrbCredPart::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(data, decoded);
+    }
 }

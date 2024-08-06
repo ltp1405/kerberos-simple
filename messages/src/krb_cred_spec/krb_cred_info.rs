@@ -3,7 +3,7 @@ use der::Sequence;
 use crate::basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm};
 use crate::tickets::TicketFlags;
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct KrbCredInfo {
     #[asn1(context_specific = "0")]
     key: EncryptionKey,
@@ -110,5 +110,48 @@ impl KrbCredInfo {
 
     pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::basic::{EncryptionKey, Int32, OctetString};
+    use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
+    use der::{Decode, Encode, SliceReader};
+
+    pub fn sample_data() -> KrbCredInfo {
+        KrbCredInfo::new(
+            EncryptionKey::new(
+                Int32::new(b"\xAB").unwrap(),
+                OctetString::new(b"key").unwrap(),
+            ),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn test_primitives() {
+        let data = sample_data();
+        assert_eq!(*data.key().keytype(), Int32::new(b"\xAB").unwrap());
+        assert_eq!(data.key().keyvalue().as_ref(), b"key");
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded =
+            KrbCredInfo::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(data, decoded);
     }
 }
