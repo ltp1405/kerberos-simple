@@ -1,9 +1,12 @@
-use der::{FixedTag, Sequence, Tag, TagNumber};
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
+    TagNumber, Writer,
+};
 
-use crate::basic::{application_tags, EncryptedData};
 use crate::basic::Int32;
+use crate::basic::{application_tags, EncryptedData};
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 // Missing Application tag
 pub struct KrbPrivInner {
     #[asn1(context_specific = "0")]
@@ -44,9 +47,72 @@ impl KrbPriv {
     }
 }
 
+impl<'a> DecodeValue<'a> for KrbPriv {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let inner = KrbPrivInner::decode(reader)?;
+        Ok(Self(inner))
+    }
+}
+
+impl EncodeValue for KrbPriv {
+    fn value_len(&self) -> der::Result<Length> {
+        self.0.encoded_len()
+    }
+
+    fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
+        self.0.encode(encoder)
+    }
+}
+
 impl FixedTag for KrbPriv {
     const TAG: Tag = Tag::Application {
         constructed: true,
         number: TagNumber::new(application_tags::KRB_PRIV),
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::basic::{application_tags, EncryptedData, Int32};
+    use crate::krb_priv_spec::krb_priv::KrbPriv;
+    use der::asn1::OctetString;
+    use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
+
+    pub fn sample_data() -> KrbPriv {
+        KrbPriv::new(
+            Int32::new(b"\x05").unwrap(),
+            Int32::new(b"\x0F").unwrap(),
+            EncryptedData::new(
+                Int32::new(b"\xAB").unwrap(),
+                Some(Int32::new(b"\x01").unwrap()),
+                OctetString::new("".as_bytes()).unwrap(),
+            ),
+        )
+    }
+
+    #[test]
+    fn test_primitives() {
+        let data = sample_data();
+        assert_eq!(*data.pvno(), Int32::new(b"\x05").unwrap());
+        assert_eq!(*data.msg_type(), Int32::new(b"\x0F").unwrap());
+    }
+
+    #[test]
+    fn test_tag() {
+        let data = sample_data();
+        let tag = Tag::Application {
+            constructed: true,
+            number: TagNumber::new(application_tags::KRB_PRIV),
+        };
+        assert_eq!(data.tag(), tag);
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded = KrbPriv::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(decoded.header(), data.header());
+    }
 }
