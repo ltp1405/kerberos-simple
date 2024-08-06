@@ -102,9 +102,8 @@ mod tests {
     #[cfg(test)]
     mod tests {
         use crate::basic::predefined_values::AddressType;
-        use crate::basic::{application_tags, EncryptedData, HostAddress, Int32};
-        use crate::krb_priv_spec::enc_krb_priv_part::{EncKrbPrivPart, EncKrbPrivPartInner};
-        use der::asn1::OctetString;
+        use crate::basic::{application_tags, HostAddress, OctetString};
+        use crate::krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
         use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
 
         pub fn sample_data() -> EncKrbPrivPart {

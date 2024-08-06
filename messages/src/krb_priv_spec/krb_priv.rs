@@ -73,9 +73,8 @@ impl FixedTag for KrbPriv {
 
 #[cfg(test)]
 mod tests {
-    use crate::basic::{application_tags, EncryptedData, Int32};
+    use crate::basic::{application_tags, EncryptedData, Int32, OctetString};
     use crate::krb_priv_spec::krb_priv::KrbPriv;
-    use der::asn1::OctetString;
     use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
 
     pub fn sample_data() -> KrbPriv {
