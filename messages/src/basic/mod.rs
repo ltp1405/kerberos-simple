@@ -6,8 +6,8 @@ use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
 };
 
-pub(super) use constants::*;
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
+pub(super) use constants::*;
 use predefined_values::{AddressType, NameType};
 
 mod constants;
@@ -613,7 +613,8 @@ impl KerberosFlagsBuilder {
             }
             let byte_pos = bit_pos / 8;
             let bit_pos = bit_pos % 8;
-            (*self.inner)[byte_pos] |= 1 << bit_pos;
+            let shift_bits = 7 - bit_pos;
+            (*self.inner)[byte_pos] |= 1 << shift_bits;
             self
         }
     }
