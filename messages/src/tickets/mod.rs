@@ -199,8 +199,8 @@ impl EncTicketPart {
         authtime: KerberosTime,
         endtime: KerberosTime,
         transited: TransitedEncoding,
-    ) -> TicketBuilder {
-        TicketBuilder::new(flags, key, crealm, cname, authtime, endtime, transited)
+    ) -> EncTicketPartBuilder {
+        EncTicketPartBuilder::new(flags, key, crealm, cname, authtime, endtime, transited)
     }
 
     pub fn flags(&self) -> &TicketFlags {
@@ -211,8 +211,8 @@ impl EncTicketPart {
         &self.key
     }
 
-    pub fn crealm(&self) -> &str {
-        self.crealm.as_ref()
+    pub fn crealm(&self) -> &Realm {
+        &self.crealm
     }
 
     pub fn cname(&self) -> &PrincipalName {
@@ -248,7 +248,7 @@ impl EncTicketPart {
     }
 }
 
-pub struct TicketBuilder {
+pub struct EncTicketPartBuilder {
     flags: TicketFlags,
     key: EncryptionKey,
     crealm: Realm,
@@ -262,7 +262,7 @@ pub struct TicketBuilder {
     authorization_data: Option<AuthorizationData>,
 }
 
-impl TicketBuilder {
+impl EncTicketPartBuilder {
     fn new(
         flags: TicketFlags,
         key: EncryptionKey,

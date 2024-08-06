@@ -123,8 +123,8 @@ impl KrbErrorMsg {
         self.cusec.as_ref()
     }
 
-    pub fn stime(&self) -> KerberosTime {
-        self.stime
+    pub fn stime(&self) -> &KerberosTime {
+        &self.stime
     }
 
     pub fn susec(&self) -> &Microseconds {
@@ -143,8 +143,8 @@ impl KrbErrorMsg {
         self.cname.as_ref()
     }
 
-    pub fn realm(&self) -> &str {
-        self.realm.as_ref()
+    pub fn realm(&self) -> &Realm {
+        &self.realm
     }
 
     pub fn sname(&self) -> &PrincipalName {
