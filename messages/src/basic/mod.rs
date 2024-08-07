@@ -642,9 +642,10 @@ impl KerberosFlags {
 
     pub fn is_set(&self, bit_pos: usize) -> bool {
         let bit = (bit_pos % 8) as u8;
+        let shift = 7 - bit;
         let idx = bit_pos / 8;
         let bytes = self.inner.raw_bytes();
-        bytes.get(idx).map_or(false, |byte| byte & (1 << bit) != 0)
+        bytes.get(idx).map_or(false, |byte| byte & (1 << shift) != 0)
     }
 }
 

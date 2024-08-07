@@ -2,11 +2,12 @@ use std::time::Duration;
 
 use der::{Decode, Encode};
 
-use crate::basic::{
-    ntypes, Int32, KerberosString, KerberosTime, Microseconds, PrincipalName, Realm,
+use crate::{
+    basic::{ntypes, Int32, KerberosString, KerberosTime, Microseconds, PrincipalName, Realm},
+    krb_error_spec::KrbErrorMsg,
 };
 
-use super::{ecodes, KrbErrorMsg};
+use super::ecodes;
 
 #[test]
 fn krb_err_builder_works_fine() {
@@ -27,15 +28,15 @@ fn krb_err_builder_works_fine() {
         sname.clone(),
     )
     .build();
-    assert_eq!(krb_err.stime(), &stime);
-    assert_eq!(krb_err.susec(), &susec);
-    assert_eq!(krb_err.error_code(), &error_code);
-    assert_eq!(krb_err.realm(), &realm);
-    assert_eq!(krb_err.sname(), &sname);
-    assert!(krb_err.cname().is_none());
-    assert!(krb_err.crealm().is_none());
-    assert!(krb_err.e_text().is_none());
-    assert!(krb_err.e_data().is_none());
+    assert_eq!(krb_err.as_ref().stime(), &stime);
+    assert_eq!(krb_err.as_ref().susec(), &susec);
+    assert_eq!(krb_err.as_ref().error_code(), &error_code);
+    assert_eq!(krb_err.as_ref().realm(), &realm);
+    assert_eq!(krb_err.as_ref().sname(), &sname);
+    assert!(krb_err.as_ref().cname().is_none());
+    assert!(krb_err.as_ref().crealm().is_none());
+    assert!(krb_err.as_ref().e_text().is_none());
+    assert!(krb_err.as_ref().e_data().is_none());
 }
 
 #[test]
@@ -59,13 +60,13 @@ fn encode_decode_for_krb_err_msg_works_fine() {
     .build();
     let bytes = krb_err.to_der().unwrap();
     let decoded = KrbErrorMsg::from_der(&bytes).unwrap();
-    assert_eq!(decoded.stime(), &stime);
-    assert_eq!(decoded.susec(), &susec);
-    assert_eq!(decoded.error_code(), &error_code);
-    assert_eq!(decoded.realm(), &realm);
-    assert_eq!(decoded.sname(), &sname);
-    assert!(decoded.cname().is_none());
-    assert!(decoded.crealm().is_none());
-    assert!(decoded.e_text().is_none());
-    assert!(decoded.e_data().is_none());
+    assert_eq!(decoded.as_ref().stime(), &stime);
+    assert_eq!(decoded.as_ref().susec(), &susec);
+    assert_eq!(decoded.as_ref().error_code(), &error_code);
+    assert_eq!(decoded.as_ref().realm(), &realm);
+    assert_eq!(decoded.as_ref().sname(), &sname);
+    assert!(decoded.as_ref().cname().is_none());
+    assert!(decoded.as_ref().crealm().is_none());
+    assert!(decoded.as_ref().e_text().is_none());
+    assert!(decoded.as_ref().e_data().is_none());
 }

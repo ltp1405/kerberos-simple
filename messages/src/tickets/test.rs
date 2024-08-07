@@ -2,12 +2,15 @@ use std::time::Duration;
 
 use der::{asn1::OctetString, Decode, Encode};
 
-use crate::basic::{
-    flags, ntypes, ADEntry, EncryptedData, EncryptionKey, HostAddress, Int32, KerberosString,
-    KerberosTime, PrincipalName, Realm, SequenceOf,
+use crate::{
+    basic::{
+        flags, ntypes, ADEntry, EncryptedData, EncryptionKey, HostAddress, Int32, KerberosString,
+        KerberosTime, PrincipalName, Realm,
+    },
+    tickets::{enc_ticket_part::EncTicketPart, transited_encoding::TransitedEncoding, Ticket},
 };
 
-use super::{EncTicketPart, Ticket, TicketFlags};
+use super::TicketFlags;
 
 #[test]
 fn ticket_should_have_tkt_vnu_equals_5() {
@@ -23,10 +26,13 @@ fn ticket_should_have_tkt_vnu_equals_5() {
         OctetString::new("bytes".as_bytes()).unwrap(),
     );
     let ticket = Ticket::new(realm.clone(), sname.clone(), enc_part.clone());
-    assert_eq!(ticket.tkt_vno(), &Int32::new(&5.to_der().unwrap()).unwrap());
-    assert_eq!(ticket.realm(), &realm);
-    assert_eq!(ticket.sname(), &sname);
-    assert_eq!(ticket.enc_part(), &enc_part);
+    assert_eq!(
+        ticket.as_ref().tkt_vno(),
+        &Int32::new(&5.to_der().unwrap()).unwrap()
+    );
+    assert_eq!(ticket.as_ref().realm(), &realm);
+    assert_eq!(ticket.as_ref().sname(), &sname);
+    assert_eq!(ticket.as_ref().enc_part(), &enc_part);
 }
 
 #[test]
@@ -46,19 +52,19 @@ fn encode_decode_for_ticket_works_fine() {
     let bytes = ticket.to_der().unwrap();
     let decoded = Ticket::from_der(&bytes).unwrap();
     assert_eq!(
-        decoded.tkt_vno(),
+        decoded.as_ref().tkt_vno(),
         &Int32::new(&5.to_der().unwrap()).unwrap()
     );
-    assert_eq!(decoded.realm(), &realm);
-    assert_eq!(decoded.sname(), &sname);
-    assert_eq!(decoded.enc_part(), &enc_part);
+    assert_eq!(decoded.as_ref().realm(), &realm);
+    assert_eq!(decoded.as_ref().sname(), &sname);
+    assert_eq!(decoded.as_ref().enc_part(), &enc_part);
 }
 
 #[test]
 fn transited_encoding_getter_works_fine() {
     let tr_type = Int32::new(&5.to_der().unwrap()).unwrap();
     let contents = OctetString::new("bytes".as_bytes()).unwrap();
-    let transited_encoding = super::TransitedEncoding::new(tr_type.clone(), contents.clone());
+    let transited_encoding = TransitedEncoding::new(tr_type.clone(), contents.clone());
     assert_eq!(transited_encoding.tr_type(), &tr_type);
     assert_eq!(transited_encoding.contents(), &contents);
 }
@@ -67,9 +73,9 @@ fn transited_encoding_getter_works_fine() {
 fn encode_decode_for_transited_encoding_works_fine() {
     let tr_type = Int32::new(&5.to_der().unwrap()).unwrap();
     let contents = OctetString::new("bytes".as_bytes()).unwrap();
-    let transited_encoding = super::TransitedEncoding::new(tr_type.clone(), contents.clone());
+    let transited_encoding = TransitedEncoding::new(tr_type.clone(), contents.clone());
     let bytes = transited_encoding.to_der().unwrap();
-    let decoded = super::TransitedEncoding::from_der(&bytes).unwrap();
+    let decoded = TransitedEncoding::from_der(&bytes).unwrap();
     assert_eq!(decoded.tr_type(), &tr_type);
     assert_eq!(decoded.contents(), &contents);
 }
@@ -92,7 +98,7 @@ fn enc_ticket_part_builder_works_fine() {
     };
     let authtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824155)).unwrap();
     let endtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824160)).unwrap();
-    let transited = super::TransitedEncoding::new(
+    let transited = TransitedEncoding::new(
         Int32::new(&5.to_der().unwrap()).unwrap(),
         OctetString::new("bytes".as_bytes()).unwrap(),
     );
@@ -107,17 +113,17 @@ fn enc_ticket_part_builder_works_fine() {
     )
     .build();
 
-    assert_eq!(enc_ticket_part.flags(), &flags);
-    assert_eq!(enc_ticket_part.key(), &key);
-    assert_eq!(enc_ticket_part.crealm(), &crealm);
-    assert_eq!(enc_ticket_part.cname(), &cname);
-    assert_eq!(enc_ticket_part.authtime(), authtime);
-    assert_eq!(enc_ticket_part.endtime(), endtime);
-    assert_eq!(enc_ticket_part.transited(), &transited);
-    assert!(enc_ticket_part.authorization_data().is_none());
-    assert!(enc_ticket_part.caddr().is_none());
-    assert!(enc_ticket_part.starttime().is_none());
-    assert!(enc_ticket_part.renew_till().is_none());
+    assert_eq!(enc_ticket_part.as_ref().flags(), &flags);
+    assert_eq!(enc_ticket_part.as_ref().key(), &key);
+    assert_eq!(enc_ticket_part.as_ref().crealm(), &crealm);
+    assert_eq!(enc_ticket_part.as_ref().cname(), &cname);
+    assert_eq!(enc_ticket_part.as_ref().authtime(), authtime);
+    assert_eq!(enc_ticket_part.as_ref().endtime(), endtime);
+    assert_eq!(enc_ticket_part.as_ref().transited(), &transited);
+    assert!(enc_ticket_part.as_ref().authorization_data().is_none());
+    assert!(enc_ticket_part.as_ref().caddr().is_none());
+    assert!(enc_ticket_part.as_ref().starttime().is_none());
+    assert!(enc_ticket_part.as_ref().renew_till().is_none());
 }
 
 #[test]
@@ -138,7 +144,7 @@ fn encode_decode_for_enc_ticket_part_works_fine() {
     };
     let authtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824155)).unwrap();
     let endtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824160)).unwrap();
-    let transited = super::TransitedEncoding::new(
+    let transited = TransitedEncoding::new(
         Int32::new(&5.to_der().unwrap()).unwrap(),
         OctetString::new("bytes".as_bytes()).unwrap(),
     );
@@ -163,15 +169,18 @@ fn encode_decode_for_enc_ticket_part_works_fine() {
 
     let bytes = enc_ticket_part.to_der().unwrap();
     let decoded = EncTicketPart::from_der(&bytes).unwrap();
-    assert_eq!(decoded.flags(), &flags);
-    assert_eq!(decoded.key(), &key);
-    assert_eq!(decoded.crealm(), &crealm);
-    assert_eq!(decoded.cname(), &cname);
-    assert_eq!(decoded.authtime(), authtime);
-    assert_eq!(decoded.endtime(), endtime);
-    assert_eq!(decoded.transited(), &transited);
-    assert_eq!(decoded.authorization_data(), Some(&authorization_data));
-    assert_eq!(decoded.caddr(), Some(&caddr));
-    assert!(decoded.starttime().is_none());
-    assert!(decoded.renew_till().is_none());
+    assert_eq!(decoded.as_ref().flags(), &flags);
+    assert_eq!(decoded.as_ref().key(), &key);
+    assert_eq!(decoded.as_ref().crealm(), &crealm);
+    assert_eq!(decoded.as_ref().cname(), &cname);
+    assert_eq!(decoded.as_ref().authtime(), authtime);
+    assert_eq!(decoded.as_ref().endtime(), endtime);
+    assert_eq!(decoded.as_ref().transited(), &transited);
+    assert_eq!(
+        decoded.as_ref().authorization_data(),
+        Some(&authorization_data)
+    );
+    assert_eq!(decoded.as_ref().caddr(), Some(&caddr));
+    assert!(decoded.as_ref().starttime().is_none());
+    assert!(decoded.as_ref().renew_till().is_none());
 }
