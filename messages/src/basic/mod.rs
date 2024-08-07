@@ -1,12 +1,15 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use der::{self, asn1::{GeneralizedTime, Ia5String, OctetStringRef}, Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer};
+use der::{
+    self,
+    asn1::{GeneralizedTime, Ia5String, OctetStringRef},
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
+};
 
+pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
 pub(super) use constants::*;
-use predefined_values::{AddressType, NameType};
 
 mod constants;
-mod predefined_values;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
@@ -31,14 +34,16 @@ pub type Realm = KerberosString;
 // RFC4120 5.2.2
 #[derive(Sequence, Debug, PartialEq, Eq, Clone)]
 pub struct PrincipalName {
-    name_type: NameType,
+    #[asn1(context_specific = "0")]
+    name_type: Int32,
+    #[asn1(context_specific = "1")]
     // Most PrincipalNames will have only a few components (typically one or two).
     name_string: SequenceOf<KerberosString>,
 }
 
 impl PrincipalName {
-    pub fn new<K: Into<SequenceOf<KerberosString>>>(
-        name_type: NameType,
+    pub fn try_from<K: Into<SequenceOf<KerberosString>>>(
+        nt_code: i32,
         components: K,
     ) -> Result<Self, &'static str> {
         let name_string = components.into();
@@ -47,42 +52,140 @@ impl PrincipalName {
             return Err("PrincipalName must have at least one component");
         }
 
+        let guard = NTCodeGuard::try_from(nt_code)?;
+
         Ok(Self {
-            name_type,
+            name_type: guard.into(),
             name_string,
         })
     }
 
-    pub fn name_type(&self) -> NameType {
-        self.name_type
+    pub fn name_type(&self) -> &Int32 {
+        &self.name_type
+    }
+
+    pub fn has_name_type_of(&self, nt_code: i32) -> bool {
+        let bytes = nt_code
+            .to_der()
+            .expect("This operation is always successful");
+        let nt = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.name_type == nt
     }
 
     pub fn name_string(&self) -> &SequenceOf<KerberosString> {
         &self.name_string
     }
+
+    pub const CODES: [i32; 9] = [
+        ntypes::NT_UNKNOWN,
+        ntypes::NT_PRINCIPAL,
+        ntypes::NT_SRV_INST,
+        ntypes::NT_SRC_HST,
+        ntypes::NT_SRV_XHST,
+        ntypes::NT_UID,
+        ntypes::NT_X500_PRINCIPAL,
+        ntypes::NT_SMTP_NAME,
+        ntypes::NT_ENTERPRISE,
+    ];
 }
 
+struct NTCodeGuard(Int32);
+
+impl TryFrom<i32> for NTCodeGuard {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if !PrincipalName::CODES.contains(&value) {
+            return Err("Invalid NameType code");
+        }
+        let bytes = value.to_der().map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to convert i32 to DER"
+        })?;
+        let decoded = Int32::from_der(&bytes).map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to decode Int32 from DER"
+        })?;
+        Ok(Self(decoded))
+    }
+}
+
+impl From<NTCodeGuard> for Int32 {
+    fn from(value: NTCodeGuard) -> Self {
+        value.0
+    }
+}
 // RFC4120 5.2.5
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct HostAddress {
-    addr_type: AddressType,
+    #[asn1(context_specific = "0")]
+    addr_type: Int32,
+    #[asn1(context_specific = "1")]
     address: OctetString,
 }
 
 impl HostAddress {
-    pub fn new<S: Into<OctetString>>(addr_type: AddressType, address: S) -> Self {
-        Self {
-            addr_type,
+    pub fn try_from<S: Into<OctetString>>(at_code: i32, address: S) -> Result<Self, &'static str> {
+        let guard = ATCodeGuard::try_from(at_code)?;
+        Ok(Self {
+            addr_type: guard.into(),
             address: address.into(),
-        }
+        })
     }
 
-    pub fn addr_type(&self) -> AddressType {
-        self.addr_type
+    pub fn addr_type(&self) -> &Int32 {
+        &self.addr_type
+    }
+
+    pub fn has_addr_type_of(&self, at_code: i32) -> bool {
+        let bytes = at_code
+            .to_der()
+            .expect("This operation is always successful");
+        let at = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.addr_type == at
     }
 
     pub fn address(&self) -> &OctetString {
         &self.address
+    }
+
+    pub const CODES: [i32; 9] = [
+        atypes::IPV4,
+        atypes::DIRECTIONAL,
+        atypes::CHAOS_NET,
+        atypes::XNS,
+        atypes::ISO,
+        atypes::DECNET_PHASE_IV,
+        atypes::APPLETALK_DDP,
+        atypes::NETBIOS,
+        atypes::IPV6,
+    ];
+}
+
+struct ATCodeGuard(Int32);
+
+impl TryFrom<i32> for ATCodeGuard {
+    type Error = &'static str;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        if !HostAddress::CODES.contains(&value) {
+            return Err("Invalid AddressType code");
+        }
+        let bytes = value.to_der().map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to convert i32 to DER"
+        })?;
+        let decoded = Int32::from_der(&bytes).map_err(|e| {
+            eprintln!("Error: {}", e);
+            "Failed to decode Int32 from DER"
+        })?;
+        Ok(Self(decoded))
+    }
+}
+
+impl From<ATCodeGuard> for Int32 {
+    fn from(value: ATCodeGuard) -> Self {
+        value.0
     }
 }
 
@@ -537,27 +640,12 @@ impl KerberosFlags {
         KerberosFlagsBuilder::new()
     }
 
-    pub fn is_set(&self, option: &KerberosFlagsOption) -> bool {
-        let bit = option.to_u8() % 8;
-        let idx = (option.to_u8() / 8) as usize;
+    pub fn is_set(&self, bit_pos: usize) -> bool {
+        let bit = (bit_pos % 8) as u8;
+        let shift = 7 - bit;
+        let idx = bit_pos / 8;
         let bytes = self.inner.raw_bytes();
-        bytes.get(idx).map_or(false, |byte| byte & (1 << bit) != 0)
-    }
-
-    // Get the vector of options that are set in the flags.
-    pub fn options(&self) -> Vec<KerberosFlagsOption> {
-        let mut options = Vec::new();
-        let bytes = self.inner.raw_bytes();
-        (0..bytes.len()).for_each(|i| {
-            for j in 0..8 {
-                if bytes[i] & (1 << j) != 0 {
-                    if let Some(option) = KerberosFlagsOption::from_u8(i as u8 * 8 + j) {
-                        options.push(option);
-                    }
-                }
-            }
-        });
-        options
+        bytes.get(idx).map_or(false, |byte| byte & (1 << shift) != 0)
     }
 }
 
@@ -583,188 +671,70 @@ impl<'a> DecodeValue<'a> for KerberosFlags {
 }
 
 pub struct KerberosFlagsBuilder {
-    inner: [u8; 4], // 4 bytes
+    inner: *mut [u8], // array of bytes
+    consumed: bool,
 }
 
 impl KerberosFlagsBuilder {
     fn new() -> Self {
-        Self { inner: [0; 4] }
+        Self {
+            inner: Box::into_raw(Box::new([0; 4])),
+            consumed: false,
+        }
     }
 
-    pub fn build(self) -> Result<KerberosFlags, &'static str> {
-        let inner = BitSring::from_bytes(&self.inner).map_err(|e| {
+    pub fn len(mut self, len: usize) -> Result<Self, &'static str> {
+        unsafe {
+            if len < 4 {
+                return Err("Length must be at least 4 bytes");
+            }
+            if len == self.inner.len() {
+                return Ok(self);
+            }
+            let new_inner = {
+                let (old_inner, mut new_inner) = (Box::from_raw(self.inner), vec![0; len]);
+                if old_inner.len() > len {
+                    new_inner.copy_from_slice(&old_inner[..len]);
+                } else {
+                    new_inner[..old_inner.len()].copy_from_slice(&old_inner);
+                }
+                new_inner
+            };
+            self.inner = Box::into_raw(new_inner.into_boxed_slice());
+            Ok(self)
+        }
+    }
+
+    pub fn set(self, bit_pos: usize) -> Self {
+        unsafe {
+            if bit_pos >= self.inner.len() * 8 {
+                return self;
+            }
+            let byte_pos = bit_pos / 8;
+            let bit_pos = bit_pos % 8;
+            let shift_bits = 7 - bit_pos;
+            (*self.inner)[byte_pos] |= 1 << shift_bits;
+            self
+        }
+    }
+
+    pub fn build(mut self) -> Result<KerberosFlags, &'static str> {
+        self.consumed = true;
+        let bytes = unsafe { Box::from_raw(self.inner) };
+        let inner = BitSring::from_bytes(&bytes).map_err(|e| {
             eprintln!("Failed to build KerberosFlags: {}", e);
             "Invalid bits representation {:?}"
         })?;
         Ok(KerberosFlags { inner })
     }
-
-    pub fn set_reserved(mut self) -> Self {
-        self.inner[0] |= flags::RESERVED;
-        self
-    }
-
-    pub fn set_forwardable(mut self) -> Self {
-        self.inner[0] |= flags::FORWARDABLE;
-        self
-    }
-
-    pub fn set_forwarded(mut self) -> Self {
-        self.inner[0] |= flags::FORWARDED;
-        self
-    }
-
-    pub fn set_proxiable(mut self) -> Self {
-        self.inner[0] |= flags::PROXIABLE;
-        self
-    }
-
-    pub fn set_proxy(mut self) -> Self {
-        self.inner[0] |= flags::PROXY;
-        self
-    }
-
-    pub fn set_may_postdate(mut self) -> Self {
-        self.inner[0] |= flags::MAY_POSTDATE;
-        self
-    }
-
-    pub fn set_postdated(mut self) -> Self {
-        self.inner[0] |= flags::POSTDATED;
-        self
-    }
-
-    pub fn set_invalid(mut self) -> Self {
-        self.inner[0] |= flags::INVALID;
-        self
-    }
-
-    pub fn set_renewable(mut self) -> Self {
-        self.inner[1] |= flags::RENEWABLE;
-        self
-    }
-
-    pub fn set_initial(mut self) -> Self {
-        self.inner[1] |= flags::INITIAL;
-        self
-    }
-
-    pub fn set_pre_authenticated(mut self) -> Self {
-        self.inner[1] |= flags::PRE_AUTHENT;
-        self
-    }
-
-    pub fn set_hw_authenticated(mut self) -> Self {
-        self.inner[1] |= flags::HW_AUTHENT;
-        self
-    }
-
-    pub fn set_transited_policy_checked(mut self) -> Self {
-        self.inner[1] |= flags::TRANSITED_POLICY_CHECKED;
-        self
-    }
-
-    pub fn set_ok_as_delegate(mut self) -> Self {
-        self.inner[1] |= flags::OK_AS_DELEGATE;
-        self
-    }
-
-    pub fn set_disable_transited_check(mut self) -> Self {
-        self.inner[3] |= flags::DISABLE_TRANSITED_CHECK;
-        self
-    }
-
-    pub fn set_renewable_ok(mut self) -> Self {
-        self.inner[3] |= flags::RENEWABLE_OK;
-        self
-    }
-
-    pub fn set_enc_tkt_in_skey(mut self) -> Self {
-        self.inner[3] |= flags::ENC_TKT_IN_SKEY;
-        self
-    }
-
-    pub fn set_renew(mut self) -> Self {
-        self.inner[3] |= flags::RENEW;
-        self
-    }
-
-    pub fn set_validate(mut self) -> Self {
-        self.inner[3] |= flags::VALIDATE;
-        self
-    }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum KerberosFlagsOption {
-    Reserved,
-    Forwardable,
-    Forwarded,
-    Proxiable,
-    Proxy,
-    MayPostdate,
-    Postdated,
-    Invalid,
-    Renewable,
-    Initial,
-    PreAuthenticated,
-    HWAuthenticated,
-    TransitedPolicyChecked,
-    OkAsDelegate,
-    DisableTransitedCheck,
-    RenewableOk,
-    EncTktInSkey,
-    Renew,
-    Validate,
-}
-
-impl KerberosFlagsOption {
-    fn to_u8(self) -> u8 {
-        match self {
-            Self::Reserved => 0,
-            Self::Forwardable => 1,
-            Self::Forwarded => 2,
-            Self::Proxiable => 3,
-            Self::Proxy => 4,
-            Self::MayPostdate => 5,
-            Self::Postdated => 6,
-            Self::Invalid => 7,
-            Self::Renewable => 8,
-            Self::Initial => 9,
-            Self::PreAuthenticated => 10,
-            Self::HWAuthenticated => 11,
-            Self::TransitedPolicyChecked => 12,
-            Self::OkAsDelegate => 13,
-            Self::DisableTransitedCheck => 26,
-            Self::RenewableOk => 27,
-            Self::EncTktInSkey => 28,
-            Self::Renew => 30,
-            Self::Validate => 31,
-        }
-    }
-
-    fn from_u8(flag: u8) -> Option<Self> {
-        match flag {
-            0 => Some(Self::Reserved),
-            1 => Some(Self::Forwardable),
-            2 => Some(Self::Forwarded),
-            3 => Some(Self::Proxiable),
-            4 => Some(Self::Proxy),
-            5 => Some(Self::MayPostdate),
-            6 => Some(Self::Postdated),
-            7 => Some(Self::Invalid),
-            8 => Some(Self::Renewable),
-            9 => Some(Self::Initial),
-            10 => Some(Self::PreAuthenticated),
-            11 => Some(Self::HWAuthenticated),
-            12 => Some(Self::TransitedPolicyChecked),
-            13 => Some(Self::OkAsDelegate),
-            26 => Some(Self::DisableTransitedCheck),
-            27 => Some(Self::RenewableOk),
-            28 => Some(Self::EncTktInSkey),
-            30 => Some(Self::Renew),
-            31 => Some(Self::Validate),
-            _ => None,
+impl Drop for KerberosFlagsBuilder {
+    fn drop(&mut self) {
+        if !self.consumed {
+            unsafe {
+                drop(Box::from_raw(self.inner));
+            }
         }
     }
 }

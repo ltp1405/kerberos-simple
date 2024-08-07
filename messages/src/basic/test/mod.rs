@@ -16,8 +16,8 @@ use crate::basic::{
 };
 
 use super::{
-    ADEntry, AdKdcIssued, Checksum, EncryptedData, EncryptionKey, HostAddress, KerberosFlags,
-    KerberosFlagsOption, PaData, PrincipalName,
+    flags, ADEntry, AdKdcIssued, Checksum, EncryptedData, EncryptionKey, HostAddress,
+    KerberosFlags, PaData, PrincipalName,
 };
 
 mod utils;
@@ -28,20 +28,20 @@ fn principal_name_works_fine_with_appropriate_seq_of_ker_strs() {
     let testcases = random_testcases_of_principal_name_1(10, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(principal_name.is_ok());
         let principal_name = principal_name.unwrap();
-        assert_eq!(principal_name.name_type(), expected_name_type);
+        assert!(principal_name.has_name_type_of(expected_name_type));
         assert_eq!(principal_name.name_string(), &name_string);
     }
 
     let testcases = random_testcases_of_principal_name_2(12, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(principal_name.is_ok());
         let principal_name = principal_name.unwrap();
-        assert_eq!(principal_name.name_type(), expected_name_type);
+        assert!(principal_name.has_name_type_of(expected_name_type));
         assert_eq!(principal_name.name_string(), &name_string);
     }
 }
@@ -51,14 +51,14 @@ fn principal_name_fails_with_inappropriate_seq_of_ker_strs() {
     let testcases = random_testcases_of_principal_name_1(9, true);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(principal_name.is_err());
     }
 
     let testcases = random_testcases_of_principal_name_2(3, true);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(principal_name.is_err());
     }
 }
@@ -68,7 +68,7 @@ fn encode_decode_for_principal_name_works_fine() {
     let testcases = random_testcases_of_principal_name_1(12, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(
             principal_name.is_ok(),
             "Failed to create: {:?}",
@@ -87,7 +87,7 @@ fn encode_decode_for_principal_name_works_fine() {
     let testcases = random_testcases_of_principal_name_2(20, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
         assert!(
             principal_name.is_ok(),
             "Failed to create: {:?}",
@@ -109,8 +109,10 @@ fn encode_decode_for_principal_name_works_fine() {
 fn getter_of_host_address_works_fine() {
     let testcases = random_testcases_of_address_type(20, 29);
     for (address_type, address) in testcases {
-        let host_address = HostAddress::new(address_type, address.clone());
-        assert_eq!(host_address.addr_type(), address_type);
+        let host_address = HostAddress::try_from(address_type, address.clone());
+        assert!(host_address.is_ok());
+        let host_address = host_address.unwrap();
+        assert!(host_address.has_addr_type_of(address_type));
         assert_eq!(host_address.address(), &address);
     }
 }
@@ -119,7 +121,9 @@ fn getter_of_host_address_works_fine() {
 fn encode_decode_host_address_works_fine() {
     let testcases = random_testcases_of_address_type(20, 17);
     for (address_type, address) in testcases {
-        let host_address = HostAddress::new(address_type, address.clone());
+        let host_address = HostAddress::try_from(address_type, address.clone());
+        assert!(host_address.is_ok());
+        let host_address = host_address.unwrap();
         let encoded = host_address.to_der();
         assert!(encoded.is_ok(), "Failed to encode: {:?}", encoded);
         let encoded = encoded.unwrap();
@@ -452,37 +456,37 @@ fn upgrade_unregistered_pa_data_should_return_err() {
 ///////////////////////// KerberosFlag //////////////////////////
 #[test]
 fn kerberos_flags_should_correctly_identify_its_options() {
-    let testcases: Vec<(Result<KerberosFlags, &'static str>, &[KerberosFlagsOption])> = vec![
+    let testcases: Vec<(Result<KerberosFlags, &'static str>, &[usize])> = vec![
         (
-            KerberosFlags::builder().set_proxy().build(),
-            &[KerberosFlagsOption::Proxy],
+            KerberosFlags::builder().set(flags::PROXY).build(),
+            &[flags::PROXY],
         ),
         (
             KerberosFlags::builder()
-                .set_proxy()
-                .set_initial()
-                .set_postdated()
-                .set_forwardable()
+                .set(flags::PROXY)
+                .set(flags::INITIAL)
+                .set(flags::POSTDATED)
+                .set(flags::FORWARDABLE)
                 .build(),
             &[
-                KerberosFlagsOption::Proxy,
-                KerberosFlagsOption::Initial,
-                KerberosFlagsOption::Postdated,
-                KerberosFlagsOption::Forwardable,
+                flags::PROXY,
+                flags::INITIAL,
+                flags::POSTDATED,
+                flags::FORWARDABLE,
             ],
         ),
         (
             KerberosFlags::builder()
-                .set_renewable()
-                .set_ok_as_delegate()
-                .set_may_postdate()
-                .set_transited_policy_checked()
+                .set(flags::RENEWABLE)
+                .set(flags::OK_AS_DELEGATE)
+                .set(flags::MAY_POSTDATE)
+                .set(flags::TRANSITED_POLICY_CHECKED)
                 .build(),
             &[
-                KerberosFlagsOption::Renewable,
-                KerberosFlagsOption::OkAsDelegate,
-                KerberosFlagsOption::MayPostdate,
-                KerberosFlagsOption::TransitedPolicyChecked,
+                flags::RENEWABLE,
+                flags::OK_AS_DELEGATE,
+                flags::MAY_POSTDATE,
+                flags::TRANSITED_POLICY_CHECKED,
             ],
         ),
         (KerberosFlags::builder().build(), &[]),
@@ -494,17 +498,7 @@ fn kerberos_flags_should_correctly_identify_its_options() {
         let flags = flags.unwrap();
 
         for option in options {
-            assert!(flags.is_set(option), "Flag {:?} is not set", option);
-        }
-
-        let flags_options = flags.options();
-
-        for option in options {
-            assert!(
-                flags_options.contains(option),
-                "Flag {:?} is not set",
-                option
-            );
+            assert!(flags.is_set(*option), "Flag {:?} is not set", option);
         }
     }
 }
@@ -512,19 +506,19 @@ fn kerberos_flags_should_correctly_identify_its_options() {
 #[test]
 fn encode_decode_kerberos_flags_works_fine() {
     let testcases: Vec<KerberosFlags> = vec![
-        KerberosFlags::builder().set_proxy().build().unwrap(),
+        KerberosFlags::builder().set(flags::PROXY).build().unwrap(),
         KerberosFlags::builder()
-            .set_proxy()
-            .set_initial()
-            .set_postdated()
-            .set_forwardable()
+            .set(flags::PROXY)
+            .set(flags::INITIAL)
+            .set(flags::POSTDATED)
+            .set(flags::FORWARDABLE)
             .build()
             .unwrap(),
         KerberosFlags::builder()
-            .set_renewable()
-            .set_ok_as_delegate()
-            .set_may_postdate()
-            .set_transited_policy_checked()
+            .set(flags::RENEWABLE)
+            .set(flags::OK_AS_DELEGATE)
+            .set(flags::MAY_POSTDATE)
+            .set(flags::TRANSITED_POLICY_CHECKED)
             .build()
             .unwrap(),
         KerberosFlags::builder().build().unwrap(),

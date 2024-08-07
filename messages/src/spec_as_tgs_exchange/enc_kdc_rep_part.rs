@@ -1,9 +1,7 @@
 use der::Sequence;
 
 use crate::{
-    basic::{
-        EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32,
-    },
+    basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32},
     spec_as_tgs_exchange::last_req::LastReq,
     tickets::TicketFlags,
 };
