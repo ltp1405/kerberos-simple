@@ -7,7 +7,7 @@ use der::{
 };
 
 #[derive(Sequence, Debug, PartialEq, Clone)]
-pub struct EncApRepPartInner {
+struct EncApRepPartInner {
     ctime: ContextSpecific<KerberosTime>,
     cusec: ContextSpecific<Microseconds>,
     subkey: Option<ContextSpecific<EncryptionKey>>,
@@ -15,7 +15,7 @@ pub struct EncApRepPartInner {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct EncApRepPart(EncApRepPartInner);
+pub struct EncApRepPart(EncApRepPartInner);
 
 impl<'a> DecodeValue<'a> for EncApRepPart {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
