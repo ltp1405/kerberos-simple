@@ -3,41 +3,16 @@ use fake::{Fake, Faker};
 use rand::{Rng, SeedableRng};
 
 use crate::basic::{
-    predefined_values::{AddressType, NameType},
-    ADEntry, AdAndOr, AdIfRelevant, AdKdcIssued, AdMandatoryForKdc, AuthorizationData, Checksum,
-    ETypeInfo, ETypeInfo2, ETypeInfo2Entry, ETypeInfoEntry, EncryptedData, EncryptionKey, Int32,
-    KerberosString, KerberosTime, OctetString, PaData, PaEncTimestamp, PaEncTsEnc, PrincipalName,
-    Realm, SequenceOf, UInt32,
+    ntypes, ADEntry, AdAndOr, AdIfRelevant, AdKdcIssued, AdMandatoryForKdc, AuthorizationData,
+    Checksum, ETypeInfo, ETypeInfo2, ETypeInfo2Entry, ETypeInfoEntry, EncryptedData, EncryptionKey,
+    HostAddress, Int32, KerberosString, KerberosTime, OctetString, PaData, PaEncTimestamp,
+    PaEncTsEnc, PrincipalName, Realm, SequenceOf, UInt32,
 };
 
 pub struct Scope<T> {
     pub entry: T,
     pub for_local: bool,
 }
-
-const NAME_TYPES: [NameType; 9] = [
-    NameType::Unknown,
-    NameType::SmtpName,
-    NameType::SrcHst,
-    NameType::X500Principal,
-    NameType::SrvXhst,
-    NameType::SrvInst,
-    NameType::Principal,
-    NameType::Uid,
-    NameType::Enterprise,
-];
-
-const ADDRESS_TYPES: [AddressType; 9] = [
-    AddressType::IPv4,
-    AddressType::Directional,
-    AddressType::ChaosNet,
-    AddressType::Xns,
-    AddressType::Iso,
-    AddressType::DecnetPhaseIV,
-    AddressType::AppletalkDDP,
-    AddressType::Netbios,
-    AddressType::IPv6,
-];
 
 pub fn mock_etype_info2(seed: usize) -> ETypeInfo2 {
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed as u64);
@@ -125,7 +100,7 @@ pub fn mock_ad_kdc_issue_data() -> [AdKdcIssued; 4] {
     auth.push(mock_ad_entry);
     let realm = Realm::new(b"\x00").unwrap();
     let data = vec![KerberosString::new(&Faker.fake::<String>()).unwrap()];
-    let sname = PrincipalName::new(crate::basic::predefined_values::NameType::Uid, data).unwrap();
+    let sname = PrincipalName::try_from(ntypes::NT_ENTERPRISE, data).unwrap();
     [
         AdKdcIssued::new(
             checksum.clone(),
@@ -260,15 +235,12 @@ pub fn random_octet_string(seed: usize) -> OctetString {
     OctetString::new(octets).unwrap()
 }
 
-pub fn random_testcases_of_address_type(
-    size: usize,
-    seed: usize,
-) -> Vec<(AddressType, OctetString)> {
+pub fn random_testcases_of_address_type(size: usize, seed: usize) -> Vec<(i32, OctetString)> {
     let mut testcases = Vec::new();
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed as u64);
     for _ in 0..size {
-        let idx: usize = rng.gen::<usize>() % ADDRESS_TYPES.len();
-        let address_type = ADDRESS_TYPES[idx];
+        let idx: usize = rng.gen::<usize>() % HostAddress::CODES.len();
+        let address_type = HostAddress::CODES[idx];
         let octet_string = random_octet_string(seed);
         testcases.push((address_type, octet_string));
     }
@@ -278,11 +250,11 @@ pub fn random_testcases_of_address_type(
 pub fn random_testcases_of_principal_name_1(
     size: usize,
     empty: bool,
-) -> Vec<(NameType, SequenceOf<KerberosString>)> {
+) -> Vec<(i32, SequenceOf<KerberosString>)> {
     let mut testcases = Vec::new();
     for _ in 0..size {
-        let idx: usize = rand::random::<usize>() % NAME_TYPES.len();
-        let name_type = NAME_TYPES[idx];
+        let idx: usize = rand::random::<usize>() % PrincipalName::CODES.len();
+        let name_type = PrincipalName::CODES[idx];
         if empty {
             continue;
         }
@@ -294,11 +266,11 @@ pub fn random_testcases_of_principal_name_1(
 pub fn random_testcases_of_principal_name_2(
     size: usize,
     empty: bool,
-) -> Vec<(NameType, SequenceOf<KerberosString>)> {
+) -> Vec<(i32, SequenceOf<KerberosString>)> {
     let mut testcases = Vec::new();
     for _ in 0..size {
-        let idx: usize = rand::random::<usize>() % NAME_TYPES.len();
-        let name_type = NAME_TYPES[idx];
+        let idx: usize = rand::random::<usize>() % PrincipalName::CODES.len();
+        let name_type = PrincipalName::CODES[idx];
         if empty {
             continue;
         }

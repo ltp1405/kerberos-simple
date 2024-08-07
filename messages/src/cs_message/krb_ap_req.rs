@@ -1,13 +1,15 @@
-use der::asn1::ContextSpecific;
-use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag, Tagged, TagNumber, Writer};
-use der::Tag::Application;
 use crate::basic::{EncryptedData, KerberosFlags};
+use der::asn1::ContextSpecific;
+use der::Tag::Application;
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
+    TagNumber, Writer,
+};
 
 #[derive(Sequence, Debug, PartialEq)]
 struct KrbApReqInner {
     pvno: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,
-
     // TODO: Wait for APOptions to be Sequence
     // ap_options: ContextSpecific<KerberosFlags>,
 
@@ -51,11 +53,19 @@ impl KrbApReq {
     pub fn new(ap_options: KerberosFlags, authenticator: EncryptedData) -> Self {
         KrbApReq {
             inner: KrbApReqInner {
-                pvno: ContextSpecific { value: 5, tag_number: TagNumber::new(0), tag_mode: der::TagMode::Explicit },
-                msg_type: ContextSpecific { value: 14, tag_number: TagNumber::new(1), tag_mode: der::TagMode::Explicit },
+                pvno: ContextSpecific {
+                    value: 5,
+                    tag_number: TagNumber::new(0),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                msg_type: ContextSpecific {
+                    value: 14,
+                    tag_number: TagNumber::new(1),
+                    tag_mode: der::TagMode::Explicit,
+                },
                 // ap_options: ContextSpecific { value: ap_options, tag_number: TagNumber::new(2), tag_mode: der::TagMode::Explicit },
                 // authenticator: ContextSpecific { value: authenticator, tag_number: TagNumber::new(3), tag_mode: der::TagMode::Explicit },
-            }
+            },
         }
     }
 

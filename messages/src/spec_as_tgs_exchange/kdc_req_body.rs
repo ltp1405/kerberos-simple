@@ -1,7 +1,6 @@
 use crate::{
     basic::{
-        EncryptedData, HostAddresses, Int32, KerberosTime, PrincipalName, Realm, SequenceOf,
-        UInt32,
+        EncryptedData, HostAddresses, Int32, KerberosTime, PrincipalName, Realm, SequenceOf, UInt32,
     },
     spec_as_tgs_exchange::kdc_options::KdcOptions,
     tickets::Ticket,

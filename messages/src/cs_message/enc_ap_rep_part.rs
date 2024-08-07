@@ -1,7 +1,10 @@
-use der::asn1::ContextSpecific;
-use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag, TagNumber, Writer};
-use der::Tag::Application;
 use crate::basic::{EncryptionKey, KerberosTime, Microseconds, UInt32};
+use der::asn1::ContextSpecific;
+use der::Tag::Application;
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
+    TagNumber, Writer,
+};
 
 #[derive(Sequence, Debug)]
 pub struct EncApRepPartInner {
@@ -11,7 +14,6 @@ pub struct EncApRepPartInner {
 
     // TODO: Wait for EncryptionKey to be Sequence
     // subkey: ContextSpecific<Option<EncryptionKey>>,
-
     seq_number: Option<ContextSpecific<UInt32>>,
 }
 
@@ -44,11 +46,23 @@ impl EncodeValue for EncApRepPart {
 }
 
 impl EncApRepPart {
-    pub fn new(ctime: impl Into<KerberosTime>, cusec: impl Into<i32>, seq_number: Option<impl Into<UInt32>>) -> Self {
+    pub fn new(
+        ctime: impl Into<KerberosTime>,
+        cusec: impl Into<i32>,
+        seq_number: Option<impl Into<UInt32>>,
+    ) -> Self {
         EncApRepPart {
             inner: EncApRepPartInner {
-                ctime: ContextSpecific { value: ctime.into(), tag_number: TagNumber::new(0), tag_mode: der::TagMode::Explicit },
-                cusec: ContextSpecific { value: cusec.into(), tag_number: TagNumber::new(1), tag_mode: der::TagMode::Explicit },
+                ctime: ContextSpecific {
+                    value: ctime.into(),
+                    tag_number: TagNumber::new(0),
+                    tag_mode: der::TagMode::Explicit,
+                },
+                cusec: ContextSpecific {
+                    value: cusec.into(),
+                    tag_number: TagNumber::new(1),
+                    tag_mode: der::TagMode::Explicit,
+                },
                 // subkey: ContextSpecific { value: subkey, tag_number: TagNumber::new(2), tag_mode: der::TagMode::Explicit },
                 seq_number: seq_number.map(|seq_number| ContextSpecific {
                     value: seq_number.into(),
@@ -69,8 +83,10 @@ impl EncApRepPart {
     }
 
     pub fn seq_number(&self) -> Option<UInt32> {
-        self.inner.seq_number.as_ref().map(
-            |seq_number| seq_number.value.to_owned())
+        self.inner
+            .seq_number
+            .as_ref()
+            .map(|seq_number| seq_number.value.to_owned())
     }
 
     pub fn subkey(&self) -> Option<EncryptionKey> {
