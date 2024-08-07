@@ -174,58 +174,28 @@ impl KrbSafeBuilder {
     }
 
     pub fn build_unsafe(self) -> KrbSafe {
+        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
+            ContextSpecific {
+                value,
+                tag_number: TagNumber::new(number),
+                tag_mode: TagMode::Explicit,
+            }
+        }
         KrbSafe(KrbSafeInner {
-            pnvo: ContextSpecific {
-                value: KRB_SAFE_PVNO,
-                tag_number: TagNumber::new(0),
-                tag_mode: TagMode::Explicit,
-            },
-            msg_type: ContextSpecific {
-                value: KRB_SAFE_MSG_TYPE,
-                tag_number: TagNumber::new(1),
-                tag_mode: TagMode::Explicit,
-            },
-            safe_body: ContextSpecific {
-                tag_mode: TagMode::Explicit,
-                tag_number: TagNumber::new(2),
-                value: KrbSafeBody {
-                    user_data: ContextSpecific {
-                        value: self.user_data.expect("user_data is required"),
-                        tag_number: TagNumber::new(0),
-                        tag_mode: TagMode::Explicit,
-                    },
-                    timestamp: self.timestamp.map(|timestamp| ContextSpecific {
-                        value: timestamp,
-                        tag_number: TagNumber::new(1),
-                        tag_mode: TagMode::Explicit,
-                    }),
-                    usec: self.usec.map(|usec| ContextSpecific {
-                        value: usec,
-                        tag_number: TagNumber::new(2),
-                        tag_mode: TagMode::Explicit,
-                    }),
-                    seq_number: self.seq_number.map(|seq_number| ContextSpecific {
-                        value: seq_number,
-                        tag_number: TagNumber::new(3),
-                        tag_mode: TagMode::Explicit,
-                    }),
-                    s_address: ContextSpecific {
-                        value: self.s_address.expect("s_address is required"),
-                        tag_number: TagNumber::new(4),
-                        tag_mode: TagMode::Explicit,
-                    },
-                    r_address: self.r_address.map(|r_address| ContextSpecific {
-                        value: r_address,
-                        tag_number: TagNumber::new(5),
-                        tag_mode: TagMode::Explicit,
-                    }),
+            pnvo: make_tag(KRB_SAFE_PVNO, 0),
+            msg_type: make_tag(KRB_SAFE_MSG_TYPE, 1),
+            safe_body: make_tag(
+                KrbSafeBody {
+                    user_data: make_tag(self.user_data.expect("user_data is required"), 0),
+                    timestamp: self.timestamp.map(|timestamp| make_tag(timestamp, 1)),
+                    usec: self.usec.map(|usec| make_tag(usec, 2)),
+                    seq_number: self.seq_number.map(|seq_number| make_tag(seq_number, 3)),
+                    s_address: make_tag(self.s_address.expect("s_address is required"), 4),
+                    r_address: self.r_address.map(|r_address| make_tag(r_address, 5)),
                 },
-            },
-            cksum: ContextSpecific {
-                value: self.cksum.expect("cksum is required"),
-                tag_number: TagNumber::new(3),
-                tag_mode: TagMode::Explicit,
-            },
+                2,
+            ),
+            cksum: make_tag(self.cksum.expect("cksum is required"), 3),
         })
     }
 }

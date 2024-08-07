@@ -1,9 +1,9 @@
+use der::asn1::{BitString, ContextSpecific};
+use der::Tag::Application;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
     TagNumber, Writer,
 };
-use der::asn1::{BitString, ContextSpecific};
-use der::Tag::Application;
 
 use crate::basic::EncryptedData;
 use crate::tickets::Ticket;
@@ -106,26 +106,10 @@ impl KrbApReq {
         }
         KrbApReq(KrbApReqInner {
             pvno: make_tag(5, 0),
-            msg_type: ContextSpecific {
-                value: 14,
-                tag_number: TagNumber::new(1),
-                tag_mode: der::TagMode::Explicit,
-            },
-            ap_options: ContextSpecific {
-                value: ap_options,
-                tag_number: TagNumber::new(2),
-                tag_mode: der::TagMode::Explicit,
-            },
-            ticket: ContextSpecific {
-                value: ticket,
-                tag_number: TagNumber::new(3),
-                tag_mode: der::TagMode::Explicit,
-            },
-            authenticator: ContextSpecific {
-                value: authenticator,
-                tag_number: TagNumber::new(4),
-                tag_mode: der::TagMode::Explicit,
-            },
+            msg_type: make_tag(14, 1),
+            ap_options: make_tag(ap_options, 2),
+            ticket: make_tag(ticket, 3),
+            authenticator: make_tag(authenticator, 4),
         })
     }
 
