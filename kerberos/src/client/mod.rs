@@ -24,8 +24,8 @@ impl Client {
     }
     pub async fn receive(&self) -> tokio::io::Result<Vec<u8>> {
         let mut stream = TcpStream::connect(self.addr).await?;
-        let mut buffer = vec![0; 1024];
-        let n = stream.read(&mut buffer).await?;
+        let mut buffer = Vec::new();
+        let n = stream.read_to_end(&mut buffer).await?;
         buffer.truncate(n);
         Ok(buffer)
     }
@@ -33,20 +33,52 @@ impl Client {
 
 #[cfg(test)] 
 mod test {
+    use std::{net::SocketAddr, str::FromStr};
+    use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::{TcpListener, TcpStream}};
+
     use crate::{client::Client, servers::Server};
     #[tokio::test]
     async fn test_client_send_method() {
-        let client = Client::new("127.0.0.1:8081".parse().expect("Unable to parse socket address"));
-        let server = Server::new("127.0.0.1:8080".parse().expect("Unable to parse socket address"));
-        client.send(b"Hello I'm Kerberos".to_vec(), server).await.expect("Unable to send message");
-        assert!(true);
+        // Set up mock server
+        let mut ms = mockito::Server::new_async().await;
+
+        // Create a mock endpoint
+        let mock = ms.mock("POST", "/")
+        .with_status(200)
+        .with_body("OK")
+        .create_async()
+        .await;
+
+        // Create a client
+        let client_addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
+        let client = Client::new(client_addr);
+
+        // Create a server
+        let server_addr: SocketAddr = ms.host_with_port().parse().unwrap();
+        let server = Server::new(server_addr);
+
+        // Test send method
+        let result = client.send(b"Hello, world!".to_vec(), server).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_client_receive_method() {
-        let client = Client::new("127.0.0.1:8081".parse().expect("Unable to parse socket address"));
-        let server = Server::new("127.0.0.1:8080".parse().expect("Unable to parse socket address"));
-        server.send(b"Hello I'm Kerberos".to_vec(), client.clone()).await.expect("Unable to send message");
-        assert!(client.receive().await.unwrap() == b"Hello I'm Kerberos".to_vec());
+        // Set up a real TCP listener to simulate a server
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+
+        // Spawn a task to accept the connection and send a response
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            socket.write_all(b"Hello, client!").await.unwrap();
+        });
+
+        // Create a client
+        let client = Client::new(addr);
+
+        // Test receive method
+        let result = client.receive().await;
+        assert_eq!(result.unwrap(), b"Hello, client!".to_vec());
     }
 }
