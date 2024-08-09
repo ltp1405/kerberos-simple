@@ -130,8 +130,7 @@ impl KdcReqBody {
 pub mod tests {
     use super::*;
     use crate::basic::{
-        flags, predefined_values::NameType, KerberosFlags, KerberosString, OctetString,
-        PrincipalName, Realm,
+        flags, ntypes, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
     };
     use der::{Decode, Encode, EncodeValue, SliceReader};
     use std::time::Duration;
@@ -143,16 +142,16 @@ pub mod tests {
                 .build()
                 .unwrap(),
             Some(
-                PrincipalName::new(
-                    NameType::Enterprise,
+                PrincipalName::try_from(
+                    ntypes::NT_ENTERPRISE,
                     vec![KerberosString::try_from("host".to_string()).unwrap()],
                 )
                 .unwrap(),
             ),
             Realm::new("EXAMPLE.COM").unwrap(),
             Some(
-                PrincipalName::new(
-                    NameType::Principal,
+                PrincipalName::try_from(
+                    ntypes::NT_PRINCIPAL,
                     vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
                 )
                 .unwrap(),

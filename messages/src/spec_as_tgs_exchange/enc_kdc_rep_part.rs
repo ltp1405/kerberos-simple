@@ -127,10 +127,7 @@ impl EncKdcRepPart {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::basic::predefined_values::NameType;
-    use crate::basic::{
-        flags, EncryptionKey, Int32, KerberosString, KerberosTime, PrincipalName, Realm, UInt32,
-    };
+    use crate::basic::{flags, EncryptionKey, Int32, KerberosString, KerberosTime, PrincipalName, Realm, UInt32, ntypes};
     use crate::spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
     use crate::spec_as_tgs_exchange::last_req::LastReq;
     use crate::tickets::TicketFlags;
@@ -156,8 +153,8 @@ pub mod tests {
             KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap(),
             None,
             Realm::new("EXAMPLE.COM".as_bytes()).unwrap(),
-            PrincipalName::new(
-                NameType::Principal,
+            PrincipalName::try_from(
+                ntypes::NT_PRINCIPAL,
                 vec![KerberosString::new("krbtgt".as_bytes()).unwrap()],
             )
             .unwrap(),

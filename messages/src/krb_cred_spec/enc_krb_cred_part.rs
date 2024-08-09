@@ -77,7 +77,7 @@ impl EncKrbCredPart {
 }
 
 impl<'a> DecodeValue<'a> for EncKrbCredPart {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = EncKrbCredPartInner::decode(reader)?;
         Ok(Self(inner))
     }

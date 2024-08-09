@@ -15,7 +15,7 @@ impl EncTgsRepPart {
 }
 
 impl<'a> DecodeValue<'a> for EncTgsRepPart {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = EncKdcRepPart::decode(reader)?;
         Ok(Self(inner))
     }
@@ -48,7 +48,7 @@ impl FixedTag for EncTgsRepPart {
 
 #[cfg(test)]
 mod tests {
-    use crate::basic::{application_tags, Int32};
+    use crate::basic::application_tags;
     use crate::spec_as_tgs_exchange::enc_kdc_rep_part::tests;
     use crate::spec_as_tgs_exchange::enc_tgs_rep_part::EncTgsRepPart;
     use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};

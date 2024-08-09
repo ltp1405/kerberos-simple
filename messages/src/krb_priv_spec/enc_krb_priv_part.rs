@@ -74,7 +74,7 @@ impl EncKrbPrivPart {
 }
 
 impl<'a> DecodeValue<'a> for EncKrbPrivPart {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = EncKrbPrivPartInner::decode(reader)?;
         Ok(Self(inner))
     }
@@ -101,8 +101,7 @@ impl FixedTag for EncKrbPrivPart {
 mod tests {
     #[cfg(test)]
     mod tests {
-        use crate::basic::predefined_values::AddressType;
-        use crate::basic::{application_tags, HostAddress, OctetString};
+        use crate::basic::{application_tags, atypes, HostAddress, OctetString};
         use crate::krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
         use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
 
@@ -112,10 +111,10 @@ mod tests {
                 None,
                 None,
                 None,
-                HostAddress::new(
-                    AddressType::IPv4,
+                HostAddress::try_from(
+                    atypes::IPV4,
                     OctetString::new("192.168.0.10".as_bytes()).unwrap(),
-                ),
+                ).unwrap(),
                 None,
             )
         }
@@ -129,10 +128,10 @@ mod tests {
             assert!(data.seq_number().is_none());
             assert_eq!(
                 *data.s_address(),
-                HostAddress::new(
-                    AddressType::IPv4,
+                HostAddress::try_from(
+                    atypes::IPV4,
                     OctetString::new("192.168.0.10".as_bytes()).unwrap(),
-                )
+                ).unwrap()
             );
             assert!(data.r_address().is_none());
         }

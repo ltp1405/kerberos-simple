@@ -1,4 +1,4 @@
-use der::{DecodeValue, Header, Reader, Sequence};
+use der::Sequence;
 
 use crate::basic::{Int32, KerberosTime, SequenceOf};
 

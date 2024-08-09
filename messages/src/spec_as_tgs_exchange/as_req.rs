@@ -1,6 +1,6 @@
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Tag, TagNumber,
-    Tagged, Writer,
+    Writer,
 };
 use std::ops::Deref;
 
@@ -23,7 +23,7 @@ impl AsReq {
 }
 
 impl<'a> DecodeValue<'a> for AsReq {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = KdcReq::decode(reader)?;
         Ok(Self(inner))
     }

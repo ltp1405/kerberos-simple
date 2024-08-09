@@ -56,7 +56,7 @@ impl KrbCred {
 }
 
 impl<'a> DecodeValue<'a> for KrbCred {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = KrbCredInner::decode(reader)?;
         Ok(Self(inner))
     }

@@ -48,7 +48,7 @@ impl KrbPriv {
 }
 
 impl<'a> DecodeValue<'a> for KrbPriv {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = KrbPrivInner::decode(reader)?;
         Ok(Self(inner))
     }
