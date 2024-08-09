@@ -1,25 +1,25 @@
 pub mod ntypes {
-    pub const UNKNOWN: i32 = 0x00;
-    pub const PRINCIPAL: i32 = 0x01;
-    pub const SRV_INST: i32 = 0x02;
-    pub const SRC_HST: i32 = 0x03;
-    pub const SRV_XHST: i32 = 0x04;
-    pub const UID: i32 = 0x05;
-    pub const X500_PRINCIPAL: i32 = 0x06;
-    pub const SMTP_NAME: i32 = 0x07;
-    pub const ENTERPRISE: i32 = 0x0A;
+    pub const NT_UNKNOWN: i32 = 0;
+    pub const NT_PRINCIPAL: i32 = 1;
+    pub const NT_SRV_INST: i32 = 2;
+    pub const NT_SRC_HST: i32 = 3;
+    pub const NT_SRV_XHST: i32 = 4;
+    pub const NT_UID: i32 = 5;
+    pub const NT_X500_PRINCIPAL: i32 = 6;
+    pub const NT_SMTP_NAME: i32 = 7;
+    pub const NT_ENTERPRISE: i32 = 10;
 }
 
 pub mod atypes {
-    pub const IPV4: i32 = 0x02;
-    pub const DIRECTIONAL: i32 = 0x03;
-    pub const CHAOS_NET: i32 = 0x05;
-    pub const XNS: i32 = 0x06;
-    pub const ISO: i32 = 0x07;
-    pub const DECNET_PHASE_IV: i32 = 0x0C;
-    pub const APPLETALK_DDP: i32 = 0x10;
-    pub const NETBIOS: i32 = 0x14;
-    pub const IPV6: i32 = 0x18;
+    pub const IPV4: i32 = 2;
+    pub const DIRECTIONAL: i32 = 3;
+    pub const CHAOS_NET: i32 = 5;
+    pub const XNS: i32 = 6;
+    pub const ISO: i32 = 7;
+    pub const DECNET_PHASE_IV: i32 = 12;
+    pub const APPLETALK_DDP: i32 = 10;
+    pub const NETBIOS: i32 = 14;
+    pub const IPV6: i32 = 18;
 }
 
 pub mod adtypes {
@@ -55,7 +55,7 @@ pub mod flags {
 
     pub const TRANSITED_POLICY_CHECKED: usize = 12; // Bit 12
     pub const OK_AS_DELEGATE: usize = 13; // Bit 13
-    
+
     pub const UNUSED9: usize = 9; // Bit 9
     pub const UNUSED10: usize = 10; // Bit 10
     pub const OPT_HARDWARE_AUTH: usize = 11; // Bit 11
@@ -68,7 +68,7 @@ pub mod flags {
     pub const ENC_TKT_IN_SKEY: usize = 28; // Bit 28
     pub const RENEW: usize = 30; // Bit 30
     pub const VALIDATE: usize = 31; // Bit 31
-    
+
     pub const USE_SESSION_KEY: usize = 1; // Bit 1
     pub const MUTUAL_REQUIRED: usize = 2; // Bit 2
 }

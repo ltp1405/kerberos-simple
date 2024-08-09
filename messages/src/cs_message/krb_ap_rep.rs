@@ -1,17 +1,17 @@
-use der::asn1::ContextSpecific;
-use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Length, Reader, Sequence, TagNumber, Writer};
 use crate::basic::EncryptedData;
+use der::asn1::ContextSpecific;
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Length, Reader, Sequence, TagNumber, Writer,
+};
 
 /// KRB_AP_REP message - 5.5.1
-#[derive(Debug, PartialEq)]
-pub struct KrbApRep {
-    inner: KrbApRepInner,
-}
+#[derive(Debug, PartialEq, Clone)]
+pub struct KrbApRep(KrbApRepInner);
 
 impl<'a> DecodeValue<'a> for KrbApRep {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let inner = KrbApRepInner::decode(reader)?;
-        Ok(Self { inner })
+        Ok(Self(inner))
     }
 }
 
@@ -24,43 +24,46 @@ impl FixedTag for KrbApRep {
 
 impl EncodeValue for KrbApRep {
     fn value_len(&self) -> der::Result<Length> {
-        self.inner.encoded_len()
+        self.0.encoded_len()
     }
 
     fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        self.inner.encode(encoder)
+        self.0.encode(encoder)
     }
 }
 
-#[derive(Sequence, Debug, PartialEq)]
+#[derive(Sequence, Debug, PartialEq, Clone)]
 struct KrbApRepInner {
     pvno: ContextSpecific<u8>,
     msg_type: ContextSpecific<u8>,
-    // TODO: Wait for EncryptedData to be Sequence
-    // enc_part: ContextSpecific<EncryptedData>,
+    enc_part: ContextSpecific<EncryptedData>,
 }
 
 impl KrbApRep {
     pub fn new(enc_part: EncryptedData) -> Self {
-        KrbApRep {
-            inner: KrbApRepInner {
-                pvno: ContextSpecific { value: 5, tag_number: TagNumber::new(0), tag_mode: der::TagMode::Explicit },
-                msg_type: ContextSpecific { value: 15, tag_number: TagNumber::new(1), tag_mode: der::TagMode::Explicit },
-                // enc_part: ContextSpecific { value: enc_part, tag_number: TagNumber::new(2), tag_mode: der::TagMode::Explicit },
+        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
+            ContextSpecific {
+                value,
+                tag_number: TagNumber::new(number),
+                tag_mode: der::TagMode::Explicit,
             }
         }
+        KrbApRep(KrbApRepInner {
+            pvno: make_tag(5, 0),
+            msg_type: make_tag(15, 1),
+            enc_part: make_tag(enc_part, 2),
+        })
     }
 
-    pub fn pvno(&self) -> u8 {
-        self.inner.pvno.value
+    pub const fn pvno(&self) -> u8 {
+        self.0.pvno.value
     }
 
-    pub fn msg_type(&self) -> u8 {
-        self.inner.msg_type.value
+    pub const fn msg_type(&self) -> u8 {
+        self.0.msg_type.value
     }
 
     pub fn enc_part(&self) -> &EncryptedData {
-        todo!("Wait for EncryptedData to be Sequence")
-        // &self.inner.enc_part.value
+        &self.0.enc_part.value
     }
 }
