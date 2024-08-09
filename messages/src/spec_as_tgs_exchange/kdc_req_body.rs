@@ -167,18 +167,19 @@ pub mod tests {
                 UInt32::new(b"\x0A").unwrap(),
                 OctetString::new(b"key").unwrap(),
             )),
-            None, // Some(SequenceOf::from(vec![Ticket::new(
-                  //     Realm::new("EXAMPLE.COM").unwrap(),
-                  //     PrincipalName::new(
-                  //         NameType::Principal,
-                  //         vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
-                  //     ).unwrap(),
-                  //     EncryptedData::new(
-                  //         Int32::new(b"\x01").unwrap(),
-                  //         UInt32::new(b"\x0A").unwrap(),
-                  //         OctetString::new(b"key").unwrap(),
-                  //     ),
-                  // )])),
+            Some(SequenceOf::from(vec![Ticket::new(
+                Realm::new("EXAMPLE.COM").unwrap(),
+                PrincipalName::try_from(
+                    ntypes::NT_PRINCIPAL,
+                    vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
+                )
+                .unwrap(),
+                EncryptedData::new(
+                    Int32::new(b"\x01").unwrap(),
+                    UInt32::new(b"\x0A").unwrap(),
+                    OctetString::new(b"key").unwrap(),
+                ),
+            )])),
         )
     }
 
@@ -187,11 +188,12 @@ pub mod tests {
         let body = sample_data();
         let mut compare = Vec::new();
 
-        // let kdc_options: [u8; 7] = [0x03, 0x05, 0x00, 0x02, 0x00, 0x00, 0x00];
-        // body.kdc_options().encode_to_vec(&mut compare).unwrap();
-        // assert_eq!(compare.len(), kdc_options.len());
-        // assert_eq!(compare, kdc_options);
+        let kdc_options: [u8; 7] = [0x03, 0x05, 0x00, 0x40, 0x00, 0x00, 0x00];
+        body.kdc_options().encode_to_vec(&mut compare).unwrap();
+        assert_eq!(compare.len(), kdc_options.len());
+        assert_eq!(compare, kdc_options);
 
+        compare.clear();
         let realm: [u8; 13] = [
             0x16, 0x0B, 0x45, 0x58, 0x41, 0x4D, 0x50, 0x4C, 0x45, 0x2E, 0x43, 0x4F, 0x4D,
         ];
