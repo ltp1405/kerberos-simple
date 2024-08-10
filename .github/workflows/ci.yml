@@ -1,0 +1,47 @@
+name: Kerberos Simple
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: '30 9 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: moonrepo/setup-rust@v1
+        with:
+          cache-base: main
+          components: clippy
+          bins: cargo-nextest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Run cargo clippy and build on messages crate
+        working-directory: messages
+        run: |
+          cargo clippy --workspace --tests --benches -- -D warnings
+          cargo build --release --workspace --all --tests --benches
+            
+      - name: Run cargo nextest on messages crate
+        working-directory: messages
+        run: cargo nextest run --release --workspace
+
+      - name: Run cargo clippy and build on kerberos crate
+        working-directory: kerberos
+        run: |
+          cargo clippy --workspace --tests --benches -- -D warnings
+          cargo build --release --workspace --all --tests --benches
+        
+      - name: Run cargo nextest on kerberos crate
+        working-directory: kerberos
+        run: cargo nextest run --release --workspace
