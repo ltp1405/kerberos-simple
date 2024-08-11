@@ -1,6 +1,12 @@
+#[cfg(test)]
+mod test;
+
 use crate::basic::{Checksum, HostAddress, KerberosTime, Microseconds, OctetString, UInt32};
 use der::asn1::ContextSpecific;
-use der::{Decode, Encode, FixedTag, Reader, Sequence, TagMode, TagNumber, Writer};
+use der::{
+    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, TagMode,
+    TagNumber, Writer,
+};
 
 const KRB_SAFE_PVNO: u8 = 5;
 const KRB_SAFE_MSG_TYPE: u8 = 20;
@@ -15,19 +21,19 @@ impl KrbSafe {
     }
 }
 
-impl Encode for KrbSafe {
-    fn encoded_len(&self) -> der::Result<der::Length> {
+impl EncodeValue for KrbSafe {
+    fn value_len(&self) -> der::Result<Length> {
         self.0.encoded_len()
     }
 
-    fn encode(&self, encoder: &mut impl Writer) -> der::Result<()> {
+    fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
         self.0.encode(encoder)
     }
 }
 
-impl<'a> Decode<'a> for KrbSafe {
-    fn decode<R: Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
-        let inner = KrbSafeInner::decode(decoder)?;
+impl<'a> DecodeValue<'a> for KrbSafe {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+        let inner = KrbSafeInner::decode(reader)?;
         Ok(KrbSafe(inner))
     }
 }
@@ -49,37 +55,48 @@ struct KrbSafeInner {
 
 #[derive(Sequence, Debug, PartialEq, Clone)]
 pub struct KrbSafeBody {
-    user_data: ContextSpecific<OctetString>,
-    timestamp: Option<ContextSpecific<KerberosTime>>,
-    usec: Option<ContextSpecific<Microseconds>>,
-    seq_number: Option<ContextSpecific<UInt32>>,
-    s_address: ContextSpecific<HostAddress>,
-    r_address: Option<ContextSpecific<HostAddress>>,
+    #[asn1(context_specific = "0")]
+    user_data: OctetString,
+
+    #[asn1(optional = "true", context_specific = "1")]
+    timestamp: Option<KerberosTime>,
+
+    #[asn1(optional = "true", context_specific = "2")]
+    usec: Option<Microseconds>,
+
+    #[asn1(optional = "true", context_specific = "3")]
+    seq_number: Option<UInt32>,
+
+    #[asn1(context_specific = "4")]
+    s_address: HostAddress,
+
+    #[asn1(optional = "true", context_specific = "5")]
+    r_address: Option<HostAddress>,
 }
 
 impl KrbSafeBody {
     fn user_data(&self) -> &OctetString {
-        &self.user_data.value
+        &self.user_data
     }
 
     fn timestamp(&self) -> Option<&KerberosTime> {
-        self.timestamp.as_ref().map(|timestamp| &timestamp.value)
+        self.timestamp.as_ref().map(|timestamp| timestamp)
     }
 
     fn usec(&self) -> Option<&Microseconds> {
-        self.usec.as_ref().map(|usec| &usec.value)
+        self.usec.as_ref().map(|usec| usec)
     }
 
     fn seq_number(&self) -> Option<&UInt32> {
-        self.seq_number.as_ref().map(|seq_number| &seq_number.value)
+        self.seq_number.as_ref().map(|seq_number| seq_number)
     }
 
     fn s_address(&self) -> &HostAddress {
-        &self.s_address.value
+        &self.s_address
     }
 
     fn r_address(&self) -> Option<&HostAddress> {
-        self.r_address.as_ref().map(|r_address| &r_address.value)
+        self.r_address.as_ref().map(|r_address| r_address)
     }
 }
 
@@ -186,12 +203,12 @@ impl KrbSafeBuilder {
             msg_type: make_tag(KRB_SAFE_MSG_TYPE, 1),
             safe_body: make_tag(
                 KrbSafeBody {
-                    user_data: make_tag(self.user_data.expect("user_data is required"), 0),
-                    timestamp: self.timestamp.map(|timestamp| make_tag(timestamp, 1)),
-                    usec: self.usec.map(|usec| make_tag(usec, 2)),
-                    seq_number: self.seq_number.map(|seq_number| make_tag(seq_number, 3)),
-                    s_address: make_tag(self.s_address.expect("s_address is required"), 4),
-                    r_address: self.r_address.map(|r_address| make_tag(r_address, 5)),
+                    user_data: self.user_data.expect("user_data is required"),
+                    timestamp: self.timestamp.map(|timestamp| timestamp),
+                    usec: self.usec.map(|usec| usec),
+                    seq_number: self.seq_number.map(|seq_number| seq_number),
+                    s_address: self.s_address.expect("s_address is required"),
+                    r_address: self.r_address.map(|r_address| r_address),
                 },
                 2,
             ),
