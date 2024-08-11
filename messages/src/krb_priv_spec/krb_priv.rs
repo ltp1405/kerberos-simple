@@ -79,21 +79,17 @@ mod tests {
 
     pub fn sample_data() -> KrbPriv {
         KrbPriv::new(
-            Int32::new(b"\x05").unwrap(),
-            Int32::new(b"\x0F").unwrap(),
-            EncryptedData::new(
-                Int32::new(b"\xAB").unwrap(),
-                Some(Int32::new(b"\x01").unwrap()),
-                OctetString::new("".as_bytes()).unwrap(),
-            ),
+            5,
+            15,
+            EncryptedData::new(171, Some(1), OctetString::new("".as_bytes()).unwrap()),
         )
     }
 
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.pvno(), Int32::new(b"\x05").unwrap());
-        assert_eq!(*data.msg_type(), Int32::new(b"\x0F").unwrap());
+        assert_eq!(*data.pvno(), 5);
+        assert_eq!(*data.msg_type(), 15);
     }
 
     #[test]

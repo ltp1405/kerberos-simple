@@ -26,8 +26,8 @@ pub struct KrbCred(KrbCredInner);
 
 impl KrbCred {
     pub fn new(tickets: impl Into<SequenceOf<Ticket>>, enc_part: impl Into<EncryptedData>) -> Self {
-        let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
-        let msg_type = Int32::new(b"\x16").expect("Cannot initialize Int32 from &[u8]");
+        let pvno = 5;
+        let msg_type = 22;
         let inner = KrbCredInner {
             pvno: pvno.into(),
             msg_type: msg_type.into(),
@@ -88,19 +88,15 @@ mod tests {
     pub fn sample_data() -> KrbCred {
         KrbCred::new(
             vec![],
-            EncryptedData::new(
-                Int32::new(b"\xAB").unwrap(),
-                Some(Int32::new(b"\x01").unwrap()),
-                OctetString::new("".as_bytes()).unwrap(),
-            ),
+            EncryptedData::new(171, Some(1), OctetString::new("".as_bytes()).unwrap()),
         )
     }
 
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.pvno(), Int32::new(b"\x05").unwrap());
-        assert_eq!(*data.msg_type(), Int32::new(b"\x16").unwrap());
+        assert_eq!(*data.pvno(), 5);
+        assert_eq!(*data.msg_type(), 22);
         assert!(data.tickets().is_empty());
     }
 

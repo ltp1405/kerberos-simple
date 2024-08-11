@@ -101,7 +101,7 @@ impl FixedTag for EncKrbPrivPart {
 mod tests {
     #[cfg(test)]
     mod tests {
-        use crate::basic::{application_tags, atypes, HostAddress, OctetString};
+        use crate::basic::{application_tags, HostAddress, OctetString};
         use crate::krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
         use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
 
@@ -111,10 +111,11 @@ mod tests {
                 None,
                 None,
                 None,
-                HostAddress::try_from(
-                    atypes::IPV4,
+                HostAddress::new(
+                    crate::basic::AddressTypes::Ipv4,
                     OctetString::new("192.168.0.10".as_bytes()).unwrap(),
-                ).unwrap(),
+                )
+                .unwrap(),
                 None,
             )
         }
@@ -128,10 +129,11 @@ mod tests {
             assert!(data.seq_number().is_none());
             assert_eq!(
                 *data.s_address(),
-                HostAddress::try_from(
-                    atypes::IPV4,
+                HostAddress::new(
+                    crate::basic::AddressTypes::Ipv4,
                     OctetString::new("192.168.0.10".as_bytes()).unwrap(),
-                ).unwrap()
+                )
+                .unwrap()
             );
             assert!(data.r_address().is_none());
         }

@@ -1,8 +1,8 @@
 use std::net::SocketAddr;
 
-use tokio::net::TcpStream;
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use crate::servers::Server;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
 pub struct Client {
     addr: SocketAddr,

@@ -1,40 +1,105 @@
-pub mod ntypes {
-    pub const NT_UNKNOWN: i32 = 0;
-    pub const NT_PRINCIPAL: i32 = 1;
-    pub const NT_SRV_INST: i32 = 2;
-    pub const NT_SRC_HST: i32 = 3;
-    pub const NT_SRV_XHST: i32 = 4;
-    pub const NT_UID: i32 = 5;
-    pub const NT_X500_PRINCIPAL: i32 = 6;
-    pub const NT_SMTP_NAME: i32 = 7;
-    pub const NT_ENTERPRISE: i32 = 10;
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum NameTypes {
+    NtUnknown = 0,
+    NtPrincipal = 1,
+    NtSrvInst = 2,
+    NtSrcHst = 3,
+    NtSrvXhst = 4,
+    NtUid = 5,
+    NtX500Principal = 6,
+    NtSmtpName = 7,
+    NtEnterprise = 10,
 }
 
-pub mod atypes {
-    pub const IPV4: i32 = 2;
-    pub const DIRECTIONAL: i32 = 3;
-    pub const CHAOS_NET: i32 = 5;
-    pub const XNS: i32 = 6;
-    pub const ISO: i32 = 7;
-    pub const DECNET_PHASE_IV: i32 = 12;
-    pub const APPLETALK_DDP: i32 = 10;
-    pub const NETBIOS: i32 = 14;
-    pub const IPV6: i32 = 18;
+#[cfg(test)]
+impl From<i32> for NameTypes {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => NameTypes::NtUnknown,
+            1 => NameTypes::NtPrincipal,
+            2 => NameTypes::NtSrvInst,
+            3 => NameTypes::NtSrcHst,
+            4 => NameTypes::NtSrvXhst,
+            5 => NameTypes::NtUid,
+            6 => NameTypes::NtX500Principal,
+            7 => NameTypes::NtSmtpName,
+            10 => NameTypes::NtEnterprise,
+            _ => panic!("Invalid value for NameTypes"),
+        }
+    }
 }
 
-pub mod adtypes {
-    pub const AD_IF_RELEVANT: i32 = 0x01;
-    pub const AD_KDC_ISSUED: i32 = 0x04;
-    pub const AD_AND_OR: i32 = 0x05;
-    pub const AD_MANDATORY_FOR_KDC: i32 = 0x08;
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum AddressTypes {
+    Ipv4 = 2,
+    Directional = 3,
+    ChaosNet = 5,
+    Xns = 6,
+    Iso = 7,
+    DecnetPhaseIv = 12,
+    AppletalkDdp = 16,
+    NetBios = 20,
+    Ipv6 = 24,
 }
 
-pub mod patypes {
-    pub const PA_TGS_REQ: i32 = 0x01;
-    pub const PA_ENC_TIMESTAMP: i32 = 0x02;
-    pub const PA_PW_SALT: i32 = 0x03;
-    pub const PA_ETYPE_INFO: i32 = 0x0B;
-    pub const PA_ETYPE_INFO2: i32 = 0x13;
+#[cfg(test)]
+impl From<i32> for AddressTypes {
+    fn from(value: i32) -> Self {
+        match value {
+            2 => AddressTypes::Ipv4,
+            3 => AddressTypes::Directional,
+            5 => AddressTypes::ChaosNet,
+            6 => AddressTypes::Xns,
+            7 => AddressTypes::Iso,
+            12 => AddressTypes::DecnetPhaseIv,
+            16 => AddressTypes::AppletalkDdp,
+            20 => AddressTypes::NetBios,
+            24 => AddressTypes::Ipv6,
+            _ => panic!("Invalid value for AddressTypes"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum AuthorizationDataTypes {
+    IfRelevant = 1,
+    KdcIssued = 4,
+    AndOr = 5,
+    MandatoryForKdc = 8,
+}
+
+impl From<i32> for AuthorizationDataTypes {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => AuthorizationDataTypes::IfRelevant,
+            4 => AuthorizationDataTypes::KdcIssued,
+            5 => AuthorizationDataTypes::AndOr,
+            8 => AuthorizationDataTypes::MandatoryForKdc,
+            _ => panic!("Invalid value for AuthorizationDataTypes"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PaDataTypes {
+    PaTgsReq = 1,
+    PaEncTimestamp = 2,
+    PaPwSalt = 3,
+    PaEtypeInfo = 11,
+    PaEtypeInfo2 = 19,
+}
+
+impl From<i32> for PaDataTypes {
+    fn from(value: i32) -> Self {
+        match value {
+            1 => PaDataTypes::PaTgsReq,
+            2 => PaDataTypes::PaEncTimestamp,
+            3 => PaDataTypes::PaPwSalt,
+            11 => PaDataTypes::PaEtypeInfo,
+            19 => PaDataTypes::PaEtypeInfo2,
+            _ => panic!("Invalid value for PaDataTypes"),
+        }
+    }
 }
 
 pub mod flags {

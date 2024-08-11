@@ -3,7 +3,7 @@ use std::time::Duration;
 use der::{Decode, Encode};
 
 use crate::{
-    basic::{ntypes, Int32, KerberosString, KerberosTime, Microseconds, PrincipalName, Realm},
+    basic::{KerberosString, KerberosTime, NameTypes, PrincipalName, Realm},
     krb_error_spec::KrbErrorMsg,
 };
 
@@ -12,14 +12,14 @@ use super::ecodes;
 #[test]
 fn krb_err_builder_works_fine() {
     let stime = KerberosTime::from_unix_duration(Duration::from_secs(1615141775)).unwrap();
-    let susec = Microseconds::new(&5.to_der().unwrap()).unwrap();
+    let susec = 5;
     let realm = Realm::new("EXAMPLE.COM").unwrap();
     let sname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
-    let error_code = Int32::new(&ecodes::KDC_ERROR_CLIENT_NOT_TRUSTED.to_der().unwrap()).unwrap();
+    let error_code = ecodes::KDC_ERROR_CLIENT_NOT_TRUSTED;
     let krb_err = KrbErrorMsg::builder(
         stime,
         susec.clone(),
@@ -42,14 +42,14 @@ fn krb_err_builder_works_fine() {
 #[test]
 fn encode_decode_for_krb_err_msg_works_fine() {
     let stime = KerberosTime::from_unix_duration(Duration::from_secs(1615141775)).unwrap();
-    let susec = Microseconds::new(&5.to_der().unwrap()).unwrap();
+    let susec = 5;
     let realm = Realm::new("EXAMPLE.COM").unwrap();
     let sname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
-    let error_code = Int32::new(&ecodes::KDC_ERROR_CLIENT_NOT_TRUSTED.to_der().unwrap()).unwrap();
+    let error_code = ecodes::KDC_ERROR_CLIENT_NOT_TRUSTED;
     let krb_err = KrbErrorMsg::builder(
         stime,
         susec.clone(),
