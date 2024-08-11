@@ -4,8 +4,8 @@ use der::{asn1::OctetString, Decode, Encode};
 
 use crate::{
     basic::{
-        flags, ntypes, ADEntry, EncryptedData, EncryptionKey, HostAddress, Int32, KerberosString,
-        KerberosTime, PrincipalName, Realm,
+        flags, ADEntry, AddressTypes, EncryptedData, EncryptionKey, HostAddress, KerberosString,
+        KerberosTime, NameTypes, PrincipalName, Realm,
     },
     tickets::{enc_ticket_part::EncTicketPart, transited_encoding::TransitedEncoding, Ticket},
 };
@@ -16,20 +16,13 @@ use super::TicketFlags;
 fn ticket_should_have_tkt_vnu_equals_5() {
     let realm = Realm::new("EXAMPLE.COM").unwrap();
     let sname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
-    let enc_part = EncryptedData::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        OctetString::new("bytes".as_bytes()).unwrap(),
-    );
+    let enc_part = EncryptedData::new(5, 5, OctetString::new("bytes".as_bytes()).unwrap());
     let ticket = Ticket::new(realm.clone(), sname.clone(), enc_part.clone());
-    assert_eq!(
-        ticket.as_ref().tkt_vno(),
-        &Int32::new(&5.to_der().unwrap()).unwrap()
-    );
+    assert_eq!(ticket.as_ref().tkt_vno(), &5);
     assert_eq!(ticket.as_ref().realm(), &realm);
     assert_eq!(ticket.as_ref().sname(), &sname);
     assert_eq!(ticket.as_ref().enc_part(), &enc_part);
@@ -39,22 +32,15 @@ fn ticket_should_have_tkt_vnu_equals_5() {
 fn encode_decode_for_ticket_works_fine() {
     let realm = Realm::new("EXAMPLE.COM").unwrap();
     let sname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
-    let enc_part = EncryptedData::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        OctetString::new("bytes".as_bytes()).unwrap(),
-    );
+    let enc_part = EncryptedData::new(5, 5, OctetString::new("bytes".as_bytes()).unwrap());
     let ticket = Ticket::new(realm.clone(), sname.clone(), enc_part.clone());
     let bytes = ticket.to_der().unwrap();
     let decoded = Ticket::from_der(&bytes).unwrap();
-    assert_eq!(
-        decoded.as_ref().tkt_vno(),
-        &Int32::new(&5.to_der().unwrap()).unwrap()
-    );
+    assert_eq!(decoded.as_ref().tkt_vno(), &5);
     assert_eq!(decoded.as_ref().realm(), &realm);
     assert_eq!(decoded.as_ref().sname(), &sname);
     assert_eq!(decoded.as_ref().enc_part(), &enc_part);
@@ -62,7 +48,7 @@ fn encode_decode_for_ticket_works_fine() {
 
 #[test]
 fn transited_encoding_getter_works_fine() {
-    let tr_type = Int32::new(&5.to_der().unwrap()).unwrap();
+    let tr_type = 5;
     let contents = OctetString::new("bytes".as_bytes()).unwrap();
     let transited_encoding = TransitedEncoding::new(tr_type.clone(), contents.clone());
     assert_eq!(transited_encoding.tr_type(), &tr_type);
@@ -71,7 +57,7 @@ fn transited_encoding_getter_works_fine() {
 
 #[test]
 fn encode_decode_for_transited_encoding_works_fine() {
-    let tr_type = Int32::new(&5.to_der().unwrap()).unwrap();
+    let tr_type = 5;
     let contents = OctetString::new("bytes".as_bytes()).unwrap();
     let transited_encoding = TransitedEncoding::new(tr_type.clone(), contents.clone());
     let bytes = transited_encoding.to_der().unwrap();
@@ -86,22 +72,16 @@ fn enc_ticket_part_builder_works_fine() {
         .set(flags::DISABLE_TRANSITED_CHECK)
         .build()
         .unwrap();
-    let key = EncryptionKey::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        OctetString::new("bytes".as_bytes()).unwrap(),
-    );
+    let key = EncryptionKey::new(5, OctetString::new("bytes".as_bytes()).unwrap());
     let crealm = Realm::new("EXAMPLE.COM").unwrap();
     let cname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
     let authtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824155)).unwrap();
     let endtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824160)).unwrap();
-    let transited = TransitedEncoding::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        OctetString::new("bytes".as_bytes()).unwrap(),
-    );
+    let transited = TransitedEncoding::new(5, OctetString::new("bytes".as_bytes()).unwrap());
     let enc_ticket_part = EncTicketPart::builder(
         flags.clone(),
         key.clone(),
@@ -132,26 +112,23 @@ fn encode_decode_for_enc_ticket_part_works_fine() {
         .set(flags::DISABLE_TRANSITED_CHECK)
         .build()
         .unwrap();
-    let key = EncryptionKey::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
-        OctetString::new("bytes".as_bytes()).unwrap(),
-    );
+    let key = EncryptionKey::new(5, OctetString::new("bytes".as_bytes()).unwrap());
     let crealm = Realm::new("EXAMPLE.COM").unwrap();
     let cname = {
-        let name_type = ntypes::NT_ENTERPRISE;
+        let name_type = NameTypes::NtEnterprise;
         let name_string = vec![KerberosString::new("host").unwrap()];
-        PrincipalName::try_from(name_type, name_string).unwrap()
+        PrincipalName::new(name_type, name_string).unwrap()
     };
     let authtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824155)).unwrap();
     let endtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824160)).unwrap();
-    let transited = TransitedEncoding::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
+    let transited = TransitedEncoding::new(5, OctetString::new("bytes".as_bytes()).unwrap());
+    let caddr = vec![HostAddress::new(
+        AddressTypes::Iso,
         OctetString::new("bytes".as_bytes()).unwrap(),
-    );
-    let caddr =
-        vec![HostAddress::try_from(2, OctetString::new("bytes".as_bytes()).unwrap()).unwrap()];
+    )
+    .unwrap()];
     let authorization_data = vec![ADEntry::new(
-        Int32::new(&5.to_der().unwrap()).unwrap(),
+        5,
         OctetString::new("bytes".as_bytes()).unwrap(),
     )];
     let enc_ticket_part = EncTicketPart::builder(

@@ -5,7 +5,7 @@ use der::{
 use std::ops::Deref;
 
 use crate::{
-    basic::{application_tags, Int32, PaData, SequenceOf},
+    basic::{application_tags, PaData, SequenceOf},
     spec_as_tgs_exchange::kdc_req::KdcReq,
     spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
@@ -18,7 +18,7 @@ impl TgsReq {
         padata: impl Into<Option<SequenceOf<PaData>>>,
         req_body: impl Into<KdcReqBody>,
     ) -> Self {
-        let msg_type = Int32::new(b"\x0C").expect("Cannot initialize Int32 from &[u8]");
+        let msg_type = 12;
         Self(KdcReq::new(msg_type, padata, req_body))
     }
 }
@@ -57,7 +57,7 @@ impl FixedTag for TgsReq {
 
 #[cfg(test)]
 mod tests {
-    use crate::basic::{application_tags, Int32};
+    use crate::basic::application_tags;
     use crate::spec_as_tgs_exchange::kdc_req_body;
     use crate::spec_as_tgs_exchange::tgs_req::TgsReq;
     use der::{Decode, Encode, EncodeValue, SliceReader, Tag, TagNumber, Tagged};
@@ -69,8 +69,8 @@ mod tests {
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.pvno(), Int32::new(b"\x05").unwrap());
-        assert_eq!(*data.msg_type(), Int32::new(b"\x0C").unwrap());
+        assert_eq!(*data.pvno(), 5);
+        assert_eq!(*data.msg_type(), 12);
         assert!(data.padata().is_none());
     }
 

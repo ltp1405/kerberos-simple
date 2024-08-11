@@ -28,7 +28,7 @@ fn principal_name_works_fine_with_appropriate_seq_of_ker_strs() {
     let testcases = random_testcases_of_principal_name_1(10, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(principal_name.is_ok());
         let principal_name = principal_name.unwrap();
         assert!(principal_name.has_name_type_of(expected_name_type));
@@ -38,7 +38,7 @@ fn principal_name_works_fine_with_appropriate_seq_of_ker_strs() {
     let testcases = random_testcases_of_principal_name_2(12, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(principal_name.is_ok());
         let principal_name = principal_name.unwrap();
         assert!(principal_name.has_name_type_of(expected_name_type));
@@ -51,14 +51,14 @@ fn principal_name_fails_with_inappropriate_seq_of_ker_strs() {
     let testcases = random_testcases_of_principal_name_1(9, true);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(principal_name.is_err());
     }
 
     let testcases = random_testcases_of_principal_name_2(3, true);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(principal_name.is_err());
     }
 }
@@ -68,7 +68,7 @@ fn encode_decode_for_principal_name_works_fine() {
     let testcases = random_testcases_of_principal_name_1(12, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(
             principal_name.is_ok(),
             "Failed to create: {:?}",
@@ -87,7 +87,7 @@ fn encode_decode_for_principal_name_works_fine() {
     let testcases = random_testcases_of_principal_name_2(20, false);
 
     for (expected_name_type, name_string) in testcases {
-        let principal_name = PrincipalName::try_from(expected_name_type, name_string.clone());
+        let principal_name = PrincipalName::new(expected_name_type, name_string.clone());
         assert!(
             principal_name.is_ok(),
             "Failed to create: {:?}",
@@ -109,7 +109,7 @@ fn encode_decode_for_principal_name_works_fine() {
 fn getter_of_host_address_works_fine() {
     let testcases = random_testcases_of_address_type(20, 29);
     for (address_type, address) in testcases {
-        let host_address = HostAddress::try_from(address_type, address.clone());
+        let host_address = HostAddress::new(address_type, address.clone());
         assert!(host_address.is_ok());
         let host_address = host_address.unwrap();
         assert!(host_address.has_addr_type_of(address_type));
@@ -121,7 +121,7 @@ fn getter_of_host_address_works_fine() {
 fn encode_decode_host_address_works_fine() {
     let testcases = random_testcases_of_address_type(20, 17);
     for (address_type, address) in testcases {
-        let host_address = HostAddress::try_from(address_type, address.clone());
+        let host_address = HostAddress::new(address_type, address.clone());
         assert!(host_address.is_ok());
         let host_address = host_address.unwrap();
         let encoded = host_address.to_der();

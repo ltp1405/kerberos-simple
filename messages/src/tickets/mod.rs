@@ -65,10 +65,7 @@ pub struct TicketInner {
 
 impl TicketInner {
     fn new(realm: Realm, sname: PrincipalName, enc_part: EncryptedData) -> Self {
-        let tkt_vno = {
-            let bytes = 5.to_der().expect("Cannot encode Int32");
-            Int32::new(&bytes).expect("Cannot initialize Int32 from &[u8]")
-        };
+        let tkt_vno = 5;
         Self {
             tkt_vno,
             realm,

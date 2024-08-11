@@ -26,7 +26,7 @@ impl KdcReq {
         padata: impl Into<Option<SequenceOf<PaData>>>,
         req_body: impl Into<KdcReqBody>,
     ) -> Self {
-        let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
+        let pvno = 5;
         Self {
             pvno,
             msg_type: msg_type.into(),
@@ -54,19 +54,18 @@ impl KdcReq {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::basic::Int32;
     use crate::spec_as_tgs_exchange::{kdc_req::KdcReq, kdc_req_body::tests};
     use der::{Decode, Encode, EncodeValue, SliceReader};
 
     pub fn sample_data() -> KdcReq {
-        KdcReq::new(Int32::new(b"\x01").unwrap(), None, tests::sample_data())
+        KdcReq::new(1, None, tests::sample_data())
     }
 
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(data.pvno(), &Int32::new(b"\x05").unwrap());
-        assert_eq!(data.msg_type(), &Int32::new(b"\x01").unwrap());
+        assert_eq!(data.pvno(), &5);
+        assert_eq!(data.msg_type(), &1);
         assert!(data.padata().is_none());
     }
 

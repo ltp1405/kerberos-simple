@@ -1,5 +1,5 @@
 use crate::{
-    basic::{application_tags, EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
+    basic::{application_tags, EncryptedData, PaData, PrincipalName, Realm, SequenceOf},
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
@@ -20,7 +20,7 @@ impl TgsRep {
         ticket: impl Into<Ticket>,
         enc_part: impl Into<EncryptedData>,
     ) -> Self {
-        let msg_type = Int32::new(b"\x0D").expect("Cannot initialize Int32 from &[u8]");
+        let msg_type = 13;
         Self(KdcRep::new(
             msg_type, padata, crealm, cname, ticket, enc_part,
         ))
@@ -62,8 +62,8 @@ impl FixedTag for TgsRep {
 #[cfg(test)]
 mod tests {
     use crate::basic::{
-        application_tags, ntypes, EncryptedData, Int32, KerberosString, OctetString, PrincipalName,
-        Realm,
+        application_tags, EncryptedData, KerberosString, NameTypes, OctetString,
+        PrincipalName, Realm,
     };
     use crate::spec_as_tgs_exchange::tgs_rep::TgsRep;
     use crate::tickets::Ticket;
@@ -73,37 +73,29 @@ mod tests {
         TgsRep::new(
             None,
             Realm::new("EXAMPLE.COM").unwrap(),
-            PrincipalName::try_from(
-                ntypes::NT_PRINCIPAL,
+            PrincipalName::new(
+                NameTypes::NtPrincipal,
                 vec![KerberosString::new("host").unwrap()],
             )
             .unwrap(),
             Ticket::new(
                 Realm::new("EXAMPLE.COM").unwrap(),
-                PrincipalName::try_from(
-                    ntypes::NT_PRINCIPAL,
+                PrincipalName::new(
+                    NameTypes::NtPrincipal,
                     vec![KerberosString::new("krbtgt").unwrap()],
                 )
                 .unwrap(),
-                EncryptedData::new(
-                    Int32::new(b"\x01").unwrap(),
-                    Int32::new(b"\x0A").unwrap(),
-                    OctetString::new(b"abc").unwrap(),
-                ),
+                EncryptedData::new(1, 10, OctetString::new(b"abc").unwrap()),
             ),
-            EncryptedData::new(
-                Int32::new(b"\x02").unwrap(),
-                Int32::new(b"\x0B").unwrap(),
-                OctetString::new(b"xyz").unwrap(),
-            ),
+            EncryptedData::new(2, 11, OctetString::new(b"xyz").unwrap()),
         )
     }
 
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.pvno(), Int32::new(b"\x05").unwrap());
-        assert_eq!(*data.msg_type(), Int32::new(b"\x0B").unwrap());
+        assert_eq!(*data.pvno(), 5);
+        assert_eq!(*data.msg_type(), 13);
         assert!(data.padata().is_none());
     }
 

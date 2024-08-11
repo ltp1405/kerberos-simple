@@ -130,7 +130,7 @@ impl KdcReqBody {
 pub mod tests {
     use super::*;
     use crate::basic::{
-        flags, ntypes, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
+        flags, KerberosFlags, KerberosString, NameTypes, OctetString, PrincipalName, Realm,
     };
     use der::{Decode, Encode, EncodeValue, SliceReader};
     use std::time::Duration;
@@ -142,16 +142,16 @@ pub mod tests {
                 .build()
                 .unwrap(),
             Some(
-                PrincipalName::try_from(
-                    ntypes::NT_ENTERPRISE,
+                PrincipalName::new(
+                    NameTypes::NtEnterprise,
                     vec![KerberosString::try_from("host".to_string()).unwrap()],
                 )
                 .unwrap(),
             ),
             Realm::new("EXAMPLE.COM").unwrap(),
             Some(
-                PrincipalName::try_from(
-                    ntypes::NT_PRINCIPAL,
+                PrincipalName::new(
+                    NameTypes::NtPrincipal,
                     vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
                 )
                 .unwrap(),
@@ -159,26 +159,18 @@ pub mod tests {
             Some(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap()),
             KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap(),
             Some(KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap()),
-            UInt32::new(b"\x03").unwrap(),
-            SequenceOf::from(vec![Int32::new(b"\x01").unwrap()]),
+            3,
+            SequenceOf::from(vec![1]),
             Some(HostAddresses::new()),
-            Some(EncryptedData::new(
-                Int32::new(b"\x01").unwrap(),
-                UInt32::new(b"\x0A").unwrap(),
-                OctetString::new(b"key").unwrap(),
-            )),
+            Some(EncryptedData::new(1, 10, OctetString::new(b"key").unwrap())),
             Some(SequenceOf::from(vec![Ticket::new(
                 Realm::new("EXAMPLE.COM").unwrap(),
-                PrincipalName::try_from(
-                    ntypes::NT_PRINCIPAL,
+                PrincipalName::new(
+                    NameTypes::NtPrincipal,
                     vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
                 )
                 .unwrap(),
-                EncryptedData::new(
-                    Int32::new(b"\x01").unwrap(),
-                    UInt32::new(b"\x0A").unwrap(),
-                    OctetString::new(b"key").unwrap(),
-                ),
+                EncryptedData::new(1, 10, OctetString::new(b"key").unwrap()),
             )])),
         )
     }

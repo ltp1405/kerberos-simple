@@ -115,16 +115,13 @@ impl KrbCredInfo {
 
 #[cfg(test)]
 mod tests {
-    use crate::basic::{EncryptionKey, Int32, OctetString};
+    use crate::basic::{EncryptionKey, OctetString};
     use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
     use der::{Decode, Encode, SliceReader};
 
     pub fn sample_data() -> KrbCredInfo {
         KrbCredInfo::new(
-            EncryptionKey::new(
-                Int32::new(b"\xAB").unwrap(),
-                OctetString::new(b"key").unwrap(),
-            ),
+            EncryptionKey::new(171, OctetString::new(b"key").unwrap()),
             None,
             None,
             None,
@@ -141,7 +138,7 @@ mod tests {
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.key().keytype(), Int32::new(b"\xAB").unwrap());
+        assert_eq!(*data.key().keytype(), 171);
         assert_eq!(data.key().keyvalue().as_ref(), b"key");
     }
 
