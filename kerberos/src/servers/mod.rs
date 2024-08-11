@@ -1,6 +1,6 @@
+use crate::client::Client;
 use std::net::SocketAddr;
 use std::time::{SystemTime, SystemTimeError};
-use crate::client::Client;
 
 pub struct Server {
     addr: SocketAddr,

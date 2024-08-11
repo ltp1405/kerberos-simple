@@ -32,7 +32,7 @@ pub type LastReq = SequenceOf<LastReqEntry>;
 
 #[cfg(test)]
 mod tests {
-    use crate::basic::{Int32, KerberosTime};
+    use crate::basic::KerberosTime;
     use crate::spec_as_tgs_exchange::last_req::{LastReq, LastReqEntry};
     use der::{Decode, Encode, SliceReader};
     use std::time::Duration;
@@ -40,11 +40,11 @@ mod tests {
     fn sample_data() -> LastReq {
         vec![
             LastReqEntry::new(
-                Int32::new(b"1").unwrap(),
+                1,
                 KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap(),
             ),
             LastReqEntry::new(
-                Int32::new(b"3").unwrap(),
+                3,
                 KerberosTime::from_unix_duration(Duration::from_secs(4)).unwrap(),
             ),
         ]
@@ -54,12 +54,12 @@ mod tests {
     fn test_primitives() {
         let data = sample_data();
         assert_eq!(data.len(), 2);
-        assert_eq!(*data[0].lr_type(), Int32::new(b"1").unwrap());
+        assert_eq!(*data[0].lr_type(), 1);
         assert_eq!(
             *data[0].lr_value(),
             KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap()
         );
-        assert_eq!(*data[1].lr_type(), Int32::new(b"3").unwrap());
+        assert_eq!(*data[1].lr_type(), 3);
         assert_eq!(
             *data[1].lr_value(),
             KerberosTime::from_unix_duration(Duration::from_secs(4)).unwrap()

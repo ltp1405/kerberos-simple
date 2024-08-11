@@ -127,7 +127,9 @@ impl EncKdcRepPart {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::basic::{flags, EncryptionKey, Int32, KerberosString, KerberosTime, PrincipalName, Realm, UInt32, ntypes};
+    use crate::basic::{
+        flags, EncryptionKey, KerberosString, KerberosTime, NameTypes, PrincipalName, Realm,
+    };
     use crate::spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
     use crate::spec_as_tgs_exchange::last_req::LastReq;
     use crate::tickets::TicketFlags;
@@ -137,12 +139,9 @@ pub mod tests {
 
     pub fn sample_data() -> EncKdcRepPart {
         EncKdcRepPart::new(
-            EncryptionKey::new(
-                Int32::new(b"\xAB").unwrap(),
-                OctetString::new(b"keyvalue").unwrap(),
-            ),
+            EncryptionKey::new(171, OctetString::new(b"keyvalue").unwrap()),
             LastReq::new(),
-            UInt32::new(b"\x01").unwrap(),
+            1,
             None,
             TicketFlags::builder()
                 .set(flags::FORWARDABLE)
@@ -153,8 +152,8 @@ pub mod tests {
             KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap(),
             None,
             Realm::new("EXAMPLE.COM".as_bytes()).unwrap(),
-            PrincipalName::try_from(
-                ntypes::NT_PRINCIPAL,
+            PrincipalName::new(
+                NameTypes::NtPrincipal,
                 vec![KerberosString::new("krbtgt".as_bytes()).unwrap()],
             )
             .unwrap(),
@@ -165,12 +164,12 @@ pub mod tests {
     #[test]
     fn test_primitives() {
         let data = sample_data();
-        assert_eq!(*data.key().keytype(), Int32::new(b"\xAB").unwrap());
+        assert_eq!(*data.key().keytype(), 171);
         assert_eq!(
             *data.key().keyvalue(),
             OctetString::new(b"keyvalue").unwrap()
         );
-        assert_eq!(*data.nonce(), UInt32::new(b"\x01").unwrap());
+        assert_eq!(*data.nonce(), 1);
         assert_eq!(
             *data.flags(),
             TicketFlags::builder()

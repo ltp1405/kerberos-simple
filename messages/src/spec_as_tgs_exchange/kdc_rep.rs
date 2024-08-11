@@ -38,7 +38,7 @@ impl KdcRep {
         ticket: impl Into<Ticket>,
         enc_part: impl Into<EncryptedData>,
     ) -> Self {
-        let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
+        let pvno = 5;
         Self {
             pvno,
             msg_type: msg_type.into(),

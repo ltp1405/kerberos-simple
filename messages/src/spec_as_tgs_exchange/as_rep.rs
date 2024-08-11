@@ -1,8 +1,8 @@
-use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
+use std::ops::Deref;
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, application_tags},
+    basic::{application_tags, EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
@@ -17,8 +17,10 @@ impl AsRep {
         ticket: impl Into<Ticket>,
         enc_part: impl Into<EncryptedData>,
     ) -> Self {
-        let msg_type = Int32::new(b"\x0B").expect("Cannot initialize Int32 from &[u8]");
-        Self(KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part))
+        let msg_type = 11;
+        Self(KdcRep::new(
+            msg_type, padata, crealm, cname, ticket, enc_part,
+        ))
     }
 }
 

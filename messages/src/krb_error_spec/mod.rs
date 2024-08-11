@@ -183,14 +183,8 @@ impl KrbErrorMsgBuilder {
     }
 
     pub fn build(self) -> KrbErrorMsg {
-        let pvno = {
-            let bytes = 5.to_der().expect("pvno");
-            Int32::new(&bytes).expect("pvno")
-        };
-        let msg_type = {
-            let bytes = 30.to_der().expect("msg_type");
-            Int32::new(&bytes).expect("msg_type")
-        };
+        let pvno = 5;
+        let msg_type = 30;
         KrbErrorMsg(KrbErrorMsgInner {
             pvno,
             msg_type,
