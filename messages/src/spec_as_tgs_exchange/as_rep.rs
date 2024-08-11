@@ -1,36 +1,38 @@
+use std::ops::Deref;
 use der::{FixedTag, Tag, TagNumber};
 
 use crate::{
-    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf},
+    basic::{EncryptedData, Int32, PaData, PrincipalName, Realm, SequenceOf, application_tags},
     spec_as_tgs_exchange::kdc_rep::KdcRep,
     tickets::Ticket,
 };
 
-pub struct AsRep {
-    inner: KdcRep,
-}
+pub struct AsRep(KdcRep);
 
 impl AsRep {
     pub fn new(
-        padata: Option<SequenceOf<PaData>>,
-        crealm: Realm,
-        cname: PrincipalName,
-        ticket: Ticket,
-        enc_part: EncryptedData,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        crealm: impl Into<Realm>,
+        cname: impl Into<PrincipalName>,
+        ticket: impl Into<Ticket>,
+        enc_part: impl Into<EncryptedData>,
     ) -> Self {
         let msg_type = Int32::new(b"\x0B").expect("Cannot initialize Int32 from &[u8]");
-        let inner = KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part);
-        Self { inner }
+        Self(KdcRep::new(msg_type, padata, crealm, cname, ticket, enc_part))
     }
+}
 
-    pub fn inner(&self) -> &KdcRep {
-        &self.inner
+impl Deref for AsRep {
+    type Target = KdcRep;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 impl FixedTag for AsRep {
     const TAG: Tag = Tag::Application {
         constructed: true,
-        number: TagNumber::new(11),
+        number: TagNumber::new(application_tags::AS_REP),
     };
 }

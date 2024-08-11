@@ -3,67 +3,68 @@ use der::Sequence;
 use crate::basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm};
 use crate::tickets::TicketFlags;
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct KrbCredInfo {
+    #[asn1(context_specific = "0")]
     key: EncryptionKey,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "1", optional = "true")]
     prealm: Option<Realm>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "2", optional = "true")]
     pname: Option<PrincipalName>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "3", optional = "true")]
     flags: Option<TicketFlags>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "4", optional = "true")]
     authtime: Option<KerberosTime>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "5", optional = "true")]
     starttime: Option<KerberosTime>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "6", optional = "true")]
     endtime: Option<KerberosTime>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "7", optional = "true")]
     renew_till: Option<KerberosTime>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "8", optional = "true")]
     srealm: Option<Realm>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "9", optional = "true")]
     sname: Option<PrincipalName>,
 
-    #[asn1(optional = "true")]
+    #[asn1(context_specific = "10", optional = "true")]
     caddr: Option<HostAddresses>,
 }
 
 impl KrbCredInfo {
     pub fn new(
-        key: EncryptionKey,
-        prealm: Option<Realm>,
-        pname: Option<PrincipalName>,
-        flags: Option<TicketFlags>,
-        authtime: Option<KerberosTime>,
-        starttime: Option<KerberosTime>,
-        endtime: Option<KerberosTime>,
-        renew_till: Option<KerberosTime>,
-        srealm: Option<Realm>,
-        sname: Option<PrincipalName>,
-        caddr: Option<HostAddresses>,
+        key: impl Into<EncryptionKey>,
+        prealm: impl Into<Option<Realm>>,
+        pname: impl Into<Option<PrincipalName>>,
+        flags: impl Into<Option<TicketFlags>>,
+        authtime: impl Into<Option<KerberosTime>>,
+        starttime: impl Into<Option<KerberosTime>>,
+        endtime: impl Into<Option<KerberosTime>>,
+        renew_till: impl Into<Option<KerberosTime>>,
+        srealm: impl Into<Option<Realm>>,
+        sname: impl Into<Option<PrincipalName>>,
+        caddr: impl Into<Option<HostAddresses>>,
     ) -> Self {
         Self {
-            key,
-            prealm,
-            pname,
-            flags,
-            authtime,
-            starttime,
-            endtime,
-            renew_till,
-            srealm,
-            sname,
-            caddr,
+            key: key.into(),
+            prealm: prealm.into(),
+            pname: pname.into(),
+            flags: flags.into(),
+            authtime: authtime.into(),
+            starttime: starttime.into(),
+            endtime: endtime.into(),
+            renew_till: renew_till.into(),
+            srealm: srealm.into(),
+            sname: sname.into(),
+            caddr: caddr.into(),
         }
     }
 
@@ -109,5 +110,48 @@ impl KrbCredInfo {
 
     pub fn caddr(&self) -> Option<&HostAddresses> {
         self.caddr.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::basic::{EncryptionKey, Int32, OctetString};
+    use crate::krb_cred_spec::krb_cred_info::KrbCredInfo;
+    use der::{Decode, Encode, SliceReader};
+
+    pub fn sample_data() -> KrbCredInfo {
+        KrbCredInfo::new(
+            EncryptionKey::new(
+                Int32::new(b"\xAB").unwrap(),
+                OctetString::new(b"key").unwrap(),
+            ),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn test_primitives() {
+        let data = sample_data();
+        assert_eq!(*data.key().keytype(), Int32::new(b"\xAB").unwrap());
+        assert_eq!(data.key().keyvalue().as_ref(), b"key");
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded =
+            KrbCredInfo::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(data, decoded);
     }
 }
