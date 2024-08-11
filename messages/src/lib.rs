@@ -16,4 +16,4 @@ pub mod krb_cred_spec;
 // Section 5.9
 pub mod krb_error_spec;
 mod cs_message;
-pub mod krb_safe;
+pub mod krb_safe_spec;
