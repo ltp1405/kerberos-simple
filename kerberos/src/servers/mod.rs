@@ -4,7 +4,10 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::{client::Client, transport::{self, Transport}};
+use crate::{
+    client::Client,
+    transport::{self, Transport},
+};
 pub struct Server<T>
 where
     T: Transport,
@@ -15,7 +18,10 @@ where
 
 impl<T: Transport> Server<T> {
     pub fn new(addr: SocketAddr) -> Self {
-        Self { addr, transport: None }
+        Self {
+            addr,
+            transport: None,
+        }
     }
 
     pub fn addr(&self) -> SocketAddr {
@@ -43,15 +49,24 @@ impl<T: Transport> Server<T> {
     }
     pub async fn send(&mut self, bytes: Vec<u8>, destination: Client) -> tokio::io::Result<()> {
         let mut transport = T::new_transport(self.addr).await;
-        transport.connect(destination.addr()).await.expect("Unable to connect to client");
-        transport.write(&bytes).await.expect("Unable to write to client");
+        transport
+            .connect(destination.addr())
+            .await
+            .expect("Unable to connect to client");
+        transport
+            .write(&bytes)
+            .await
+            .expect("Unable to write to client");
         Ok(())
     }
 
     pub async fn receive(&mut self) -> tokio::io::Result<Vec<u8>> {
         if let Some(ref mut transport) = self.transport {
             let mut buffer = Vec::new();
-            transport.read(&mut buffer).await.expect("Unable to read from client");
+            transport
+                .read(&mut buffer)
+                .await
+                .expect("Unable to read from client");
             Ok(buffer)
         } else {
             Err(tokio::io::Error::new(
@@ -69,10 +84,8 @@ mod test {
     use crate::{client::Client, servers::Server};
 
     #[tokio::test]
-    async fn test_server_send_method() {
-    }
+    async fn test_server_send_method() {}
 
     #[tokio::test]
-    async fn test_server_receive_method() {
-    }
+    async fn test_server_receive_method() {}
 }
