@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use crate::servers::Server;
-use crate::transport::{self, Transport};
+use crate::transport::{self, Transporter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -16,22 +16,22 @@ impl Client {
     pub fn addr(&self) -> SocketAddr {
         return self.addr;
     }
-    pub async fn request_and_respond<T: Transport>(
+    pub async fn request_and_respond<T: Transporter>(
         &self,
         request: &[u8],
         destination: Server<T>,
     ) -> tokio::io::Result<Vec<u8>> {
-        let mut transport = T::new_transport(self.addr).await;
-        transport
+        let mut transporter = T::new_transporter(self.addr).await;
+        transporter
             .connect(destination.addr())
             .await
             .expect("Unable to connect to server");
-        transport
+        transporter
             .write(request)
             .await
             .expect("Unable to write to server");
         let mut buffer = vec![0; 1024];
-        transport
+        transporter
             .read(&mut buffer)
             .await
             .expect("Unable to read from server");

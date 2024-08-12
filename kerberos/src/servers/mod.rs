@@ -6,21 +6,21 @@ use tokio::{
 
 use crate::{
     client::Client,
-    transport::{self, Transport},
+    transport::{self, Transporter},
 };
 pub struct Server<T>
 where
-    T: Transport,
+    T: Transporter,
 {
     addr: SocketAddr,
-    transport: Option<T>,
+    transporter: Option<T>,
 }
 
-impl<T: Transport> Server<T> {
+impl<T: Transporter> Server<T> {
     pub fn new(addr: SocketAddr) -> Self {
         Self {
             addr,
-            transport: None,
+            transporter: None,
         }
     }
 
@@ -48,12 +48,12 @@ impl<T: Transport> Server<T> {
         Ok(())
     }
     pub async fn send(&mut self, bytes: Vec<u8>, destination: Client) -> tokio::io::Result<()> {
-        let mut transport = T::new_transport(self.addr).await;
-        transport
+        let mut transporter = T::new_transporter(self.addr).await;
+        transporter
             .connect(destination.addr())
             .await
             .expect("Unable to connect to client");
-        transport
+        transporter
             .write(&bytes)
             .await
             .expect("Unable to write to client");
@@ -61,9 +61,9 @@ impl<T: Transport> Server<T> {
     }
 
     pub async fn receive(&mut self) -> tokio::io::Result<Vec<u8>> {
-        if let Some(ref mut transport) = self.transport {
+        if let Some(ref mut transporter) = self.transporter {
             let mut buffer = Vec::new();
-            transport
+            transporter
                 .read(&mut buffer)
                 .await
                 .expect("Unable to read from client");

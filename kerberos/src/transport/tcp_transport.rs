@@ -6,21 +6,21 @@ use tokio::{
     net::TcpStream,
 };
 
-use super::Transport;
+use super::Transporter;
 
-pub struct TcpTransport {
+pub struct TcpTransporter {
     addr: SocketAddr,
     stream: Option<TcpStream>,
 }
 
-impl TcpTransport {
+impl TcpTransporter {
     pub fn new(addr: SocketAddr) -> Self {
         return Self { addr, stream: None };
     }
 }
 #[async_trait]
-impl Transport for TcpTransport {
-    async fn new_transport(addr: SocketAddr) -> Self {
+impl Transporter for TcpTransporter {
+    async fn new_transporter(addr: SocketAddr) -> Self {
         return Self { addr, stream: None };
     }
     async fn connect(&mut self, addr: SocketAddr) -> Result<(), Box<dyn Error>> {

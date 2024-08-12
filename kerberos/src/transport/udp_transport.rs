@@ -3,13 +3,13 @@ use std::{error::Error, net::SocketAddr};
 use async_trait::async_trait;
 use tokio::net::UdpSocket;
 
-use super::Transport;
+use super::Transporter;
 
-pub struct UdpTransport {
+pub struct UdpTransporter {
     socket: Option<UdpSocket>,
 }
 
-impl UdpTransport {
+impl UdpTransporter {
     pub async fn new(addr: SocketAddr) -> Self {
         return Self {
             socket: Some(UdpSocket::bind(addr).await.expect("Unable to bind to udp")),
@@ -18,8 +18,8 @@ impl UdpTransport {
 }
 
 #[async_trait]
-impl Transport for UdpTransport {
-    async fn new_transport(addr: SocketAddr) -> Self {
+impl Transporter for UdpTransporter {
+    async fn new_transporter(addr: SocketAddr) -> Self {
         return Self {
             socket: Some(UdpSocket::bind(addr).await.expect("Unable to bind to udp")),
         };
