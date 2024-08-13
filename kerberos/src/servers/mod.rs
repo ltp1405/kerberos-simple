@@ -1,13 +1,6 @@
 use std::net::SocketAddr;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::{TcpListener, TcpStream},
-};
 
-use crate::{
-    client::Client,
-    transport::{self, Transporter},
-};
+use crate::{client::Client, transporters::Transporter};
 pub struct Server<T>
 where
     T: Transporter,
@@ -17,10 +10,10 @@ where
 }
 
 impl<T: Transporter> Server<T> {
-    pub fn new(addr: SocketAddr) -> Self {
+    pub async fn new(addr: SocketAddr) -> Self {
         Self {
             addr,
-            transporter: None,
+            transporter: Some(T::new(addr).await),
         }
     }
 
@@ -28,27 +21,19 @@ impl<T: Transporter> Server<T> {
         return self.addr;
     }
     pub async fn run(&mut self) -> tokio::io::Result<()> {
-        let listener = TcpListener::bind(self.addr).await?;
-        loop {
-            let (socket, _) = listener.accept().await?;
-            if self.stream.is_none() {
-                self.stream = Some(socket);
-            }
-            tokio::spawn(async move {});
+        if let Some(ref mut transporter) = self.transporter {
+            transporter.run().await.expect("Unable to run server");
+            Ok(())
+        } else {
+            self.transporter = Some(T::new(self.addr).await);
+            let transporter = self.transporter.as_mut().unwrap();
+            transporter.run().await.expect("Unable to run server");
+            Ok(())
         }
     }
 
-    pub async fn try_run(&mut self) -> tokio::io::Result<()> {
-        let stream = TcpStream::connect(self.addr)
-            .await
-            .expect("Unable to connect to socket address");
-        if self.stream.is_none() {
-            self.stream = Some(stream);
-        }
-        Ok(())
-    }
     pub async fn send(&mut self, bytes: Vec<u8>, destination: Client) -> tokio::io::Result<()> {
-        let mut transporter = T::new_transporter(self.addr).await;
+        let mut transporter = T::new(self.addr).await;
         transporter
             .connect(destination.addr())
             .await

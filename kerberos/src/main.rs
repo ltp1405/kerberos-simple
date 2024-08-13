@@ -1,14 +1,3 @@
-use std::net::SocketAddr;
-
-use kerberos::servers::Server;
-use tokio::net::TcpListener;
-
+// This is the main file of the project. It is the entry point of the application.
 #[tokio::main]
-async fn main() {
-    let mut server = Server::new(
-        "127.0.0.1:8080"
-            .parse()
-            .expect("Unable to parse socket address"),
-    );
-    server.run().await.expect("Unable to run server");
-}
+async fn main() {}
