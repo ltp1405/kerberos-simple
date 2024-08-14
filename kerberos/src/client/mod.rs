@@ -1,7 +1,6 @@
 use std::{error::Error, net::SocketAddr};
 
 use guard::{ClientGuard, TcpClientGuard, UdpClientGuard};
-use tokio::net::TcpStream;
 mod guard;
 pub enum Client {
     Tcp { addr: SocketAddr },
@@ -23,7 +22,7 @@ impl Client {
         destination: SocketAddr,
     ) -> Result<Vec<u8>, Box<dyn Error>> {
         match self {
-            Client::Tcp { addr } => {
+            Client::Tcp { .. } => {
                 let mut guard = TcpClientGuard::new();
                 guard.handle(bytes, destination).await
             }

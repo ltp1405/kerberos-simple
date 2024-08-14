@@ -1,10 +1,9 @@
-use std::{error::Error, net::SocketAddr, vec};
+use std::{error::Error, vec};
 
 use async_trait::async_trait;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpStream, UdpSocket},
-    stream,
 };
 
 #[async_trait]
@@ -25,7 +24,8 @@ impl TcpStreamGuard {
 impl Guard for TcpStreamGuard {
     async fn handle(&mut self) -> Result<(), Box<dyn Error>> {
         let mut buffer = vec![0; 1024];
-        self.0.read(&mut buffer).await?;
+        let len = self.0.read(&mut buffer).await?;
+        buffer.truncate(len);
         self.0.write_all(&buffer).await?;
         Ok(())
     }
@@ -44,7 +44,8 @@ impl UdpSocketGuard {
 impl Guard for UdpSocketGuard {
     async fn handle(&mut self) -> Result<(), Box<dyn Error>> {
         let mut buffer = vec![0; 1024];
-        let (_, addr) = self.0.recv_from(&mut buffer).await?;
+        let (len, addr) = self.0.recv_from(&mut buffer).await?;
+        buffer.truncate(len);
         self.0.send_to(&buffer, addr).await?;
         Ok(())
     }

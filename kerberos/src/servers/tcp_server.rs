@@ -25,7 +25,7 @@ impl Server for TcpServer {
             tokio::spawn({
                 let mut guard = Self::Proto::new(stream);
                 async move {
-                    guard.handle().await;
+                    let _ = guard.handle().await;
                 }
             });
         }
