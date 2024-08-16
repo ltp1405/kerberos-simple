@@ -16,7 +16,6 @@ impl UdpServer {
     }
 }
 
-#[async_trait]
 impl Server for UdpServer {
     type Proto = UdpSocketGuard;
     async fn run(&self) -> Result<(), Box<dyn std::error::Error>> {

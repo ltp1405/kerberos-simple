@@ -1,35 +1,21 @@
 use std::{error::Error, net::SocketAddr};
 
-use guard::{ClientGuard, TcpClientGuard, UdpClientGuard};
+use async_trait::async_trait;
+use guard::Guard;
+use tcp_client_guard::TcpClientGuard;
+use udp_client_guard::UdpClientGuard;
 mod guard;
-pub enum Client {
-    Tcp { addr: SocketAddr },
-    Udp { addr: SocketAddr },
-}
+mod tcp_client_guard;
+mod udp_client_guard;
+pub mod tcp_client;
+pub mod udp_client;
 
-impl Client {
-    pub fn new_tcp(addr: SocketAddr) -> Self {
-        Client::Tcp { addr }
-    }
-
-    pub fn new_udp(addr: SocketAddr) -> Self {
-        Client::Udp { addr }
-    }
-
-    pub async fn send_and_receive(
-        &self,
+#[async_trait]
+pub trait Client {
+    async fn send_and_receive(
+        &mut self,
         bytes: &[u8],
         destination: SocketAddr,
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
-        match self {
-            Client::Tcp { .. } => {
-                let mut guard = TcpClientGuard::new();
-                guard.handle(bytes, destination).await
-            }
-            Client::Udp { addr } => {
-                let mut guard = UdpClientGuard::new(addr.clone()).await;
-                guard.handle(bytes, destination).await
-            }
-        }
-    }
+    ) -> Result<Vec<u8>, Box<dyn Error>>;
+    async fn close(&mut self) -> Result<(), Box<dyn Error>>;
 }

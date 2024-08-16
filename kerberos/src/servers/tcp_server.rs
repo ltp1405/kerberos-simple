@@ -17,17 +17,19 @@ impl TcpServer {
 impl Server for TcpServer {
     type Proto = TcpStreamGuard;
 
-    async fn run(&self) -> Result<(), Box<dyn Error>> {
-        let listener = TcpListener::bind(&self.0).await?;
+    fn run(&self)  {
+        tokio::spawn(async move {
+            let listener = TcpListener::bind(&self.0).await.expect("Failed to bind TCP listener");
 
-        loop {
-            let (stream, _) = listener.accept().await?;
-            tokio::spawn({
-                let mut guard = Self::Proto::new(stream);
-                async move {
-                    let _ = guard.handle().await;
-                }
-            });
-        }
+            loop {
+                let (stream, _) = listener.accept().await.expect("Failed to accept TCP connection");
+                tokio::spawn({
+                    let mut guard = Self::Proto::new(stream);
+                    async move {
+                        let _ = guard.handle().await;
+                    }
+                });
+            }
+        });
     }
 }
