@@ -11,7 +11,7 @@ mod tests;
 #[cfg(feature = "udp")]
 mod udp;
 
-pub use errors::{KrbInfraError, KrbInfraResult};
+pub use errors::{KrbInfraSvrErr, KrbInfraSvrResult};
 pub use receiver::{AsyncReceiver, ExchangeError};
 pub use runnable::Runnable;
 pub use builder::ServerBuilder;

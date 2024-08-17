@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::{net::UdpSocket, sync::mpsc};
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, utils::handle_result_at_router,
+    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver, utils::handle_result_at_router,
 };
 
 use super::entry::UdpEntry;
@@ -22,7 +22,7 @@ impl<A: AsyncReceiver> From<(SocketAddr, A)> for UdpRouter<A> {
 unsafe impl<A> Send for UdpRouter<A> where A: AsyncReceiver {}
 
 impl<A: AsyncReceiver + 'static> UdpRouter<A> {
-    pub async fn listen(&self) -> KrbInfraResult<()> {
+    pub async fn listen(&self) -> KrbInfraSvrResult<()> {
         let socket = UdpSocket::bind(&self.addr).await?;
 
         let listener = Arc::new(socket);

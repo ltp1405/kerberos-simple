@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, utils::handle_result_at_router,
+    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver, utils::handle_result_at_router,
 };
 
 use super::entry::TcpEntry;
@@ -22,7 +22,7 @@ impl<A: AsyncReceiver> From<(SocketAddr, A)> for TcpRouter<A> {
 unsafe impl<A> Send for TcpRouter<A> where A: AsyncReceiver {}
 
 impl<A: AsyncReceiver + 'static> TcpRouter<A> {
-    pub async fn listen(&self) -> KrbInfraResult<()> {
+    pub async fn listen(&self) -> KrbInfraSvrResult<()> {
         let listener = TcpListener::bind(&self.addr).await?;
 
         loop {

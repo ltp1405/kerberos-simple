@@ -51,12 +51,12 @@ async fn server_builder_should_fail_when_missing_as_entry() {
 
 #[tokio::test]
 async fn server_should_be_able_to_handle_request() {
-    let (mut server, shutdown_tx) = UdpServer::local(MockASReceiver, MockTgtReceiver);
+    let mut server = UdpServer::local(MockASReceiver, MockTgtReceiver);
 
     let (as_entry_addr, tgt_entry_addr) = (server.as_entry().0, server.tgt_entry().0);
 
     // Run the server in the background
-    tokio::spawn({
+    let handle = tokio::spawn({
         async move {
             server.run().await;
         }
@@ -92,5 +92,5 @@ async fn server_should_be_able_to_handle_request() {
     }
 
     // Stop the server
-    shutdown_tx.send(()).unwrap();
+    handle.abort();
 }

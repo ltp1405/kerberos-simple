@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::server::{AsyncReceiver, ExchangeError, KrbInfraResult};
+use crate::server::{AsyncReceiver, ExchangeError, KrbInfraSvrResult};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MockASReceiver;
@@ -14,12 +14,12 @@ impl MockASReceiver {
 
 #[async_trait]
 impl AsyncReceiver for MockASReceiver {
-    async fn receive(&self, _bytes: &[u8]) -> KrbInfraResult<Vec<u8>> {
+    async fn receive(&self, _bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => Self::MOCK_INVALID_LENGTH_PREFIX_RESPONSE,
             ExchangeError::UdpPacketOversize {
@@ -44,12 +44,12 @@ impl MockTgtReceiver {
 
 #[async_trait]
 impl AsyncReceiver for MockTgtReceiver {
-    async fn receive(&self, _bytes: &[u8]) -> KrbInfraResult<Vec<u8>> {
+    async fn receive(&self, _bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => Self::MOCK_INVALID_LENGTH_PREFIX_RESPONSE,
             ExchangeError::UdpPacketOversize {

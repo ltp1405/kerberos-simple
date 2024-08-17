@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::server::{errors::KrbInfraResult, receiver::AsyncReceiver};
+use crate::server::{errors::KrbInfraSvrResult, receiver::AsyncReceiver};
 
 pub struct ServerBuilder<A: AsyncReceiver, T: AsyncReceiver> {
     url: String,
@@ -20,6 +20,10 @@ impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
         }
     }
 
+    pub fn local() -> Self {
+        Self::new("127.0.0.1")
+    }
+
     pub fn as_entry(mut self, port: u16, receiver: A) -> Self {
         self.as_entry = Some((port, receiver));
         self
@@ -30,7 +34,7 @@ impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
         self
     }
 
-    fn validate(self) -> KrbInfraResult<(EntryPoint<A>, EntryPoint<T>)> {
+    fn validate(self) -> KrbInfraSvrResult<(EntryPoint<A>, EntryPoint<T>)> {
         match (self.as_entry, self.tgt_entry) {
             (None, None) => Err("Both entry points have not been set for the server".into()),
             (None, Some(_)) => Err("AS entry point has not been set for the server".into()),
@@ -49,7 +53,7 @@ use super::TcpServer;
 
 #[cfg(feature = "tcp")]
 impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
-    pub fn build_tcp(self) -> KrbInfraResult<TcpServer<A, T>> {
+    pub fn build_tcp(self) -> KrbInfraSvrResult<TcpServer<A, T>> {
         let (as_addr, tgt_addr) = self.validate()?;
         Ok(TcpServer::new(as_addr, tgt_addr))
     }
@@ -60,7 +64,7 @@ use super::UdpServer;
 
 #[cfg(feature = "udp")]
 impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
-    pub fn build_udp(self) -> KrbInfraResult<UdpServer<A, T>> {
+    pub fn build_udp(self) -> KrbInfraSvrResult<UdpServer<A, T>> {
         let (as_addr, tgt_addr) = self.validate()?;
         Ok(UdpServer::new(as_addr, tgt_addr))
     }

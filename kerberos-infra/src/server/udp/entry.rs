@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use tokio::net::UdpSocket;
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver,
+    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver,
     utils::extract_bytes_or_delegate_to_router, ExchangeError,
 };
 
@@ -35,7 +35,7 @@ impl<A: AsyncReceiver> UdpEntry<A> {
 
 #[async_trait]
 impl<A: AsyncReceiver> Entry for UdpEntry<A> {
-    async fn handle(&mut self) -> KrbInfraResult<()> {
+    async fn handle(&mut self) -> KrbInfraSvrResult<()> {
         let result = self.receiver.receive(&self.bytes).await;
 
         let mut response = extract_bytes_or_delegate_to_router(result)?;

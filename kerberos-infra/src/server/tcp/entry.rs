@@ -5,8 +5,8 @@ use tokio::{
 };
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, utils::extract_bytes_or_delegate_to_router,
-    ExchangeError,
+    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver,
+    utils::extract_bytes_or_delegate_to_router, ExchangeError,
 };
 
 pub struct TcpEntry<R: AsyncReceiver + 'static> {
@@ -22,7 +22,7 @@ impl<R: AsyncReceiver> TcpEntry<R> {
 
 #[async_trait]
 impl<R: AsyncReceiver> Entry for TcpEntry<R> {
-    async fn handle(&mut self) -> KrbInfraResult<()> {
+    async fn handle(&mut self) -> KrbInfraSvrResult<()> {
         let bytes = {
             // Allocate 4 octets for the length of the message
             let mut buffer = [0u8; 4];
@@ -40,6 +40,11 @@ impl<R: AsyncReceiver> Entry for TcpEntry<R> {
 
                 let response = extract_bytes_or_delegate_to_router(result)?;
 
+                // Send the length of the message first
+                let length = (response.len() as u32).to_be_bytes();
+                self.stream.write_all(&length).await?;
+
+                // Send the message
                 self.stream.write_all(&response).await?;
 
                 return Ok(());
@@ -57,6 +62,11 @@ impl<R: AsyncReceiver> Entry for TcpEntry<R> {
 
         let response = extract_bytes_or_delegate_to_router(result)?;
 
+        // Send the length of the message first
+        let length = (response.len() as u32).to_be_bytes();
+        self.stream.write_all(&length).await?;
+
+        // Send the message
         self.stream.write_all(&response).await?;
 
         Ok(())

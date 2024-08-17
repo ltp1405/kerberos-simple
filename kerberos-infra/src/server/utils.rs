@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
-use super::KrbInfraError;
+use super::KrbInfraSvrErr;
 
-pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), KrbInfraError>) {
+pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), KrbInfraSvrErr>) {
     match result {
         Ok(_) => {}
         Err(err) => {
-            if let KrbInfraError::Aborted { cause } = err {
+            if let KrbInfraSvrErr::Aborted { cause } = err {
                 match cause {
                     Some(inner) => {
                         eprintln!("Connection from {} aborted: {}", addr, inner)
@@ -21,12 +21,12 @@ pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), KrbInfraErro
 }
 
 pub fn extract_bytes_or_delegate_to_router(
-    result: Result<Vec<u8>, KrbInfraError>,
-) -> Result<Vec<u8>, KrbInfraError> {
+    result: Result<Vec<u8>, KrbInfraSvrErr>,
+) -> Result<Vec<u8>, KrbInfraSvrErr> {
     match result {
         Ok(bytes) => Ok(bytes),
         Err(err) => match err {
-            KrbInfraError::Actionable { reply } => Ok(reply),
+            KrbInfraSvrErr::Actionable { reply } => Ok(reply),
             _ => Err(err),
         },
     }
