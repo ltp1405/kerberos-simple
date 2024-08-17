@@ -4,8 +4,13 @@ use super::KrbInfraResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExchangeError {
-    LengthPrefix { value: u32 },
-    UdpPacketOversize { length: usize },
+    LengthPrefix {
+        value: u32,
+    },
+    UdpPacketOversize {
+        maximum_length: usize,
+        length: usize,
+    },
 }
 
 #[async_trait]

@@ -2,7 +2,9 @@ use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
 
-use crate::server::{entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, KrbInfraError};
+use crate::server::{
+    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, utils::handle_result_at_router,
+};
 
 use super::entry::TcpEntry;
 
@@ -28,24 +30,11 @@ impl<A: AsyncReceiver + 'static> TcpRouter<A> {
 
             tokio::spawn({
                 let mut entry = TcpEntry::new(stream, self.receiver);
+                
                 async move {
                     let result = entry.handle().await;
-
-                    match result {
-                        Ok(_) => {}
-                        Err(err) => {
-                            if let KrbInfraError::Aborted { cause } = err {
-                                match cause {
-                                    Some(inner) => {
-                                        eprintln!("Connection from {} aborted: {}", addr, inner)
-                                    }
-                                    None => {
-                                        eprintln!("Connection from {} aborted for no reason", addr)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    
+                    handle_result_at_router(addr, result)
                 }
             });
         }

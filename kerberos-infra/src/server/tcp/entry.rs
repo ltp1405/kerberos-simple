@@ -5,7 +5,8 @@ use tokio::{
 };
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, ExchangeError, KrbInfraError,
+    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, utils::extract_bytes_or_delegate_to_router,
+    ExchangeError,
 };
 
 pub struct TcpEntry<R: AsyncReceiver + 'static> {
@@ -33,18 +34,11 @@ impl<R: AsyncReceiver> Entry for TcpEntry<R> {
             let length = u32::from_be_bytes(buffer);
 
             if length & 0x80000000 != 0 {
-                let response = self
+                let result = self
                     .receiver
                     .error(ExchangeError::LengthPrefix { value: length });
 
-                let response = match response {
-                    Ok(response) => response,
-                    Err(err) => match err {
-                        KrbInfraError::Actionable { reply } => reply,
-                        KrbInfraError::Aborted { cause: _ } => return Err(err),
-                        KrbInfraError::Ignorable => return Ok(()),
-                    },
-                };
+                let response = extract_bytes_or_delegate_to_router(result)?;
 
                 self.stream.write_all(&response).await?;
 
@@ -61,21 +55,7 @@ impl<R: AsyncReceiver> Entry for TcpEntry<R> {
 
         let result = self.receiver.receive(&bytes).await;
 
-        let response = if let Ok(bytes) = result {
-            bytes
-        } else {
-            match result {
-                Ok(_) => unreachable!(),
-                Err(err) => {
-                    if let KrbInfraError::Actionable { reply } = err {
-                        reply
-                    } else {
-                        // Delegate the error to the router
-                        return Err(err);
-                    }
-                }
-            }
-        };
+        let response = extract_bytes_or_delegate_to_router(result)?;
 
         self.stream.write_all(&response).await?;
 

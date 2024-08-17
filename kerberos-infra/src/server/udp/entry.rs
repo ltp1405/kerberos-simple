@@ -1,30 +1,56 @@
+use std::{net::SocketAddr, sync::Arc};
+
 use async_trait::async_trait;
 use tokio::net::UdpSocket;
 
-use crate::server::{entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver};
+use crate::server::{
+    entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver,
+    utils::extract_bytes_or_delegate_to_router, ExchangeError,
+};
 
 pub struct UdpEntry<A: AsyncReceiver> {
-    socket: UdpSocket,
+    socket: Arc<UdpSocket>,
+    bytes: Vec<u8>,
+    destination: SocketAddr,
     receiver: A,
 }
 
 impl<A: AsyncReceiver> UdpEntry<A> {
-    pub fn new(socket: UdpSocket, receiver: A) -> Self {
-        Self { socket, receiver }
+    const MAX_BUFFER_SIZE: usize = 1024; // 1KB
+
+    pub fn new(
+        socket: Arc<UdpSocket>,
+        bytes: Vec<u8>,
+        destination: SocketAddr,
+        receiver: A,
+    ) -> Self {
+        Self {
+            socket,
+            bytes,
+            destination,
+            receiver,
+        }
     }
 }
 
 #[async_trait]
 impl<A: AsyncReceiver> Entry for UdpEntry<A> {
     async fn handle(&mut self) -> KrbInfraResult<()> {
-        let mut buffer = vec![0; 1024];
-        
-        let (len, addr) = self.socket.recv_from(&mut buffer).await?;
-        
-        buffer.truncate(len);
-        
-        self.socket.send_to(&buffer, addr).await?;
-        
+        let result = self.receiver.receive(&self.bytes).await;
+
+        let mut response = extract_bytes_or_delegate_to_router(result)?;
+
+        if response.len() > Self::MAX_BUFFER_SIZE {
+            let result = self.receiver.error(ExchangeError::UdpPacketOversize {
+                maximum_length: Self::MAX_BUFFER_SIZE,
+                length: response.len(),
+            });
+
+            response = extract_bytes_or_delegate_to_router(result)?;
+        }
+
+        self.socket.send_to(&response, &self.destination).await?;
+
         Ok(())
     }
 }

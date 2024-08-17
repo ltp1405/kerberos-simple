@@ -26,40 +26,6 @@ impl<A: AsyncReceiver, T: AsyncReceiver> TcpServer<A, T> {
             TcpRouter::from(self.tgt_entry),
         )
     }
-
-    #[cfg(test)]
-    fn controllable(
-        as_entry: (SocketAddr, A),
-        tgt_entry: (SocketAddr, T),
-    ) -> (Self, tokio::sync::watch::Sender<()>) {
-        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
-        (
-            Self {
-                as_entry,
-                tgt_entry,
-                shutdown_rx: Some(shutdown_rx),
-            },
-            shutdown_tx,
-        )
-    }
-
-    #[cfg(test)]
-    pub fn local(as_receiver: A, tgt_receiver: T) -> (Self, tokio::sync::watch::Sender<()>) {
-        let as_addr = "127.0.0.1:8080".parse().unwrap();
-        let tgt_addr = "127.0.0.1:8081".parse().unwrap();
-
-        Self::controllable((as_addr, as_receiver), (tgt_addr, tgt_receiver))
-    }
-
-    #[cfg(test)]
-    pub fn as_entry(&self) -> (SocketAddr, A) {
-        self.as_entry
-    }
-
-    #[cfg(test)]
-    pub fn tgt_entry(&self) -> (SocketAddr, T) {
-        self.tgt_entry
-    }
 }
 
 #[async_trait]
@@ -85,6 +51,39 @@ impl<A: AsyncReceiver + 'static, T: AsyncReceiver + 'static> Runnable for TcpSer
                 eprintln!("Shutdown signal received, shutting down.");
             },
         };
+    }
+}
+
+#[cfg(test)]
+impl<A: AsyncReceiver, T: AsyncReceiver> TcpServer<A, T> {
+    fn controllable(
+        as_entry: (SocketAddr, A),
+        tgt_entry: (SocketAddr, T),
+    ) -> (Self, tokio::sync::watch::Sender<()>) {
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+        (
+            Self {
+                as_entry,
+                tgt_entry,
+                shutdown_rx: Some(shutdown_rx),
+            },
+            shutdown_tx,
+        )
+    }
+
+    pub fn local(as_receiver: A, tgt_receiver: T) -> (Self, tokio::sync::watch::Sender<()>) {
+        let as_addr = "127.0.0.1:8080".parse().unwrap();
+        let tgt_addr = "127.0.0.1:8081".parse().unwrap();
+
+        Self::controllable((as_addr, as_receiver), (tgt_addr, tgt_receiver))
+    }
+
+    pub fn as_entry(&self) -> (SocketAddr, A) {
+        self.as_entry
+    }
+
+    pub fn tgt_entry(&self) -> (SocketAddr, T) {
+        self.tgt_entry
     }
 }
 

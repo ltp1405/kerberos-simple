@@ -3,6 +3,7 @@ mod errors;
 mod receiver;
 mod runnable;
 mod builder;
+mod utils;
 #[cfg(feature = "tcp")]
 mod tcp;
 #[cfg(test)]
