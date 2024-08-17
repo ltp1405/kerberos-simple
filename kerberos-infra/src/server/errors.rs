@@ -1,49 +1,61 @@
 use std::io;
 
 pub enum KrbInfraError {
-    Url { url: String },
-    Initialization { error: String },
-    Operation { error: Box<dyn std::error::Error> },
-    Connection { error: std::io::Error },
-    Other,
+    Actionable {
+        reply: Vec<u8>,
+    },
+    Aborted {
+        cause: Option<Box<dyn std::error::Error>>,
+    },
+    Ignorable,
 }
 
 impl From<&str> for KrbInfraError {
     fn from(err: &str) -> Self {
-        KrbInfraError::Initialization {
-            error: err.to_string(),
+        KrbInfraError::Actionable {
+            reply: err.as_bytes().to_vec(),
         }
     }
 }
 
 impl From<io::Error> for KrbInfraError {
     fn from(err: io::Error) -> Self {
-        KrbInfraError::Connection { error: err }
+        KrbInfraError::Aborted {
+            cause: Some(Box::new(err)),
+        }
     }
 }
 
 impl From<std::net::AddrParseError> for KrbInfraError {
     fn from(err: std::net::AddrParseError) -> Self {
-        KrbInfraError::Url {
-            url: err.to_string(),
+        KrbInfraError::Aborted {
+            cause: Some(Box::new(err)),
         }
     }
 }
 
 impl From<Box<dyn std::error::Error>> for KrbInfraError {
     fn from(err: Box<dyn std::error::Error>) -> Self {
-        KrbInfraError::Operation { error: err }
+        KrbInfraError::Aborted { cause: Some(err) }
     }
 }
 
 impl std::fmt::Debug for KrbInfraError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            KrbInfraError::Url { url } => write!(f, "Url error: {}", url),
-            KrbInfraError::Initialization { error } => write!(f, "Initialization error: {}", error),
-            KrbInfraError::Operation { error } => write!(f, "Operation error: {}", error),
-            KrbInfraError::Connection { error } => write!(f, "Connection error: {}", error),
-            KrbInfraError::Other => write!(f, "Other error"),
+            KrbInfraError::Actionable { reply } => {
+                write!(
+                    f,
+                    "Actionable error: {:?}",
+                    String::from_utf8(reply.clone()).unwrap()
+                )
+            }
+            KrbInfraError::Aborted { cause: err } => {
+                write!(f, "Aborted error: {:?}", err)
+            }
+            KrbInfraError::Ignorable => {
+                write!(f, "Ignorable error")
+            }
         }
     }
 }

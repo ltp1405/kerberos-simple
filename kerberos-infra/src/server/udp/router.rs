@@ -6,20 +6,20 @@ use crate::server::{entry::Entry, errors::KrbInfraResult, receiver::AsyncReceive
 
 use super::entry::UdpEntry;
 
-pub struct Router<A: AsyncReceiver> {
+pub struct UdpRouter<A: AsyncReceiver> {
     addr: SocketAddr,
     receiver: A,
 }
 
-impl<A: AsyncReceiver> From<(SocketAddr, A)> for Router<A> {
+impl<A: AsyncReceiver> From<(SocketAddr, A)> for UdpRouter<A> {
     fn from((addr, receiver): (SocketAddr, A)) -> Self {
         Self { addr, receiver }
     }
 }
 
-unsafe impl<A> Send for Router<A> where A: AsyncReceiver {}
+unsafe impl<A> Send for UdpRouter<A> where A: AsyncReceiver {}
 
-impl<A: AsyncReceiver + 'static> Router<A> {
+impl<A: AsyncReceiver + 'static> UdpRouter<A> {
     pub async fn listen(&self) -> KrbInfraResult<()> {
         let listener = UdpSocket::bind(&self.addr).await?;
 

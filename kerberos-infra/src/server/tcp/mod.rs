@@ -1,33 +1,54 @@
 use async_trait::async_trait;
-use router::Router;
+use router::TcpRouter;
 use std::net::SocketAddr;
 use tokio::signal;
 
-use super::{errors::KrbInfraResult, receiver::AsyncReceiver, runnable::Runnable};
+use super::{receiver::AsyncReceiver, runnable::Runnable};
 
 pub struct TcpServer<A: AsyncReceiver, T: AsyncReceiver> {
     as_entry: (SocketAddr, A),
     tgt_entry: (SocketAddr, T),
-    shutdown_tx: tokio::sync::watch::Sender<()>,
-    shutdown_rx: tokio::sync::watch::Receiver<()>,
+    shutdown_rx: Option<tokio::sync::watch::Receiver<()>>,
 }
 
 impl<A: AsyncReceiver, T: AsyncReceiver> TcpServer<A, T> {
-    pub fn builder(url: &str) -> builder::TcpServerBuilder<A, T> {
-        builder::TcpServerBuilder::new(url)
+    pub(crate) fn new(as_entry: (SocketAddr, A), tgt_entry: (SocketAddr, T)) -> Self {
+        Self {
+            as_entry,
+            tgt_entry,
+            shutdown_rx: None,
+        }
     }
 
-    fn splits(&self) -> (Router<A>, Router<T>) {
-        (Router::from(self.as_entry), Router::from(self.tgt_entry))
+    fn splits(&self) -> (TcpRouter<A>, TcpRouter<T>) {
+        (
+            TcpRouter::from(self.as_entry),
+            TcpRouter::from(self.tgt_entry),
+        )
     }
 
     #[cfg(test)]
-    pub fn local(as_receiver: A, tgt_receiver: T) -> Self {
-        builder::TcpServerBuilder::new("127.0.0.1")
-            .as_entry(8080, as_receiver)
-            .tgt_entry(8089, tgt_receiver)
-            .build()
-            .unwrap()
+    fn controllable(
+        as_entry: (SocketAddr, A),
+        tgt_entry: (SocketAddr, T),
+    ) -> (Self, tokio::sync::watch::Sender<()>) {
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(());
+        (
+            Self {
+                as_entry,
+                tgt_entry,
+                shutdown_rx: Some(shutdown_rx),
+            },
+            shutdown_tx,
+        )
+    }
+
+    #[cfg(test)]
+    pub fn local(as_receiver: A, tgt_receiver: T) -> (Self, tokio::sync::watch::Sender<()>) {
+        let as_addr = "127.0.0.1:8080".parse().unwrap();
+        let tgt_addr = "127.0.0.1:8081".parse().unwrap();
+
+        Self::controllable((as_addr, as_receiver), (tgt_addr, tgt_receiver))
     }
 
     #[cfg(test)]
@@ -43,7 +64,7 @@ impl<A: AsyncReceiver, T: AsyncReceiver> TcpServer<A, T> {
 
 #[async_trait]
 impl<A: AsyncReceiver + 'static, T: AsyncReceiver + 'static> Runnable for TcpServer<A, T> {
-    async fn run(&mut self) -> KrbInfraResult<()> {
+    async fn run(&mut self) {
         let (as_router, tgt_router) = self.splits();
 
         tokio::select! {
@@ -60,20 +81,12 @@ impl<A: AsyncReceiver + 'static, T: AsyncReceiver + 'static> Runnable for TcpSer
             _ = signal::ctrl_c() => {
                 eprintln!("Ctrl+C received, shutting down.");
             },
-            _ = self.shutdown_rx.changed() => {
+            _ = self.shutdown_rx.as_mut().unwrap().changed(), if self.shutdown_rx.is_some() => {
                 eprintln!("Shutdown signal received, shutting down.");
-            }
+            },
         };
-
-        Ok(())
-    }
-
-    fn stop(&self) -> KrbInfraResult<()> {
-        self.shutdown_tx.send(()).map_err(|_| "")?;
-        Ok(())
     }
 }
 
-pub mod builder;
 mod entry;
 mod router;

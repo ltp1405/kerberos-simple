@@ -1,13 +1,13 @@
 use super::mocks::{MockASReceiver, MockTgtReceiver};
 
-use crate::server::UdpServer;
+use crate::server::{ServerBuilder, UdpServer};
 
 #[tokio::test]
 async fn server_builder_should_be_ok_when_given_all_entry_points() {
-    let server = UdpServer::builder("127.0.0.1")
+    let server = ServerBuilder::new("127.0.0.1")
         .as_entry(88, MockASReceiver)
         .tgt_entry(89, MockTgtReceiver)
-        .build();
+        .build_udp();
 
     assert!(server.is_ok(), "UdpServer failed to build");
 

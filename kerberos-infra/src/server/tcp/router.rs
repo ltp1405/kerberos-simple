@@ -2,33 +2,51 @@ use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
 
-use crate::server::{entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver};
+use crate::server::{entry::Entry, errors::KrbInfraResult, receiver::AsyncReceiver, KrbInfraError};
 
 use super::entry::TcpEntry;
 
-pub struct Router<A: AsyncReceiver> {
+pub struct TcpRouter<A: AsyncReceiver> {
     addr: SocketAddr,
     receiver: A,
 }
 
-impl<A: AsyncReceiver> From<(SocketAddr, A)> for Router<A> {
+impl<A: AsyncReceiver> From<(SocketAddr, A)> for TcpRouter<A> {
     fn from((addr, receiver): (SocketAddr, A)) -> Self {
         Self { addr, receiver }
     }
 }
 
-unsafe impl<A> Send for Router<A> where A: AsyncReceiver {}
+unsafe impl<A> Send for TcpRouter<A> where A: AsyncReceiver {}
 
-impl<A: AsyncReceiver + 'static> Router<A> {
+impl<A: AsyncReceiver + 'static> TcpRouter<A> {
     pub async fn listen(&self) -> KrbInfraResult<()> {
         let listener = TcpListener::bind(&self.addr).await?;
 
         loop {
-            let (stream, _) = listener.accept().await?;
+            let (stream, addr) = listener.accept().await?;
 
             tokio::spawn({
                 let mut entry = TcpEntry::new(stream, self.receiver);
-                async move { entry.handle().await }
+                async move {
+                    let result = entry.handle().await;
+
+                    match result {
+                        Ok(_) => {}
+                        Err(err) => {
+                            if let KrbInfraError::Aborted { cause } = err {
+                                match cause {
+                                    Some(inner) => {
+                                        eprintln!("Connection from {} aborted: {}", addr, inner)
+                                    }
+                                    None => {
+                                        eprintln!("Connection from {} aborted for no reason", addr)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
     }

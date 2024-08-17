@@ -12,6 +12,6 @@ async-trait = "0.1"
 mockito = "1.5.0"
 
 [features]
-default = ["tcp", "udp"]
+default = ["tcp"]
 tcp = []
 udp = []
