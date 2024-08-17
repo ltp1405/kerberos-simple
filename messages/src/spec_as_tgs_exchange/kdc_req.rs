@@ -5,7 +5,7 @@ use crate::{
     spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
 
-#[derive(Sequence)]
+#[derive(Sequence, Eq, PartialEq, Debug)]
 pub struct KdcReq {
     #[asn1(context_specific = "1")]
     pvno: Int32,
@@ -22,16 +22,16 @@ pub struct KdcReq {
 
 impl KdcReq {
     pub fn new(
-        msg_type: Int32,
-        padata: Option<SequenceOf<PaData>>,
-        req_body: KdcReqBody,
+        msg_type: impl Into<Int32>,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
+        req_body: impl Into<KdcReqBody>,
     ) -> Self {
-        let pvno = Int32::new(b"\x05").expect("Cannot initialize Int32 from &[u8]");
+        let pvno = 5;
         Self {
             pvno,
-            msg_type,
-            padata,
-            req_body,
+            msg_type: msg_type.into(),
+            padata: padata.into(),
+            req_body: req_body.into(),
         }
     }
 
@@ -49,5 +49,33 @@ impl KdcReq {
 
     pub fn req_body(&self) -> &KdcReqBody {
         &self.req_body
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::spec_as_tgs_exchange::{kdc_req::KdcReq, kdc_req_body::tests};
+    use der::{Decode, Encode, EncodeValue, SliceReader};
+
+    pub fn sample_data() -> KdcReq {
+        KdcReq::new(1, None, tests::sample_data())
+    }
+
+    #[test]
+    fn test_primitives() {
+        let data = sample_data();
+        assert_eq!(data.pvno(), &5);
+        assert_eq!(data.msg_type(), &1);
+        assert!(data.padata().is_none());
+    }
+
+    #[test]
+    fn verify_encode_decode() {
+        let data = sample_data();
+        let mut buf = Vec::new();
+        data.encode_to_vec(&mut buf).unwrap();
+        let decoded = KdcReq::decode(&mut SliceReader::new(buf.as_mut_slice()).unwrap()).unwrap();
+        assert_eq!(decoded.header(), data.header());
+        assert_eq!(decoded, data);
     }
 }

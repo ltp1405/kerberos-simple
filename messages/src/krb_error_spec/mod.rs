@@ -1,91 +1,46 @@
-use der::{Decode, Encode, EncodeValue, FixedTag, TagNumber};
+use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Sequence, TagNumber};
 
 use crate::basic::{
     application_tags, Int32, KerberosString, KerberosTime, Microseconds, OctetString,
     PrincipalName, Realm,
 };
 
-pub struct KrbErrorMsg {
-    pvno: Int32,
-    msg_type: Int32,
-    ctime: Option<KerberosTime>,
-    cusec: Option<Microseconds>,
-    stime: KerberosTime,
-    susec: Microseconds,
-    error_code: Int32,
-    crealm: Option<Realm>,
-    cname: Option<PrincipalName>,
-    realm: Realm,         // service realm
-    sname: PrincipalName, // service name
-    e_text: Option<KerberosString>,
-    e_data: Option<OctetString>,
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct KrbErrorMsg(KrbErrorMsgInner);
+
+impl KrbErrorMsg {
+    pub fn builder(
+        stime: KerberosTime,
+        susec: Microseconds,
+        error_code: Int32,
+        realm: Realm,
+        sname: PrincipalName,
+    ) -> KrbErrorMsgBuilder {
+        KrbErrorMsgInner::builder(stime, susec, error_code, realm, sname)
+    }
 }
 
 impl EncodeValue for KrbErrorMsg {
     fn value_len(&self) -> der::Result<der::Length> {
-        self.pvno.value_len()?
-            + self.msg_type.value_len()?
-            + self.ctime.encoded_len()?
-            + self.cusec.encoded_len()?
-            + self.stime.value_len()?
-            + self.susec.value_len()?
-            + self.error_code.value_len()?
-            + self.crealm.encoded_len()?
-            + self.cname.encoded_len()?
-            + self.realm.value_len()?
-            + self.sname.value_len()?
-            + self.e_text.encoded_len()?
-            + self.e_data.encoded_len()?
+        self.0.encoded_len()
     }
 
     fn encode_value(&self, encoder: &mut impl der::Writer) -> der::Result<()> {
-        self.pvno.encode(encoder)?;
-        self.msg_type.encode(encoder)?;
-        self.ctime.encode(encoder)?;
-        self.cusec.encode(encoder)?;
-        self.stime.encode(encoder)?;
-        self.susec.encode(encoder)?;
-        self.error_code.encode(encoder)?;
-        self.crealm.encode(encoder)?;
-        self.cname.encode(encoder)?;
-        self.realm.encode(encoder)?;
-        self.sname.encode(encoder)?;
-        self.e_text.encode(encoder)?;
-        self.e_data.encode(encoder)?;
+        self.0.encode(encoder)?;
         Ok(())
     }
 }
 
-impl<'a> Decode<'a> for KrbErrorMsg {
-    fn decode<R: der::Reader<'a>>(decoder: &mut R) -> der::Result<Self> {
-        let pvno = Int32::decode(decoder)?;
-        let msg_type = Int32::decode(decoder)?;
-        let ctime = Option::<KerberosTime>::decode(decoder)?;
-        let cusec = Option::<Microseconds>::decode(decoder)?;
-        let stime = KerberosTime::decode(decoder)?;
-        let susec = Microseconds::decode(decoder)?;
-        let error_code = Int32::decode(decoder)?;
-        let crealm = Option::<Realm>::decode(decoder)?;
-        let cname = Option::<PrincipalName>::decode(decoder)?;
-        let realm = Realm::decode(decoder)?;
-        let sname = PrincipalName::decode(decoder)?;
-        let e_text = Option::<KerberosString>::decode(decoder)?;
-        let e_data = Option::<OctetString>::decode(decoder)?;
-        Ok(Self {
-            pvno,
-            msg_type,
-            ctime,
-            cusec,
-            stime,
-            susec,
-            error_code,
-            crealm,
-            cname,
-            realm,
-            sname,
-            e_text,
-            e_data,
-        })
+impl<'a> DecodeValue<'a> for KrbErrorMsg {
+    fn decode_value<R: der::Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
+        let inner = KrbErrorMsgInner::decode(reader)?;
+        Ok(Self(inner))
+    }
+}
+
+impl AsRef<KrbErrorMsgInner> for KrbErrorMsg {
+    fn as_ref(&self) -> &KrbErrorMsgInner {
+        &self.0
     }
 }
 
@@ -96,7 +51,37 @@ impl FixedTag for KrbErrorMsg {
     };
 }
 
-impl KrbErrorMsg {
+#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
+pub struct KrbErrorMsgInner {
+    #[asn1(context_specific = "0")]
+    pvno: Int32,
+    #[asn1(context_specific = "1")]
+    msg_type: Int32,
+    #[asn1(context_specific = "2", optional = "true")]
+    ctime: Option<KerberosTime>,
+    #[asn1(context_specific = "3", optional = "true")]
+    cusec: Option<Microseconds>,
+    #[asn1(context_specific = "4")]
+    stime: KerberosTime,
+    #[asn1(context_specific = "5")]
+    susec: Microseconds,
+    #[asn1(context_specific = "6")]
+    error_code: Int32,
+    #[asn1(context_specific = "7", optional = "true")]
+    crealm: Option<Realm>,
+    #[asn1(context_specific = "8", optional = "true")]
+    cname: Option<PrincipalName>,
+    #[asn1(context_specific = "9")]
+    realm: Realm, // service realm
+    #[asn1(context_specific = "10")]
+    sname: PrincipalName, // service name
+    #[asn1(context_specific = "11", optional = "true")]
+    e_text: Option<KerberosString>,
+    #[asn1(context_specific = "12", optional = "true")]
+    e_data: Option<OctetString>,
+}
+
+impl KrbErrorMsgInner {
     pub fn builder(
         stime: KerberosTime,
         susec: Microseconds,
@@ -123,8 +108,8 @@ impl KrbErrorMsg {
         self.cusec.as_ref()
     }
 
-    pub fn stime(&self) -> KerberosTime {
-        self.stime
+    pub fn stime(&self) -> &KerberosTime {
+        &self.stime
     }
 
     pub fn susec(&self) -> &Microseconds {
@@ -143,8 +128,8 @@ impl KrbErrorMsg {
         self.cname.as_ref()
     }
 
-    pub fn realm(&self) -> &str {
-        self.realm.as_ref()
+    pub fn realm(&self) -> &Realm {
+        &self.realm
     }
 
     pub fn sname(&self) -> &PrincipalName {
@@ -198,15 +183,9 @@ impl KrbErrorMsgBuilder {
     }
 
     pub fn build(self) -> KrbErrorMsg {
-        let pvno = {
-            let bytes = 5.to_der().expect("pvno");
-            Int32::new(&bytes).expect("pvno")
-        };
-        let msg_type = {
-            let bytes = 30.to_der().expect("msg_type");
-            Int32::new(&bytes).expect("msg_type")
-        };
-        KrbErrorMsg {
+        let pvno = 5;
+        let msg_type = 30;
+        KrbErrorMsg(KrbErrorMsgInner {
             pvno,
             msg_type,
             ctime: self.ctime,
@@ -220,7 +199,7 @@ impl KrbErrorMsgBuilder {
             sname: self.sname,
             e_text: self.e_text,
             e_data: self.e_data,
-        }
+        })
     }
 
     pub fn crealm(mut self, crealm: Realm) -> Self {
@@ -324,3 +303,6 @@ pub mod ecodes {
     pub const KDC_ERR_CLIENT_NAME_MISMATCH: i32 = 75; // Reserved for PKINIT
     pub const KDC_ERR_KDC_NAME_MISMATCH: i32 = 76; // Reserved for PKINIT
 }
+
+#[cfg(test)]
+mod test;

@@ -8,21 +8,19 @@ use der::{
 
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
 pub(super) use constants::*;
-use predefined_values::{AddressType, NameType};
 
 mod constants;
-mod predefined_values;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
-pub type BitSring = der::asn1::BitString;
+pub type BitString = der::asn1::BitString;
 
 // RFC4120 5.2.4
-pub type Int32 = der::asn1::Int;
+pub type Int32 = i32;
 // RFC4120 5.2.4
-pub type UInt32 = der::asn1::Int;
+pub type UInt32 = i32;
 // RFC4120 5.2.4
-pub type Microseconds = der::asn1::Int;
+pub type Microseconds = i32;
 
 // RFC4120 5.2.1
 pub type KerberosString = Ia5String;
@@ -36,14 +34,16 @@ pub type Realm = KerberosString;
 // RFC4120 5.2.2
 #[derive(Sequence, Debug, PartialEq, Eq, Clone)]
 pub struct PrincipalName {
-    name_type: NameType,
+    #[asn1(context_specific = "0")]
+    name_type: Int32,
+    #[asn1(context_specific = "1")]
     // Most PrincipalNames will have only a few components (typically one or two).
     name_string: SequenceOf<KerberosString>,
 }
 
 impl PrincipalName {
     pub fn new<K: Into<SequenceOf<KerberosString>>>(
-        name_type: NameType,
+        nt_code: NameTypes,
         components: K,
     ) -> Result<Self, &'static str> {
         let name_string = components.into();
@@ -53,13 +53,21 @@ impl PrincipalName {
         }
 
         Ok(Self {
-            name_type,
+            name_type: nt_code as i32,
             name_string,
         })
     }
 
-    pub fn name_type(&self) -> NameType {
-        self.name_type
+    pub fn name_type(&self) -> &Int32 {
+        &self.name_type
+    }
+
+    pub fn has_name_type_of(&self, nt_code: NameTypes) -> bool {
+        let bytes = (nt_code as i32)
+            .to_der()
+            .expect("This operation is always successful");
+        let nt = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.name_type == nt
     }
 
     pub fn name_string(&self) -> &SequenceOf<KerberosString> {
@@ -70,20 +78,33 @@ impl PrincipalName {
 // RFC4120 5.2.5
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct HostAddress {
-    addr_type: AddressType,
+    #[asn1(context_specific = "0")]
+    addr_type: Int32,
+    #[asn1(context_specific = "1")]
     address: OctetString,
 }
 
 impl HostAddress {
-    pub fn new<S: Into<OctetString>>(addr_type: AddressType, address: S) -> Self {
-        Self {
-            addr_type,
+    pub fn new<S: Into<OctetString>>(
+        at_code: AddressTypes,
+        address: S,
+    ) -> Result<Self, &'static str> {
+        Ok(Self {
+            addr_type: at_code as i32,
             address: address.into(),
-        }
+        })
     }
 
-    pub fn addr_type(&self) -> AddressType {
-        self.addr_type
+    pub fn addr_type(&self) -> &Int32 {
+        &self.addr_type
+    }
+
+    pub fn has_addr_type_of(&self, at_code: AddressTypes) -> bool {
+        let bytes = (at_code as i32)
+            .to_der()
+            .expect("This operation is always successful");
+        let at = Int32::from_der(&bytes).expect("This operation is always successful");
+        self.addr_type == at
     }
 
     pub fn address(&self) -> &OctetString {
@@ -169,41 +190,38 @@ impl ADRegisteredEntry {
             _ => {}
         }
 
-        fn to_meaningful_error(ad_type: i32, element: &str, e: der::Error) -> String {
+        fn to_meaningful_error(
+            ad_type: AuthorizationDataTypes,
+            element: &str,
+            e: der::Error,
+        ) -> String {
             format!(
-                "Bytes representation of AD type {} is not valid to decode to {}. Error: {}",
+                "Bytes representation of AD type {:?} is not valid to decode to {}. Error: {}",
                 ad_type, element, e
             )
         }
 
-        let ad_type = {
-            let bytes = entry
-                .ad_type
-                .to_der()
-                .map_err(|e| format!("Could not encode AD type to DER bytes. Error: {}", e))?;
-            i32::from_der(&bytes)
-                .map_err(|e| format!("Could not decode AD type from DER bytes. Error: {}", e))?
-        };
+        let ad_type = AuthorizationDataTypes::from(entry.ad_type);
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
         let decoded_element = match ad_type {
-            adtypes::AD_IF_RELEVANT => ADRegisteredEntry::IfRelevant(
+            AuthorizationDataTypes::IfRelevant => ADRegisteredEntry::IfRelevant(
                 octet_str_ref
                     .decode_into::<AdIfRelevant>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdIfRelevant", e))?,
             ),
-            adtypes::AD_KDC_ISSUED => ADRegisteredEntry::KdcIssued(
+            AuthorizationDataTypes::KdcIssued => ADRegisteredEntry::KdcIssued(
                 octet_str_ref
                     .decode_into::<AdKdcIssued>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdKdcIssued", e))?,
             ),
-            adtypes::AD_AND_OR => ADRegisteredEntry::AndOr(
+            AuthorizationDataTypes::AndOr => ADRegisteredEntry::AndOr(
                 octet_str_ref
                     .decode_into::<AdAndOr>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdAndOr", e))?,
             ),
-            adtypes::AD_MANDATORY_FOR_KDC => ADRegisteredEntry::MandatoryForKdc(
+            AuthorizationDataTypes::MandatoryForKdc => ADRegisteredEntry::MandatoryForKdc(
                 octet_str_ref
                     .decode_into::<AdMandatoryForKdc>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdMandatoryForKdc", e))?,
@@ -353,50 +371,44 @@ impl PaDataRegisteredType {
             _ => {}
         }
 
-        fn to_meaningful_error(pa_type: i32, element: &str, e: der::Error) -> String {
+        fn to_meaningful_error(pa_type: PaDataTypes, element: &str, e: der::Error) -> String {
             format!(
-                "Bytes representation of PA type {} is not valid to decode to {}. Error: {}",
+                "Bytes representation of PA type {:?} is not valid to decode to {}. Error: {}",
                 pa_type, element, e
             )
         }
 
-        let padata_type = {
-            let bytes = pa_data
-                .padata_type
-                .to_der()
-                .map_err(|_| "Cannot encode padata_type")?;
-            i32::from_der(&bytes).map_err(|_| "Cannot decode padata_type")?
-        };
+        let padata_type = PaDataTypes::from(pa_data.padata_type);
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 
         let value = match padata_type {
-            patypes::PA_TGS_REQ => todo!("Wait for the interface of AS-REP"),
-            patypes::PA_ENC_TIMESTAMP => {
-                let decoded = octet_str_ref.decode_into::<EncryptedData>().map_err(|e| {
-                    to_meaningful_error(patypes::PA_ENC_TIMESTAMP, "EncryptedData", e)
-                })?;
+            PaDataTypes::PaTgsReq => todo!("Wait for the interface of AS-REP"),
+            PaDataTypes::PaEncTimestamp => {
+                let decoded = octet_str_ref
+                    .decode_into::<EncryptedData>()
+                    .map_err(|e| to_meaningful_error(padata_type, "EncryptedData", e))?;
                 PaDataRegisteredType::EncTimeStamp(decoded)
             }
-            patypes::PA_PW_SALT => {
+            PaDataTypes::PaPwSalt => {
                 let decoded = octet_str_ref
                     .decode_into::<OctetString>()
-                    .map_err(|e| to_meaningful_error(patypes::PA_PW_SALT, "OctetString", e))?;
+                    .map_err(|e| to_meaningful_error(padata_type, "OctetString", e))?;
                 PaDataRegisteredType::PwSalt(decoded)
             }
-            patypes::PA_ETYPE_INFO => {
+            PaDataTypes::PaEtypeInfo => {
                 let decoded = octet_str_ref
                     .decode_into::<ETypeInfo>()
-                    .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO, "ETYPE-INFO", e))?;
+                    .map_err(|e| to_meaningful_error(padata_type, "ETYPE-INFO", e))?;
                 PaDataRegisteredType::ETypeInfo(decoded)
             }
-            patypes::PA_ETYPE_INFO2 => {
+            PaDataTypes::PaEtypeInfo2 => {
                 let decoded = octet_str_ref
                     .decode_into::<ETypeInfo2>()
-                    .map_err(|e| to_meaningful_error(patypes::PA_ETYPE_INFO2, "ETYPE-INFO2", e))?;
+                    .map_err(|e| to_meaningful_error(padata_type, "ETYPE-INFO2", e))?;
                 PaDataRegisteredType::ETypeInfo2(decoded)
             }
-            _ => return Err(format!("Unknown PA type: {}", padata_type)),
+            _ => return Err(format!("Unknown PA type: {:?}", padata_type)),
         };
 
         Ok(value)
@@ -441,8 +453,7 @@ impl PaEncTsEnc {
         let since_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
         let kerberos_time =
             KerberosTime::from_unix_duration(since_epoch).expect("Invalid KerberosTime");
-        let microseconds = Microseconds::new(&since_epoch.subsec_micros().to_der().unwrap())
-            .expect("Invalid microseconds");
+        let microseconds = 120;
         Self::new(kerberos_time, Some(microseconds))
     }
 
@@ -534,7 +545,7 @@ impl CipherText for ETypeInfo2 {}
 // RFC4120 5.2.8
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct KerberosFlags {
-    inner: BitSring,
+    inner: BitString,
 }
 
 impl KerberosFlags {
@@ -544,9 +555,12 @@ impl KerberosFlags {
 
     pub fn is_set(&self, bit_pos: usize) -> bool {
         let bit = (bit_pos % 8) as u8;
+        let shift = 7 - bit;
         let idx = bit_pos / 8;
         let bytes = self.inner.raw_bytes();
-        bytes.get(idx).map_or(false, |byte| byte & (1 << bit) != 0)
+        bytes
+            .get(idx)
+            .map_or(false, |byte| byte & (1 << shift) != 0)
     }
 }
 
@@ -566,7 +580,7 @@ impl EncodeValue for KerberosFlags {
 
 impl<'a> DecodeValue<'a> for KerberosFlags {
     fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
-        let inner = BitSring::decode_value(reader, header)?;
+        let inner = BitString::decode_value(reader, header)?;
         Ok(Self { inner })
     }
 }
@@ -622,7 +636,7 @@ impl KerberosFlagsBuilder {
     pub fn build(mut self) -> Result<KerberosFlags, &'static str> {
         self.consumed = true;
         let bytes = unsafe { Box::from_raw(self.inner) };
-        let inner = BitSring::from_bytes(&bytes).map_err(|e| {
+        let inner = BitString::from_bytes(&bytes).map_err(|e| {
             eprintln!("Failed to build KerberosFlags: {}", e);
             "Invalid bits representation {:?}"
         })?;
