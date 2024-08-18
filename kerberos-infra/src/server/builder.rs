@@ -48,10 +48,10 @@ impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
     }
 }
 
-#[cfg(feature = "tcp")]
+#[cfg(feature = "server-tcp")]
 use super::TcpServer;
 
-#[cfg(feature = "tcp")]
+#[cfg(feature = "server-tcp")]
 impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
     pub fn build_tcp(self) -> KrbInfraSvrResult<TcpServer<A, T>> {
         let (as_addr, tgt_addr) = self.validate()?;
@@ -59,10 +59,10 @@ impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
     }
 }
 
-#[cfg(feature = "udp")]
+#[cfg(feature = "server-udp")]
 use super::UdpServer;
 
-#[cfg(feature = "udp")]
+#[cfg(feature = "server-udp")]
 impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
     pub fn build_udp(self) -> KrbInfraSvrResult<UdpServer<A, T>> {
         let (as_addr, tgt_addr) = self.validate()?;
