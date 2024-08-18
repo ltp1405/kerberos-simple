@@ -1,0 +1,95 @@
+// authenticator: 
+// ljsdnedlj
+
+C as Client
+S as "Application Server"
+
+C."Generate KRB_AP_REQ"
+
+C->S.KRB_AP_REQ {
+  "Detect replay"
+  if ("replay detected") {
+    reject
+  }
+  if ("message type != KRB_AP_REQ") {
+    return KRB_AP_ERR_MSG_TYPE
+  }
+  // (e.g., it indicates an old key, and the server no
+  // longer possesses a copy of the old key)
+  if ("key version is not usable by the server") {
+    return KRB_AP_ERR_BADKEYVER
+  }
+
+  if ("does not have proper key to decipher ticket") {
+    return KRB_AP_ERR_NOKEY
+  }
+
+  if ("decryption routines detect a modification of the ticket") {
+    return KRB_AP_ERR_BAD_INTEGRITY
+  }
+
+  decrypt(ticket) {
+    return decrypted_ticket
+  }
+  try {
+    decrypt_authenticator(session_key)
+  } catch ("modified") {
+    return KRB_AP_ERR_BAD_INTEGRITY
+  }
+
+  try {
+    // The name and realm of the client from the ticket
+    // are compared against the same fields in the
+    // authenticator.
+    compare_name_and_realm()
+  } catch ("not match") {
+    return KRB_AP_ERR_BADMATCH
+  }
+
+  "search for addresses of ticket"
+  if ("no match || the server insists on ticket addresses but none are present in the ticket") {
+    return KRB_AP_ERR_BADADDR
+  }
+
+  if ("clock skew of **authenticator** not valid") {
+    return KRB_AP_ERR_SKEW
+  }
+
+  if ("sequence number is provided") {
+    "save it for later use"
+  }
+
+  if ("subkey is present") {
+    "save it or use it to gen subkey to provide in KRB_AP_REP"
+  }
+
+  // age of ticket = local server time - starttime of Ticket
+  if ("age of ticket - current time > clock skew || INVALID flag set") {
+    return KRB_AP_ERR_TKT_NYV
+  } else if ("age of ticket - current time < clock skew") {
+    return KRB_AP_ERR_TKT_EXPIRED
+  }
+}    
+
+S."Generate KRB_AP_REP" {
+  if ("MUTUAL-REQUIRED in KRB_AP_REQ.ap-options") {
+    "Must reply"
+  }
+  timestamp = client_timestamp
+  microsecond = client_microsecond
+  if ("include sequence number") {
+    number = random()
+  }
+  if ("desires to negotiate a different subkey") {
+    "may include subkey"
+  }
+  message = encrypt(session_key_from_ticket, message)
+}
+
+S->C."KRB_AP_REP" {
+  decrypted_msg = decrypt(session_key, message)
+  // verifies that the timestamp and microsecond fields match those in
+  // the Authenticator it sent to the server.
+
+  verify(decrypted_msg)
+}
