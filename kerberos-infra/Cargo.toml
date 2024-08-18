@@ -12,6 +12,15 @@ async-trait = "0.1"
 rand = "0.8.5"
 
 [features]
-default = ["tcp", "udp"]
-tcp = []
-udp = []
+default = ["full"]
+full = ["client", "server"]
+
+# Client
+client = ["client-tcp", "client-udp"]
+client-tcp = []
+client-udp = []
+
+# Server
+server = ["server-tcp", "server-udp"]
+server-tcp = []
+server-udp = []

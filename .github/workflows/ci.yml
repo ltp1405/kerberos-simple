@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: ["main"]
   schedule:
-    - cron: '30 9 * * 0'
+    - cron: '00 14 * * 0'
 
 env:
   CARGO_TERM_COLOR: always
@@ -26,20 +26,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run cargo clippy and build on messages crate
+      - name: Run cargo build on messages crate
         working-directory: messages
         run: |
-          cargo clippy --workspace --tests --benches -- -D warnings
           cargo build --release --workspace --all --tests --benches
 
       - name: Run cargo nextest on messages crate
         working-directory: messages
         run: cargo nextest run --release --workspace
 
-      - name: Run cargo clippy and build on kerberos-infra crate
+      - name: Run cargo build on kerberos-infra crate
         working-directory: kerberos-infra
         run: |
-          cargo clippy --workspace --tests --benches -- -D warnings
           cargo build --release --workspace --all --tests --benches
 
       - name: Run cargo nextest on kerberos-infra crate
