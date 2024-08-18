@@ -1,0 +1,70 @@
+CL as Client
+AS as "Authentication Service"
+DB as "Credential Database"
+
+CL.generate_nonce()
+
+CL->AS.KRB_AS_REQ {
+    if ("request is identical to a recent successful request") {
+        return KRB_AS_REP;
+    }
+    if ("check nonce fails") {
+        return KRB_ERROR("replay")
+    }
+
+    c_keys = AS->DB.get_key(client)
+    if ("client not found") {
+        return KDC_ERR_C_PRINCIPAL_UNKNOWN
+    }
+    s_keys = AS->DB.get_key(server)
+    if ("server not found") {
+        return KDC_ERR_S_PRINCIPAL_UNKNOWN
+    }
+    if ("pre-authentication is required" && "pre-authentication fails") {
+        return KDC_ERR_PREAUTH_FAILED
+    }
+    if ("pre-authentication is required" && "padata not present") {
+        method_data = get_supported_preauth()
+        return KDC_ERR_PREAUTH_REQUIRED
+    }
+    if ("encryption type not supported") {
+        return KDC_ERR_ETYPE_NOSUPP
+    }
+    session_key = generate_session_key()
+    if (c_keys.length > 1) {
+        c_key = first_valid_etype(c_keys, KRB_AS_REQ)
+    }
+    req_starttime = get_starttime(KRB_AS_REQ)
+    if ("No POSTDATE") {
+        if (req_starttime == null || req_starttime < now + clock_skew) {
+            tk_starttime = now
+        }
+        else {
+            return KDC_ERR_CANNOT_POSTDATE
+        }
+    }
+    else {
+        check_policy(req_starttime)
+        tk_starttime = req_starttime
+        tk_flags = set_flag(INVALID)
+    }
+    // details in RFC 4120
+    tk_endtime = get_endtime()
+    if (req_endtime - tk_starttime < min_lifetime) {
+        return KDC_ERR_NEVER_VALID
+    }
+    else if (get_flag(RENEWABLE_OK) == true) {
+        tk_flags = set_flag(RENEWABLE)
+        // details in RFC 4120
+        tk_renew_till = get_renew_till()
+    }
+    check_policy(req_flags)
+    // FORWARDABLE, MAY-POSTDATE, 
+    // POSTDATED, PROXIABLE, RENEWABLE
+    allowed_flags = get_allowed_flags()
+    tk_flags = set_flags(req_flags && allowed_flags)
+    ticket = encrypt_ticket()
+    rep_caddrs = get_adresses(KRB_AS_REQ)
+    rep_encpart = encrypt_as_rep()
+    return KRB_AS_REP
+}
