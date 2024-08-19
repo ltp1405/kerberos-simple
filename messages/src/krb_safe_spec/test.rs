@@ -13,7 +13,7 @@ fn minimal_krb_safe() -> KrbSafe {
         ))
         .set_s_address(
             HostAddress::new(
-                AddressTypes::DecnetPhaseIv,
+                AddressTypes::Ipv4,
                 OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
             )
             .unwrap(),
@@ -39,7 +39,7 @@ fn correct_encode_header() {
     let encoded_msg = msg.to_der().unwrap();
     #[rustfmt::skip]
     let expected_encoding = [
-        0b0110_0000+20, 56, 48, 54, // APPLICATION 20
+        0b0110_0000+20, 55, 48, 53, // APPLICATION 20
             160, 3, 2, 1, 5, // pnvo [0] INTEGER
             161, 3, 2, 1, 20, // msg-type [1] INTEGER
             162, 25, 48, 23, // safe-body [2] KRB-SAFE-BODY
@@ -47,8 +47,8 @@ fn correct_encode_header() {
                 164, 14, 48, 12, //s-address [1] HostAddress
                     160, 3, 2, 1, 2,
                     161, 5, 4, 3, 0, 1, 2,
-            163, 15, 48, 13, // check-sum [3] Checksum
-                160, 4, 2, 2, 1, 2,
+            163, 14, 48, 12, // check-sum [3] Checksum
+                160, 3, 2, 1, 2,
                 161, 5, 4, 3, 0, 1, 2,
     ];
     assert_eq!(encoded_msg, expected_encoding);
