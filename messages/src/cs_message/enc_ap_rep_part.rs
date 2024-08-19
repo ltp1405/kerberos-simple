@@ -81,19 +81,19 @@ impl EncApRepPart {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Add;
-    use crate::basic::{EncryptionKey, Int32, KerberosTime, Microseconds, OctetString};
+    use crate::basic::{EncryptionKey, KerberosTime, OctetString};
     use crate::cs_message::EncApRepPart;
     use der::{Decode, Encode};
+    use std::ops::Add;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn encode_and_decode() {
         let msg = EncApRepPart::new(
             KerberosTime::from_system_time(SystemTime::now()).unwrap(),
-            Microseconds::new(&[1, 2, 3]).unwrap(),
+            564,
             None::<EncryptionKey>,
-            Some(Int32::new(&[2]).unwrap()),
+            Some(2),
         );
         let encoded = msg.to_der().unwrap();
         let decoded = EncApRepPart::from_der(&encoded).unwrap();
@@ -104,41 +104,38 @@ mod tests {
     fn correct_encoding() {
         let msg = EncApRepPart::new(
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
-            Microseconds::new(&[2, 3, 4]).unwrap(),
+            1000,
             None::<EncryptionKey>,
-            Some(Int32::new(&[2, 2]).unwrap()),
+            Some(2),
         );
         #[rustfmt::skip]
         let expected_encoding = vec![
-            0b0110_0000u8 + 27, 34, 48, 32, // APPLICATION 27
+            0b0110_0000u8 + 27, 32, 48, 30, // APPLICATION 27
                 160, 17, 24, 15, // ctime [0] KerberosTime
                     49, 57, 55, 48, 48, 49, 48, 49, 48, 50, 52, 54, 52, 48, 90,
-                161, 5, 2, 3, 2, 3, 4, // cusec [1] Microseconds
-                163, 4, 2, 2, 2, 2 // seq-number [3] UInt32 OPTIONAL
+                161, 4, 2, 2, 3, 232, // cusec [1] Microseconds
+                163, 3, 2, 1, 2 // seq-number [3] UInt32 OPTIONAL
         ];
         assert_eq!(expected_encoding, msg.to_der().unwrap());
 
         let msg = EncApRepPart::new(
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
-            Microseconds::new(&[2, 3, 4]).unwrap(),
-            Some(EncryptionKey::new(
-                Int32::new(&[1]).unwrap(),
-                OctetString::new(&[1, 2, 3]).unwrap(),
-            )),
-            Some(Int32::new(&[2, 2]).unwrap()),
+            1000,
+            Some(EncryptionKey::new(1, OctetString::new(&[1, 2, 3]).unwrap())),
+            Some(2),
         );
         println!("{:?}", msg.to_der().unwrap());
 
         #[rustfmt::skip]
         let expected_encoding = vec![
-            0b0110_0000u8 + 27, 50, 48, 48, // APPLICATION 27
+            0b0110_0000u8 + 27, 48, 48, 46, // APPLICATION 27
                 160, 17, 24, 15, // ctime [0] KerberosTime
                     49, 57, 55, 48, 48, 49, 48, 49, 48, 50, 52, 54, 52, 48, 90,
-                161, 5, 2, 3, 2, 3, 4, // cusec [1] Microseconds
+                161, 4, 2, 2, 3, 232, // cusec [1] Microseconds
                 162, 14, 48, 12, // subkey [2] EncryptionKey OPTIONAL
                     160, 3, 2, 1, 1,
                     161, 5, 4, 3, 1, 2, 3,
-                163, 4, 2, 2, 2, 2, // seq-number [3] UInt32 OPTIONAL
+                163, 3, 2, 1, 2 // seq-number [3] UInt32 OPTIONAL
         ];
         assert_eq!(expected_encoding, msg.to_der().unwrap());
     }

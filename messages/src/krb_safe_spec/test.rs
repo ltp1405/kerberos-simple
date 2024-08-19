@@ -1,4 +1,4 @@
-use crate::basic::{Checksum, HostAddress, Int32, KerberosTime, OctetString};
+use crate::basic::{AddressTypes, Checksum, HostAddress, KerberosTime, OctetString};
 use crate::krb_safe_spec::KrbSafe;
 use der::{Decode, Encode};
 use std::ops::Add;
@@ -8,12 +8,12 @@ fn minimal_krb_safe() -> KrbSafe {
     KrbSafe::builder()
         .set_user_data(OctetString::new(&[0x0, 0x1, 0x2]).unwrap())
         .set_cksum(Checksum::new(
-            Int32::new(&[0x1, 0x2]).unwrap(),
+            2,
             OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
         ))
         .set_s_address(
-            HostAddress::try_from(
-                HostAddress::CODES[0],
+            HostAddress::new(
+                AddressTypes::DecnetPhaseIv,
                 OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
             )
             .unwrap(),
@@ -62,19 +62,19 @@ fn encode_optional_fields() {
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(1000000))).unwrap(),
         )
         .set_cksum(Checksum::new(
-            Int32::new(&[0x1, 0x2]).unwrap(),
+            2,
             OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
         ))
         .set_r_address(
-            HostAddress::try_from(
-                HostAddress::CODES[1],
+            HostAddress::new(
+                AddressTypes::Ipv4,
                 OctetString::new(&[0x1, 0x2, 0x3]).unwrap(),
             )
             .unwrap(),
         )
         .set_s_address(
-            HostAddress::try_from(
-                HostAddress::CODES[0],
+            HostAddress::new(
+                AddressTypes::Ipv4,
                 OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
             )
             .unwrap(),
@@ -86,7 +86,7 @@ fn encode_optional_fields() {
 
     #[rustfmt::skip]
     let expected_encoding = vec![
-        116, 91, 48, 89, // APPLICATION 20
+        116, 90, 48, 88, // APPLICATION 20
             160, 3, 2, 1, 5, // pnvo [0] INTEGER
             161, 3, 2, 1, 20,// msg-type [1] INTEGER
             162, 60, 48, 58, // safe-body [2] KRB-SAFE-BODY
@@ -97,10 +97,10 @@ fn encode_optional_fields() {
                     160, 3, 2, 1, 2,
                     161, 5, 4, 3, 0, 1, 2,
                 165, 14, 48, 12, // r-address [5] HostAddress OPTIONAL
-                    160, 3, 2, 1, 3,
+                    160, 3, 2, 1, 2,
                     161, 5, 4, 3, 1, 2, 3,
-            163, 15, 48, 13, // cksum [3] Checksum
-                160, 4, 2, 2, 1, 2,
+            163, 14, 48, 12, // cksum [3] Checksum
+                160, 3, 2, 1, 2,
                 161, 5, 4, 3, 0, 1, 2,
     ];
 

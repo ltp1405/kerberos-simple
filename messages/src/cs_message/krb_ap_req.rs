@@ -1,4 +1,4 @@
-use der::asn1::{BitString, ContextSpecific};
+use der::asn1::BitString;
 use der::Tag::Application;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
@@ -61,11 +61,20 @@ impl<'a> DecodeValue<'a> for APOptions {
 
 #[derive(Sequence, Debug, PartialEq, Clone)]
 struct KrbApReqInner {
-    pvno: ContextSpecific<u8>,
-    msg_type: ContextSpecific<u8>,
-    ap_options: ContextSpecific<APOptions>,
-    ticket: ContextSpecific<Ticket>,
-    authenticator: ContextSpecific<EncryptedData>,
+    #[asn1(context_specific = "0")]
+    pvno: u8,
+
+    #[asn1(context_specific = "1")]
+    msg_type: u8,
+
+    #[asn1(context_specific = "2")]
+    ap_options: APOptions,
+
+    #[asn1(context_specific = "3")]
+    ticket: Ticket,
+
+    #[asn1(context_specific = "4")]
+    authenticator: EncryptedData,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -97,46 +106,40 @@ impl<'a> DecodeValue<'a> for KrbApReq {
 
 impl KrbApReq {
     pub fn new(ap_options: APOptions, ticket: Ticket, authenticator: EncryptedData) -> Self {
-        fn make_tag<T>(value: T, number: u8) -> ContextSpecific<T> {
-            ContextSpecific {
-                value,
-                tag_number: TagNumber::new(number),
-                tag_mode: der::TagMode::Explicit,
-            }
-        }
         KrbApReq(KrbApReqInner {
-            pvno: make_tag(5, 0),
-            msg_type: make_tag(14, 1),
-            ap_options: make_tag(ap_options, 2),
-            ticket: make_tag(ticket, 3),
-            authenticator: make_tag(authenticator, 4),
+            pvno: 5,
+            msg_type: 14,
+            ap_options,
+            ticket,
+            authenticator,
         })
     }
 
     pub fn pvno(&self) -> u8 {
-        self.0.pvno.value
+        self.0.pvno
     }
 
     pub fn msg_type(&self) -> u8 {
-        self.0.msg_type.value
+        self.0.msg_type
     }
 
     pub fn ap_options(&self) -> &APOptions {
-        &self.0.ap_options.value
+        &self.0.ap_options
     }
 
     pub fn ticket(&self) -> &Ticket {
-        &self.0.ticket.value
+        &self.0.ticket
     }
 
     pub fn authenticator(&self) -> &EncryptedData {
-        &self.0.authenticator.value
+        &self.0.authenticator
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::basic::{Int32, KerberosString, NameTypes, OctetString, PrincipalName, Realm};
 
     #[test]
     fn ap_option_correct_flag_encoding() {
@@ -160,7 +163,56 @@ mod tests {
         assert_eq!(buf, [0x03, 5, 0, 0b0100_0000, 0x0, 0x0, 0x0]);
     }
 
-    fn req_correct_header() {
+    #[test]
+    fn correct_encode() {
         let ap_options = APOptions::new(true, true);
+        let ticket = Ticket::new(
+            Realm::try_from("realm".to_string()).unwrap(),
+            PrincipalName::new(
+                NameTypes::NtPrincipal,
+                vec![KerberosString::try_from("name".to_string()).unwrap()],
+            )
+            .unwrap(),
+            EncryptedData::new(
+                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
+                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
+                OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
+            ),
+        );
+        let authenticator = EncryptedData::new(
+            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
+            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
+            OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
+        );
+
+        let msg = KrbApReq::new(ap_options, ticket, authenticator);
+
+        let encoded_msg = msg.to_der().unwrap();
+
+        println!("{:x?}", encoded_msg);
+
+        #[rustfmt::skip]
+        let expected_encoding = vec![
+            110, 102, 48, 100, // APPLICATION 14 SEQUENCE
+                160, 3, 2, 1, 5, // pvno [0] INTEGER
+                161, 3, 2, 1, 14, // msg-type [1] INTEGER
+                162, 7, 3, 5, 0, 96, 0, 0, 0, // ap-options [2] APOptions
+                163, 58, 97, 56, 48, 54, // ticket [3] Ticket
+                    160, 3, 2, 1, 5,
+                    161, 7, 22, 5, 114, 101, 97, 108, 109,
+                    162,17, 48, 15,
+                        160, 3, 2, 1, 1,
+                        161, 8, 48, 6, 22, 4, 110, 97, 109, 101,
+                    163, 19, 48, 17,
+                        160, 3, 2, 1, 0,
+                        161, 3, 2, 1, 0,
+                        162, 5, 4, 3, 0, 1, 2,
+                164, 19, 48, 17, // authenticator [4] EncryptedData
+                    160, 3, 2, 1, 0,
+                    161, 3, 2, 1, 0,
+                    162, 5, 4, 3, 0, 1, 2,
+        ];
+
+        assert_eq!(encoded_msg, expected_encoding);
     }
 }
