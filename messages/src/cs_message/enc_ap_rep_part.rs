@@ -81,25 +81,6 @@ impl EncApRepPart {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Add;
-    use crate::basic::{EncryptionKey, Int32, KerberosTime, Microseconds, OctetString};
-    use crate::cs_message::EncApRepPart;
-    use der::{Decode, Encode};
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn encode_and_decode() {
-        let msg = EncApRepPart::new(
-            KerberosTime::from_system_time(SystemTime::now()).unwrap(),
-            Microseconds::new(&[1, 2, 3]).unwrap(),
-            None::<EncryptionKey>,
-            Some(Int32::new(&[2]).unwrap()),
-        );
-        let encoded = msg.to_der().unwrap();
-        let decoded = EncApRepPart::from_der(&encoded).unwrap();
-        assert_eq!(msg, decoded);
-#[cfg(test)]
-mod tests {
     use crate::basic::{EncryptionKey, KerberosTime, OctetString};
     use crate::cs_message::EncApRepPart;
     use der::{Decode, Encode};
