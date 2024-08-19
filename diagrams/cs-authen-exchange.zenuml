@@ -1,16 +1,26 @@
-// authenticator: 
-// ljsdnedlj
-
 C as Client
 S as "Application Server"
 
-C."Generate KRB_AP_REQ"
+C."Generate KRB_AP_REQ" {
+  ticket, session_key = obtain()
+
+  // - checksum: application-specific checksum
+  // - seq-num: an initial sequence number to be used in KRB_SAFE or KRB_PRIV messages
+  // - subkey: a session subkey to be used in negotiations for a session key unique to this particular session.
+  authenticator = "new_authenticator(sys_time, name, [checksum, seq-num, subkey])"
+  if ("require mutual authentication") {
+    "set the appropriate flag in ap-options"
+  }
+
+
+}
 
 C->S.KRB_AP_REQ {
   "Detect replay"
   if ("replay detected") {
     reject
   }
+  == Verify authentication information ==
   if ("message type != KRB_AP_REQ") {
     return KRB_AP_ERR_MSG_TYPE
   }
