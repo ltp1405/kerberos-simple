@@ -2,7 +2,7 @@ CL as Client
 AS as "Authentication Service"
 DB as "Credential Database"
 
-CL.generate_nonce()
+nonce = CL.generate_nonce()
 
 CL->AS.KRB_AS_REQ {
     if ("request is identical to a recent successful request") {
@@ -67,4 +67,30 @@ CL->AS.KRB_AS_REQ {
     rep_caddrs = get_adresses(KRB_AS_REQ)
     rep_encpart = encrypt_as_rep()
     return KRB_AS_REP
+}
+
+CL.recv(KRB_AS_REP) {
+    rep_cname = get_cname(KRB_AS_REP)
+    rep_crealm = get_crealm(KRB_AS_REP)
+    verify(rep_cname, req_cname)
+    verify(rep_crealm, req_crealm)
+
+    ckey = get_key()
+    enc_as_rep_part = decrypt(rep_encpart, ckey)
+
+    rep_nonce = get_nonce(enc_as_rep_part)
+    verify(rep_nonce, nonce)
+
+    auth_time = get_auth_time(enc_as_rep_part)
+    clock_diff = abs(cur_time - auth_time)
+
+    rep_sname = get_sname(enc_as_rep_part)
+    rep_srealm = get_srealm(enc_as_rep_part)
+    verify(rep_sname, req_sname)
+    verify(rep_srealm, req_srealm)
+
+    rep_caddr = get_caddr(enc_as_rep_part)
+    verify(host_caddr, rep_caddrs)
+
+    save(enc_as_rep_part)
 }
