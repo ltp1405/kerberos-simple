@@ -9,7 +9,7 @@ use der::{
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
 pub(super) use constants::*;
 
-mod constants;
+pub mod constants;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
