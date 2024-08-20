@@ -205,6 +205,7 @@ impl ADRegisteredEntry {
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
+        #[allow(unreachable_patterns)]
         let decoded_element = match ad_type {
             AuthorizationDataTypes::IfRelevant => ADRegisteredEntry::IfRelevant(
                 octet_str_ref
@@ -382,6 +383,7 @@ impl PaDataRegisteredType {
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 
+        #[allow(unreachable_patterns)]
         let value = match padata_type {
             PaDataTypes::PaTgsReq => todo!("Wait for the interface of AS-REP"),
             PaDataTypes::PaEncTimestamp => {

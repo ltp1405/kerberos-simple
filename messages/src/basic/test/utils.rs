@@ -5,7 +5,7 @@ use rand::{Rng, SeedableRng};
 use crate::basic::{
     ADEntry, AdAndOr, AdIfRelevant, AdKdcIssued, AdMandatoryForKdc, AddressTypes,
     AuthorizationData, Checksum, ETypeInfo, ETypeInfo2, ETypeInfo2Entry, ETypeInfoEntry,
-    EncryptedData, EncryptionKey, HostAddress, Int32, KerberosString, KerberosTime, NameTypes,
+    EncryptedData, EncryptionKey, Int32, KerberosString, KerberosTime, NameTypes,
     OctetString, PaData, PaEncTimestamp, PaEncTsEnc, PrincipalName, Realm, SequenceOf,
 };
 
