@@ -201,7 +201,8 @@ impl ADRegisteredEntry {
             )
         }
 
-        let ad_type = AuthorizationDataTypes::from(entry.ad_type);
+        let ad_type = AuthorizationDataTypes::try_from(entry.ad_type)
+            .map_err(|e| format!("Invalid AD type: {}", e))?;
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
@@ -379,7 +380,8 @@ impl PaDataRegisteredType {
             )
         }
 
-        let padata_type = PaDataTypes::from(pa_data.padata_type);
+        let padata_type = PaDataTypes::try_from(pa_data.padata_type)
+            .map_err(|e| format!("Invalid PA type: {}", e))?;
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 

@@ -1,3 +1,5 @@
+use crate::primitives::Int32;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NameTypes {
     NtUnknown = 0,
@@ -68,8 +70,8 @@ pub enum AuthorizationDataTypes {
     MandatoryForKdc = 8,
 }
 
-impl From<i32> for AuthorizationDataTypes {
-    fn from(value: i32) -> Self {
+impl From<Int32> for AuthorizationDataTypes {
+    fn from(value: Int32) -> Self {
         match value {
             1 => AuthorizationDataTypes::IfRelevant,
             4 => AuthorizationDataTypes::KdcIssued,
@@ -89,15 +91,16 @@ pub enum PaDataTypes {
     PaEtypeInfo2 = 19,
 }
 
-impl From<i32> for PaDataTypes {
-    fn from(value: i32) -> Self {
+impl TryFrom<Int32> for PaDataTypes {
+    type Error = &'static str;
+    fn try_from(value: Int32) -> Result<Self, Self::Error> {
         match value {
-            1 => PaDataTypes::PaTgsReq,
-            2 => PaDataTypes::PaEncTimestamp,
-            3 => PaDataTypes::PaPwSalt,
-            11 => PaDataTypes::PaEtypeInfo,
-            19 => PaDataTypes::PaEtypeInfo2,
-            _ => panic!("Invalid value for PaDataTypes"),
+            1 => Ok(PaDataTypes::PaTgsReq),
+            2 => Ok(PaDataTypes::PaEncTimestamp),
+            3 => Ok(PaDataTypes::PaPwSalt),
+            11 => Ok(PaDataTypes::PaEtypeInfo),
+            19 => Ok(PaDataTypes::PaEtypeInfo2),
+            _ => Err("Invalid value for PaDataTypes"),
         }
     }
 }
