@@ -140,6 +140,7 @@ impl KrbApReq {
 mod tests {
     use super::*;
     use crate::basic::{Int32, KerberosString, NameTypes, OctetString, PrincipalName, Realm};
+    use crate::primitives::UInt32;
 
     #[test]
     fn ap_option_correct_flag_encoding() {
@@ -173,17 +174,9 @@ mod tests {
                 vec![KerberosString::try_from("name".to_string()).unwrap()],
             )
             .unwrap(),
-            EncryptedData::new(
-                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-                OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
-            ),
+            EncryptedData::new(0, 0u32, OctetString::new(&[0x0, 0x1, 0x2]).unwrap()),
         );
-        let authenticator = EncryptedData::new(
-            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-            OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
-        );
+        let authenticator = EncryptedData::new(0, 0, OctetString::new(&[0x0, 0x1, 0x2]).unwrap());
 
         let msg = KrbApReq::new(ap_options, ticket, authenticator);
 

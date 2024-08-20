@@ -18,7 +18,7 @@ pub type BitString = der::asn1::BitString;
 // RFC4120 5.2.4
 pub type Int32 = i32;
 // RFC4120 5.2.4
-pub type UInt32 = i32;
+pub type UInt32 = u32;
 // RFC4120 5.2.4
 pub type Microseconds = i32;
 
@@ -686,7 +686,7 @@ impl EncryptedData {
         &self.etype
     }
 
-    pub fn kvno(&self) -> Option<&Int32> {
+    pub fn kvno(&self) -> Option<&UInt32> {
         self.kvno.as_ref()
     }
 

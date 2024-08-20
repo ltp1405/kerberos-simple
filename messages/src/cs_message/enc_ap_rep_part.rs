@@ -86,6 +86,7 @@ mod tests {
     use der::{Decode, Encode};
     use std::ops::Add;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use serde::forward_to_deserialize_any;
 
     #[test]
     fn encode_and_decode() {
@@ -93,7 +94,7 @@ mod tests {
             KerberosTime::from_system_time(SystemTime::now()).unwrap(),
             564,
             None::<EncryptionKey>,
-            Some(2),
+            Some(2u32),
         );
         let encoded = msg.to_der().unwrap();
         let decoded = EncApRepPart::from_der(&encoded).unwrap();
@@ -106,7 +107,7 @@ mod tests {
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
             1000,
             None::<EncryptionKey>,
-            Some(2),
+            Some(2u32),
         );
         #[rustfmt::skip]
         let expected_encoding = vec![
@@ -122,7 +123,7 @@ mod tests {
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
             1000,
             Some(EncryptionKey::new(1, OctetString::new(&[1, 2, 3]).unwrap())),
-            Some(2),
+            Some(2u32),
         );
         println!("{:?}", msg.to_der().unwrap());
 

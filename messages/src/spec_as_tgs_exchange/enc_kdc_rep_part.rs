@@ -141,7 +141,7 @@ pub mod tests {
         EncKdcRepPart::new(
             EncryptionKey::new(171, OctetString::new(b"keyvalue").unwrap()),
             LastReq::new(),
-            1,
+            1u32,
             None,
             TicketFlags::builder()
                 .set(flags::FORWARDABLE)
