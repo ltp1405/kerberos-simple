@@ -19,14 +19,15 @@ mod krb_error_spec;
 mod krb_safe_spec;
 
 pub mod primitives {
+    pub use crate::basic::constants::AddressTypes;
     pub use crate::basic::constants::AuthorizationDataTypes;
+    pub use crate::basic::constants::NameTypes;
     pub use crate::basic::constants::PaDataTypes;
     pub use crate::basic::ADEntry;
     pub use crate::basic::ADRegisteredEntry;
     pub use crate::basic::AdAndOr;
     pub use crate::basic::AdIfRelevant;
     pub use crate::basic::AdKdcIssued;
-    pub use crate::basic::constants::AddressTypes;
     pub use crate::basic::AuthorizationData;
     pub use crate::basic::Checksum;
     pub use crate::basic::EncryptedData;
@@ -37,7 +38,6 @@ pub mod primitives {
     pub use crate::basic::KerberosString;
     pub use crate::basic::KerberosTime;
     pub use crate::basic::Microseconds;
-    pub use crate::basic::constants::NameTypes;
     pub use crate::basic::OctetString;
     pub use crate::basic::PaData;
     pub use crate::basic::PaEncTimestamp;
