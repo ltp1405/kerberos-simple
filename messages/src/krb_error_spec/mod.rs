@@ -8,18 +8,6 @@ use crate::basic::{
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct KrbErrorMsg(KrbErrorMsgInner);
 
-impl KrbErrorMsg {
-    pub fn builder(
-        stime: KerberosTime,
-        susec: Microseconds,
-        error_code: Int32,
-        realm: Realm,
-        sname: PrincipalName,
-    ) -> KrbErrorMsgBuilder {
-        KrbErrorMsgInner::builder(stime, susec, error_code, realm, sname)
-    }
-}
-
 impl EncodeValue for KrbErrorMsg {
     fn value_len(&self) -> der::Result<der::Length> {
         self.0.encoded_len()
@@ -38,12 +26,6 @@ impl<'a> DecodeValue<'a> for KrbErrorMsg {
     }
 }
 
-impl AsRef<KrbErrorMsgInner> for KrbErrorMsg {
-    fn as_ref(&self) -> &KrbErrorMsgInner {
-        &self.0
-    }
-}
-
 impl FixedTag for KrbErrorMsg {
     const TAG: der::Tag = der::Tag::Application {
         constructed: true,
@@ -52,7 +34,7 @@ impl FixedTag for KrbErrorMsg {
 }
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct KrbErrorMsgInner {
+struct KrbErrorMsgInner {
     #[asn1(context_specific = "0")]
     pvno: Int32,
     #[asn1(context_specific = "1")]
@@ -81,7 +63,7 @@ pub struct KrbErrorMsgInner {
     e_data: Option<OctetString>,
 }
 
-impl KrbErrorMsgInner {
+impl KrbErrorMsg {
     pub fn builder(
         stime: KerberosTime,
         susec: Microseconds,
@@ -93,55 +75,55 @@ impl KrbErrorMsgInner {
     }
 
     pub fn pvno(&self) -> &Int32 {
-        &self.pvno
+        &self.0.pvno
     }
 
     pub fn msg_type(&self) -> &Int32 {
-        &self.msg_type
+        &self.0.msg_type
     }
 
     pub fn ctime(&self) -> Option<KerberosTime> {
-        self.ctime
+        self.0.ctime
     }
 
     pub fn cusec(&self) -> Option<&Int32> {
-        self.cusec.as_ref()
+        self.0.cusec.as_ref()
     }
 
     pub fn stime(&self) -> &KerberosTime {
-        &self.stime
+        &self.0.stime
     }
 
     pub fn susec(&self) -> &Microseconds {
-        &self.susec
+        &self.0.susec
     }
 
-    pub fn error_code(&self) -> &Int32 {
-        &self.error_code
+    pub fn error_code(&self) -> Ecode {
+        self.0.error_code.into()
     }
 
     pub fn crealm(&self) -> Option<&KerberosString> {
-        self.crealm.as_ref()
+        self.0.crealm.as_ref()
     }
 
     pub fn cname(&self) -> Option<&PrincipalName> {
-        self.cname.as_ref()
+        self.0.cname.as_ref()
     }
 
     pub fn realm(&self) -> &Realm {
-        &self.realm
+        &self.0.realm
     }
 
     pub fn sname(&self) -> &PrincipalName {
-        &self.sname
+        &self.0.sname
     }
 
     pub fn e_text(&self) -> Option<&KerberosString> {
-        self.e_text.as_ref()
+        self.0.e_text.as_ref()
     }
 
     pub fn e_data(&self) -> Option<&OctetString> {
-        self.e_data.as_ref()
+        self.0.e_data.as_ref()
     }
 }
 
@@ -233,75 +215,89 @@ impl KrbErrorMsgBuilder {
     }
 }
 
-pub mod ecodes {
-    pub const KDC_ERR_NONE: i32 = 0; // No error
-    pub const KDC_ERR_NAME_EXP: i32 = 1; // Client's entry in database has expired
-    pub const KDC_ERR_SERVICE_EXP: i32 = 2; // Server's entry in database has expired
-    pub const KDC_ERR_BAD_PVNO: i32 = 3; // Requested protocol version number not supported
-    pub const KDC_ERR_C_OLD_MAST_KVNO: i32 = 4; // Client's key encrypted in old master key
-    pub const KDC_ERR_S_OLD_MAST_KVNO: i32 = 5; // Server's key encrypted in old master key
-    pub const KDC_ERR_C_PRINCIPAL_UNKNOWN: i32 = 6; // Client not found in Kerberos database
-    pub const KDC_ERR_S_PRINCIPAL_UNKNOWN: i32 = 7; // Server not found in Kerberos database
-    pub const KDC_ERR_PRINCIPAL_NOT_UNIQUE: i32 = 8; // Multiple principal entries in database
-    pub const KDC_ERR_NULL_KEY: i32 = 9; // The client or server has a null key
-    pub const KDC_ERR_CANNOT_POSTDATE: i32 = 10; // Ticket not eligible for postdating
-    pub const KDC_ERR_NEVER_VALID: i32 = 11; // Requested starttime is later than end time
-    pub const KDC_ERR_POLICY: i32 = 12; // KDC policy rejects request
-    pub const KDC_ERR_BADOPTION: i32 = 13; // KDC cannot accommodate requested option
-    pub const KDC_ERR_ETYPE_NOSUPP: i32 = 14; // KDC has no support for encryption type
-    pub const KDC_ERR_SUMTYPE_NOSUPP: i32 = 15; // KDC has no support for checksum type
-    pub const KDC_ERR_PADATA_TYPE_NOSUPP: i32 = 16; // KDC has no support for padata type
-    pub const KDC_ERR_TRTYPE_NOSUPP: i32 = 17; // KDC has no support for transited type
-    pub const KDC_ERR_CLIENT_REVOKED: i32 = 18; // Client's credentials have been revoked
-    pub const KDC_ERR_SERVICE_REVOKED: i32 = 19; // Credentials for server have been revoked
-    pub const KDC_ERR_TGT_REVOKED: i32 = 20; // TGT has been revoked
-    pub const KDC_ERR_CLIENT_NOTYET: i32 = 21; // Client not yet valid; try again later
-    pub const KDC_ERR_SERVICE_NOTYET: i32 = 22; // Server not yet valid; try again later
-    pub const KDC_ERR_KEY_EXPIRED: i32 = 23; // Password has expired; change password to reset
-    pub const KDC_ERR_PREAUTH_FAILED: i32 = 24; // Pre-authentication information was invalid
-    pub const KDC_ERR_PREAUTH_REQUIRED: i32 = 25; // Additional pre-authentication required
-    pub const KDC_ERR_SERVER_NOMATCH: i32 = 26; // Requested server and ticket don't match
-    pub const KDC_ERR_MUST_USE_USER2USER: i32 = 27; // Server principal valid for user2user only
-    pub const KDC_ERR_PATH_NOT_ACCEPTED: i32 = 28; // KDC Policy rejects transited path
-    pub const KDC_ERR_SVC_UNAVAILABLE: i32 = 29; // A service is not available
-    pub const KRB_AP_ERR_BAD_INTEGRITY: i32 = 31; // Integrity check on decrypted field failed
-    pub const KRB_AP_ERR_TKT_EXPIRED: i32 = 32; // Ticket expired
-    pub const KRB_AP_ERR_TKT_NYV: i32 = 33; // Ticket not yet valid
-    pub const KRB_AP_ERR_REPEAT: i32 = 34; // Request is a replay
-    pub const KRB_AP_ERR_NOT_US: i32 = 35; // The ticket isn't for us
-    pub const KRB_AP_ERR_BADMATCH: i32 = 36; // Ticket and authenticator don't match
-    pub const KRB_AP_ERR_SKEW: i32 = 37; // Clock skew too great
-    pub const KRB_AP_ERR_BADADDR: i32 = 38; // Incorrect net address
-    pub const KRB_AP_ERR_BADVERSION: i32 = 39; // Protocol version mismatch
-    pub const KRB_AP_ERR_MSG_TYPE: i32 = 40; // Invalid msg type
-    pub const KRB_AP_ERR_MODIFIED: i32 = 41; // Message stream modified
-    pub const KRB_AP_ERR_BADORDER: i32 = 42; // Message out of order
-    pub const KRB_AP_ERR_BADKEYVER: i32 = 44; // Specified version of key is not available
-    pub const KRB_AP_ERR_NOKEY: i32 = 45; // Service key not available
-    pub const KRB_AP_ERR_MUT_FAIL: i32 = 46; // Mutual authentication failed
-    pub const KRB_AP_ERR_BADDIRECTION: i32 = 47; // Incorrect message direction
-    pub const KRB_AP_ERR_METHOD: i32 = 48; // Alternative authentication method required
-    pub const KRB_AP_ERR_BADSEQ: i32 = 49; // Incorrect sequence number in message
-    pub const KRB_AP_ERR_INAPP_CKSUM: i32 = 50; // Inappropriate type of checksum in message
-    pub const KRB_AP_PATH_NOT_ACCEPTED: i32 = 51; // Policy rejects transited path
-    pub const KRB_ERR_RESPONSE_TOO_BIG: i32 = 52; // Response too big for UDP; retry with TCP
-    pub const KRB_ERR_GENERIC: i32 = 60; // Generic error (description in e-text)
-    pub const KRB_ERR_FIELD_TOOLONG: i32 = 61; // Field is too long for this implementation
-    pub const KDC_ERROR_CLIENT_NOT_TRUSTED: i32 = 62; // Reserved for PKINIT
-    pub const KDC_ERROR_KDC_NOT_TRUSTED: i32 = 63; // Reserved for PKINIT
-    pub const KDC_ERROR_INVALID_SIG: i32 = 64; // Reserved for PKINIT
-    pub const KDC_ERR_KEY_TOO_WEAK: i32 = 65; // Reserved for PKINIT
-    pub const KDC_ERR_CERTIFICATE_MISMATCH: i32 = 66; // Reserved for PKINIT
-    pub const KRB_AP_ERR_NO_TGT: i32 = 67; // No TGT available to validate USER-TO-USER
-    pub const KDC_ERR_WRONG_REALM: i32 = 68; // Reserved for future use
-    pub const KRB_AP_ERR_USER_TO_USER_REQUIRED: i32 = 69; // Ticket must be for USER-TO-USER
-    pub const KDC_ERR_CANT_VERIFY_CERTIFICATE: i32 = 70; // Reserved for PKINIT
-    pub const KDC_ERR_INVALID_CERTIFICATE: i32 = 71; // Reserved for PKINIT
-    pub const KDC_ERR_REVOKED_CERTIFICATE: i32 = 72; // Reserved for PKINIT
-    pub const KDC_ERR_REVOCATION_STATUS_UNKNOWN: i32 = 73; // Reserved for PKINIT
-    pub const KDC_ERR_REVOCATION_STATUS_UNAVAILABLE: i32 = 74; // Reserved for PKINIT
-    pub const KDC_ERR_CLIENT_NAME_MISMATCH: i32 = 75; // Reserved for PKINIT
-    pub const KDC_ERR_KDC_NAME_MISMATCH: i32 = 76; // Reserved for PKINIT
+impl From<Ecode> for Int32 {
+    fn from(ecode: Ecode) -> Self {
+        Int32::from(ecode as i32)
+    }
+}
+
+impl From<Int32> for Ecode {
+    fn from(value: Int32) -> Self {
+        value.try_into().unwrap()
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Ecode {
+    KDC_ERR_NONE = 0,                           // No error
+    KDC_ERR_NAME_EXP = 1,                       // Client's entry in database has expired
+    KDC_ERR_SERVICE_EXP = 2,                    // Server's entry in database has expired
+    KDC_ERR_BAD_PVNO = 3,                       // Requested protocol version number not supported
+    KDC_ERR_C_OLD_MAST_KVNO = 4,                // Client's key encrypted in old master key
+    KDC_ERR_S_OLD_MAST_KVNO = 5,                // Server's key encrypted in old master key
+    KDC_ERR_C_PRINCIPAL_UNKNOWN = 6,            // Client not found in Kerberos database
+    KDC_ERR_S_PRINCIPAL_UNKNOWN = 7,            // Server not found in Kerberos database
+    KDC_ERR_PRINCIPAL_NOT_UNIQUE = 8,           // Multiple principal entries in database
+    KDC_ERR_NULL_KEY = 9,                       // The client or server has a null key
+    KDC_ERR_CANNOT_POSTDATE = 10,               // Ticket not eligible for postdating
+    KDC_ERR_NEVER_VALID = 11,                   // Requested starttime is later than end time
+    KDC_ERR_POLICY = 12,                        // KDC policy rejects request
+    KDC_ERR_BADOPTION = 13,                     // KDC cannot accommodate requested option
+    KDC_ERR_ETYPE_NOSUPP = 14,                  // KDC has no support for encryption type
+    KDC_ERR_SUMTYPE_NOSUPP = 15,                // KDC has no support for checksum type
+    KDC_ERR_PADATA_TYPE_NOSUPP = 16,            // KDC has no support for padata type
+    KDC_ERR_TRTYPE_NOSUPP = 17,                 // KDC has no support for transited type
+    KDC_ERR_CLIENT_REVOKED = 18,                // Client's credentials have been revoked
+    KDC_ERR_SERVICE_REVOKED = 19,               // Credentials for server have been revoked
+    KDC_ERR_TGT_REVOKED = 20,                   // TGT has been revoked
+    KDC_ERR_CLIENT_NOTYET = 21,                 // Client not yet valid; try again later
+    KDC_ERR_SERVICE_NOTYET = 22,                // Server not yet valid; try again later
+    KDC_ERR_KEY_EXPIRED = 23,                   // Password has expired; change password to reset
+    KDC_ERR_PREAUTH_FAILED = 24,                // Pre-authentication information was invalid
+    KDC_ERR_PREAUTH_REQUIRED = 25,              // Additional pre-authentication required
+    KDC_ERR_SERVER_NOMATCH = 26,                // Requested server and ticket don't match
+    KDC_ERR_MUST_USE_USER2USER = 27,            // Server principal valid for user2user only
+    KDC_ERR_PATH_NOT_ACCEPTED = 28,             // KDC Policy rejects transited path
+    KDC_ERR_SVC_UNAVAILABLE = 29,               // A service is not available
+    KRB_AP_ERR_BAD_INTEGRITY = 31,              // Integrity check on decrypted field failed
+    KRB_AP_ERR_TKT_EXPIRED = 32,                // Ticket expired
+    KRB_AP_ERR_TKT_NYV = 33,                    // Ticket not yet valid
+    KRB_AP_ERR_REPEAT = 34,                     // Request is a replay
+    KRB_AP_ERR_NOT_US = 35,                     // The ticket isn't for us
+    KRB_AP_ERR_BADMATCH = 36,                   // Ticket and authenticator don't match
+    KRB_AP_ERR_SKEW = 37,                       // Clock skew too great
+    KRB_AP_ERR_BADADDR = 38,                    // Incorrect net address
+    KRB_AP_ERR_BADVERSION = 39,                 // Protocol version mismatch
+    KRB_AP_ERR_MSG_TYPE = 40,                   // Invalid msg type
+    KRB_AP_ERR_MODIFIED = 41,                   // Message stream modified
+    KRB_AP_ERR_BADORDER = 42,                   // Message out of order
+    KRB_AP_ERR_BADKEYVER = 44,                  // Specified version of key is not available
+    KRB_AP_ERR_NOKEY = 45,                      // Service key not available
+    KRB_AP_ERR_MUT_FAIL = 46,                   // Mutual authentication failed
+    KRB_AP_ERR_BADDIRECTION = 47,               // Incorrect message direction
+    KRB_AP_ERR_METHOD = 48,                     // Alternative authentication method required
+    KRB_AP_ERR_BADSEQ = 49,                     // Incorrect sequence number in message
+    KRB_AP_ERR_INAPP_CKSUM = 50,                // Inappropriate type of checksum in message
+    KRB_AP_PATH_NOT_ACCEPTED = 51,              // Policy rejects transited path
+    KRB_ERR_RESPONSE_TOO_BIG = 52,              // Response too big for UDP; retry with TCP
+    KRB_ERR_GENERIC = 60,                       // Generic error (description in e-text)
+    KRB_ERR_FIELD_TOOLONG = 61,                 // Field is too long for this implementation
+    KDC_ERROR_CLIENT_NOT_TRUSTED = 62,          // Reserved for PKINIT
+    KDC_ERROR_KDC_NOT_TRUSTED = 63,             // Reserved for PKINIT
+    KDC_ERROR_INVALID_SIG = 64,                 // Reserved for PKINIT
+    KDC_ERR_KEY_TOO_WEAK = 65,                  // Reserved for PKINIT
+    KDC_ERR_CERTIFICATE_MISMATCH = 66,          // Reserved for PKINIT
+    KRB_AP_ERR_NO_TGT = 67,                     // No TGT available to validate USER-TO-USER
+    KDC_ERR_WRONG_REALM = 68,                   // Reserved for future use
+    KRB_AP_ERR_USER_TO_USER_REQUIRED = 69,      // Ticket must be for USER-TO-USER
+    KDC_ERR_CANT_VERIFY_CERTIFICATE = 70,       // Reserved for PKINIT
+    KDC_ERR_INVALID_CERTIFICATE = 71,           // Reserved for PKINIT
+    KDC_ERR_REVOKED_CERTIFICATE = 72,           // Reserved for PKINIT
+    KDC_ERR_REVOCATION_STATUS_UNKNOWN = 73,     // Reserved for PKINIT
+    KDC_ERR_REVOCATION_STATUS_UNAVAILABLE = 74, // Reserved for PKINIT
+    KDC_ERR_CLIENT_NAME_MISMATCH = 75,          // Reserved for PKINIT
+    KDC_ERR_KDC_NAME_MISMATCH = 76,             // Reserved for PKINIT
 }
 
 #[cfg(test)]

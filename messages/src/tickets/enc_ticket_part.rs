@@ -10,26 +10,6 @@ use super::{transited_encoding::TransitedEncoding, TicketFlags};
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EncTicketPart(EncTicketPartInner);
 
-impl EncTicketPart {
-    pub fn builder(
-        flags: TicketFlags,
-        key: EncryptionKey,
-        crealm: Realm,
-        cname: PrincipalName,
-        authtime: KerberosTime,
-        endtime: KerberosTime,
-        transited: TransitedEncoding,
-    ) -> EncTicketPartBuilder {
-        EncTicketPartInner::builder(flags, key, crealm, cname, authtime, endtime, transited)
-    }
-}
-
-impl AsRef<EncTicketPartInner> for EncTicketPart {
-    fn as_ref(&self) -> &EncTicketPartInner {
-        &self.0
-    }
-}
-
 impl EncodeValue for EncTicketPart {
     fn value_len(&self) -> der::Result<der::Length> {
         self.0.value_len()
@@ -56,7 +36,7 @@ impl FixedTag for EncTicketPart {
 }
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct EncTicketPartInner {
+struct EncTicketPartInner {
     #[asn1(context_specific = "0")]
     flags: TicketFlags,
     #[asn1(context_specific = "1")]
@@ -81,7 +61,7 @@ pub struct EncTicketPartInner {
     authorization_data: Option<AuthorizationData>,
 }
 
-impl EncTicketPartInner {
+impl EncTicketPart {
     pub fn builder(
         flags: TicketFlags,
         key: EncryptionKey,
@@ -95,47 +75,47 @@ impl EncTicketPartInner {
     }
 
     pub fn flags(&self) -> &TicketFlags {
-        &self.flags
+        &self.0.flags
     }
 
     pub fn key(&self) -> &EncryptionKey {
-        &self.key
+        &self.0.key
     }
 
     pub fn crealm(&self) -> &Realm {
-        &self.crealm
+        &self.0.crealm
     }
 
     pub fn cname(&self) -> &PrincipalName {
-        &self.cname
+        &self.0.cname
     }
 
     pub fn transited(&self) -> &TransitedEncoding {
-        &self.transited
+        &self.0.transited
     }
 
     pub fn authtime(&self) -> KerberosTime {
-        self.authtime
+        self.0.authtime
     }
 
     pub fn starttime(&self) -> Option<KerberosTime> {
-        self.starttime
+        self.0.starttime
     }
 
     pub fn endtime(&self) -> KerberosTime {
-        self.endtime
+        self.0.endtime
     }
 
     pub fn renew_till(&self) -> Option<KerberosTime> {
-        self.renew_till
+        self.0.renew_till
     }
 
     pub fn caddr(&self) -> Option<&HostAddresses> {
-        self.caddr.as_ref()
+        self.0.caddr.as_ref()
     }
 
     pub fn authorization_data(&self) -> Option<&AuthorizationData> {
-        self.authorization_data.as_ref()
+        self.0.authorization_data.as_ref()
     }
 }
 
