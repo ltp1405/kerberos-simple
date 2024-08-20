@@ -18,7 +18,7 @@ mod cs_message;
 mod krb_error_spec;
 mod krb_safe_spec;
 
-pub mod primitives {
+pub mod basic_types {
     pub use crate::basic::constants::AddressTypes;
     pub use crate::basic::constants::AuthorizationDataTypes;
     pub use crate::basic::constants::NameTypes;
@@ -50,6 +50,8 @@ pub mod primitives {
 
 pub use tickets::EncTicketPart;
 pub use tickets::Ticket;
+pub use tickets::TicketFlags;
+pub use tickets::transited_encoding::TransitedEncoding;
 
 pub use cs_message::EncApRepPart;
 pub use cs_message::KrbApRep;

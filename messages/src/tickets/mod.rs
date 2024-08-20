@@ -5,7 +5,7 @@ use crate::basic::{
 };
 
 mod enc_ticket_part;
-mod transited_encoding;
+pub(crate) mod transited_encoding;
 
 pub use enc_ticket_part::EncTicketPart;
 
