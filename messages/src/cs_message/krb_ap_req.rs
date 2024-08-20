@@ -10,7 +10,7 @@ use crate::tickets::Ticket;
 
 // TODO: Should replace BitString with KerberosFlags when it is correctly implemented
 #[derive(Debug, PartialEq, Clone)]
-struct APOptions(BitString);
+pub struct APOptions(BitString);
 
 enum APOptionFlag {
     UseSessionKey = 0b0100_0000,
@@ -18,7 +18,7 @@ enum APOptionFlag {
 }
 
 impl APOptions {
-    fn new(use_session_key: bool, mutual_required: bool) -> Self {
+    pub fn new(use_session_key: bool, mutual_required: bool) -> Self {
         let mut buf = [0x0_u8; 4];
         if use_session_key {
             buf[0] |= APOptionFlag::UseSessionKey as u8;
@@ -29,11 +29,11 @@ impl APOptions {
         Self(BitString::new(0, buf.to_vec()).unwrap())
     }
 
-    fn use_session_key(&self) -> bool {
+    pub fn use_session_key(&self) -> bool {
         self.0.as_bytes().unwrap()[0] & APOptionFlag::UseSessionKey as u8 != 0
     }
 
-    fn mutual_required(&self) -> bool {
+    pub fn mutual_required(&self) -> bool {
         self.0.as_bytes().unwrap()[0] & APOptionFlag::MutualRequired as u8 != 0
     }
 }

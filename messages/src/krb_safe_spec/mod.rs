@@ -16,7 +16,7 @@ const KRB_SAFE_TAG: TagNumber = TagNumber::new(20);
 pub struct KrbSafe(KrbSafeInner);
 
 impl KrbSafe {
-    fn builder() -> KrbSafeBuilder {
+    pub fn builder() -> KrbSafeBuilder {
         KrbSafeBuilder::new()
     }
 }
@@ -32,7 +32,7 @@ impl EncodeValue for KrbSafe {
 }
 
 impl<'a> DecodeValue<'a> for KrbSafe {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _: Header) -> der::Result<Self> {
         let inner = KrbSafeInner::decode(reader)?;
         Ok(KrbSafe(inner))
     }
@@ -75,27 +75,27 @@ pub struct KrbSafeBody {
 }
 
 impl KrbSafeBody {
-    fn user_data(&self) -> &OctetString {
+    pub fn user_data(&self) -> &OctetString {
         &self.user_data
     }
 
-    fn timestamp(&self) -> Option<&KerberosTime> {
+    pub fn timestamp(&self) -> Option<&KerberosTime> {
         self.timestamp.as_ref().map(|timestamp| timestamp)
     }
 
-    fn usec(&self) -> Option<&Microseconds> {
+    pub fn usec(&self) -> Option<&Microseconds> {
         self.usec.as_ref().map(|usec| usec)
     }
 
-    fn seq_number(&self) -> Option<&UInt32> {
+    pub fn seq_number(&self) -> Option<&UInt32> {
         self.seq_number.as_ref().map(|seq_number| seq_number)
     }
 
-    fn s_address(&self) -> &HostAddress {
+    pub fn s_address(&self) -> &HostAddress {
         &self.s_address
     }
 
-    fn r_address(&self) -> Option<&HostAddress> {
+    pub fn r_address(&self) -> Option<&HostAddress> {
         self.r_address.as_ref().map(|r_address| r_address)
     }
 }
