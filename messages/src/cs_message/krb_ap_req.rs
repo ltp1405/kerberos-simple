@@ -139,8 +139,7 @@ impl KrbApReq {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::basic::{Int32, KerberosString, NameTypes, OctetString, PrincipalName, Realm};
-    use crate::primitives::UInt32;
+    use crate::basic::{KerberosString, NameTypes, OctetString, PrincipalName, Realm};
 
     #[test]
     fn ap_option_correct_flag_encoding() {

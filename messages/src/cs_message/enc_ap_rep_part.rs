@@ -86,7 +86,6 @@ mod tests {
     use der::{Decode, Encode};
     use std::ops::Add;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
-    use serde::forward_to_deserialize_any;
 
     #[test]
     fn encode_and_decode() {
