@@ -48,5 +48,4 @@ pub use krb_error_spec::KrbErrorMsgBuilder;
 
 pub use krb_safe_spec::KrbSafe;
 pub use krb_safe_spec::KrbSafeBody;
-pub use krb_safe_spec::KrbSafeBuildError;
 pub use krb_safe_spec::KrbSafeBuilder;
