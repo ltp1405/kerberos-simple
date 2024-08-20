@@ -138,7 +138,7 @@ pub mod flags {
     pub const MUTUAL_REQUIRED: usize = 2; // Bit 2
 }
 
-pub mod application_tags {
+pub(crate) mod application_tags {
     // 0 unused
     pub const TICKET: u8 = 1;
     pub const AUTHENTICATOR: u8 = 2;
