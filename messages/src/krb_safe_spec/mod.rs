@@ -159,17 +159,14 @@ impl KrbSafeBuilder {
     }
 
     pub fn build(self) -> Result<KrbSafe, &'static str> {
-        fn make_err(field: &'static str) -> Result<KrbSafe, &'static str> {
-            Err(&format!("{} is required", field))
-        }
         if self.user_data.is_none() {
-            return make_err("user_data");
+            return Err("user_data is required");
         }
         if self.s_address.is_none() {
-            return make_err("s_address");
+            return Err("s_address is required");
         }
         if self.cksum.is_none() {
-            return make_err("cksum");
+            return Err("cksum is required");
         }
         Ok(self.build_unsafe())
     }
