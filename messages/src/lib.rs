@@ -35,6 +35,8 @@ pub mod basic_types {
     pub use crate::basic::HostAddress;
     pub use crate::basic::HostAddresses;
     pub use crate::basic::Int32;
+    pub use crate::basic::KerberosFlags;
+    pub use crate::basic::KerberosFlagsBuilder;
     pub use crate::basic::KerberosString;
     pub use crate::basic::KerberosTime;
     pub use crate::basic::Microseconds;
@@ -48,10 +50,10 @@ pub mod basic_types {
     pub use crate::basic::UInt32;
 }
 
+pub use tickets::transited_encoding::TransitedEncoding;
 pub use tickets::EncTicketPart;
 pub use tickets::Ticket;
 pub use tickets::TicketFlags;
-pub use tickets::transited_encoding::TransitedEncoding;
 
 pub use cs_message::EncApRepPart;
 pub use cs_message::KrbApRep;
@@ -72,6 +74,7 @@ pub use krb_priv_spec::krb_priv::KrbPriv;
 
 pub use krb_cred_spec::enc_krb_cred_part::EncKrbCredPart;
 pub use krb_cred_spec::krb_cred::KrbCred;
+pub use krb_cred_spec::krb_cred_info::KrbCredInfo;
 
 pub use krb_error_spec::KrbErrorMsg;
 pub use krb_error_spec::KrbErrorMsgBuilder;
