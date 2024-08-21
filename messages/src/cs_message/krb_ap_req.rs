@@ -30,11 +30,11 @@ impl APOptions {
     }
 
     pub fn use_session_key(&self) -> bool {
-        self.0.as_bytes().unwrap()[0] & APOptionFlag::UseSessionKey as u8 != 0
+        &self.0.as_bytes().unwrap()[0] & APOptionFlag::UseSessionKey as u8 != 0
     }
 
     pub fn mutual_required(&self) -> bool {
-        self.0.as_bytes().unwrap()[0] & APOptionFlag::MutualRequired as u8 != 0
+        &self.0.as_bytes().unwrap()[0] & APOptionFlag::MutualRequired as u8 != 0
     }
 }
 
@@ -115,12 +115,12 @@ impl KrbApReq {
         })
     }
 
-    pub fn pvno(&self) -> u8 {
-        self.0.pvno
+    pub fn pvno(&self) -> &u8 {
+        &self.0.pvno
     }
 
-    pub fn msg_type(&self) -> u8 {
-        self.0.msg_type
+    pub fn msg_type(&self) -> &u8 {
+        &self.0.msg_type
     }
 
     pub fn ap_options(&self) -> &APOptions {
