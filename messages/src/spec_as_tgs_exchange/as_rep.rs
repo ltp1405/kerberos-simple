@@ -14,7 +14,7 @@ pub struct AsRep(KdcRep);
 
 impl AsRep {
     pub fn new(
-        padata: impl Into<Option<SequenceOf<PaData>>>,
+        padata: Option<impl Into<SequenceOf<PaData>>>,
         crealm: impl Into<Realm>,
         cname: impl Into<PrincipalName>,
         ticket: impl Into<Ticket>,

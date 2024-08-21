@@ -31,7 +31,7 @@ pub struct KdcRep {
 impl KdcRep {
     pub fn new(
         msg_type: impl Into<Int32>,
-        padata: impl Into<Option<SequenceOf<PaData>>>,
+        padata: Option<impl Into<SequenceOf<PaData>>>,
         crealm: impl Into<Realm>,
         cname: impl Into<PrincipalName>,
         ticket: impl Into<Ticket>,
@@ -41,7 +41,7 @@ impl KdcRep {
         Self {
             pvno,
             msg_type: msg_type.into(),
-            padata: padata.into(),
+            padata: padata.map(|data| data.into()),
             crealm: crealm.into(),
             cname: cname.into(),
             ticket: ticket.into(),

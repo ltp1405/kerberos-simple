@@ -14,7 +14,7 @@ pub struct TgsRep(KdcRep);
 
 impl TgsRep {
     pub fn new(
-        padata: impl Into<Option<SequenceOf<PaData>>>,
+        padata: Option<impl Into<SequenceOf<PaData>>>,
         crealm: impl Into<Realm>,
         cname: impl Into<PrincipalName>,
         ticket: impl Into<Ticket>,
@@ -62,8 +62,8 @@ impl FixedTag for TgsRep {
 #[cfg(test)]
 mod tests {
     use crate::basic::{
-        application_tags, EncryptedData, KerberosString, NameTypes, OctetString,
-        PrincipalName, Realm,
+        application_tags, EncryptedData, KerberosString, NameTypes, OctetString, PrincipalName,
+        Realm,
     };
     use crate::spec_as_tgs_exchange::tgs_rep::TgsRep;
     use crate::tickets::Ticket;
