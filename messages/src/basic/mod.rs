@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use der::{
     self,
-    asn1::{GeneralizedTime, Ia5String, OctetStringRef},
+    asn1::{GeneralizedTime, OctetStringRef},
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
 };
 
@@ -23,7 +23,7 @@ pub type UInt32 = u32;
 pub type Microseconds = i32;
 
 // RFC4120 5.2.1
-pub type KerberosString = Ia5String;
+pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
 pub type KerberosTime = GeneralizedTime;
@@ -532,7 +532,7 @@ impl ETypeInfo2Entry {
         &self.etype
     }
 
-    pub fn salt(&self) -> Option<&Ia5String> {
+    pub fn salt(&self) -> Option<&KerberosString> {
         self.salt.as_ref()
     }
 
@@ -749,3 +749,4 @@ impl Checksum {
 
 #[cfg(test)]
 mod test;
+mod kerberos_string;
