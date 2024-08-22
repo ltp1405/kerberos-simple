@@ -68,6 +68,8 @@ pub use spec_as_tgs_exchange::kdc_rep::KdcRep;
 pub use spec_as_tgs_exchange::kdc_req::KdcReq;
 pub use spec_as_tgs_exchange::tgs_rep::TgsRep;
 pub use spec_as_tgs_exchange::tgs_req::TgsReq;
+pub use spec_as_tgs_exchange::last_req::LastReq;
+pub use spec_as_tgs_exchange::last_req::LastReqEntry;
 
 pub use krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
 pub use krb_priv_spec::krb_priv::KrbPriv;
