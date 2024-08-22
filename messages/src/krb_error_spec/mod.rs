@@ -164,7 +164,6 @@ impl FixedTag for Ecode {
 impl<'a> DecodeValue<'a> for Ecode {
     fn decode_value<R: der::Reader<'a>>(reader: &mut R, header: der::Header) -> der::Result<Self> {
         let value = Int32::decode_value(reader, header)?;
-        // TODO: check if the value is a valid Ecode
         Ok(Self::try_from(value).expect("invalid Ecode"))
     }
 }

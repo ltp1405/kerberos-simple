@@ -82,16 +82,16 @@ fn enc_ticket_part_builder_works_fine() {
     let authtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824155)).unwrap();
     let endtime = KerberosTime::from_unix_duration(Duration::from_secs(1619824160)).unwrap();
     let transited = TransitedEncoding::new(5, OctetString::new("bytes".as_bytes()).unwrap());
-    let enc_ticket_part = EncTicketPart::builder(
-        flags.clone(),
-        key.clone(),
-        crealm.clone(),
-        cname.clone(),
-        authtime,
-        endtime,
-        transited.clone(),
-    )
-    .build();
+    let enc_ticket_part = EncTicketPart::builder()
+        .flags(flags.clone())
+        .key(key.clone())
+        .crealm(crealm.clone())
+        .cname(cname.clone())
+        .authtime(authtime)
+        .endtime(endtime)
+        .transited(transited.clone())
+        .build()
+        .unwrap();
 
     assert_eq!(enc_ticket_part.flags(), &flags);
     assert_eq!(enc_ticket_part.key(), &key);
@@ -131,18 +131,18 @@ fn encode_decode_for_enc_ticket_part_works_fine() {
         5,
         OctetString::new("bytes".as_bytes()).unwrap(),
     )];
-    let enc_ticket_part = EncTicketPart::builder(
-        flags.clone(),
-        key.clone(),
-        crealm.clone(),
-        cname.clone(),
-        authtime,
-        endtime,
-        transited.clone(),
-    )
-    .caddr(caddr.clone())
-    .authorization_data(authorization_data.clone())
-    .build();
+    let enc_ticket_part = EncTicketPart::builder()
+        .flags(flags.clone())
+        .key(key.clone())
+        .crealm(crealm.clone())
+        .cname(cname.clone())
+        .authtime(authtime)
+        .endtime(endtime)
+        .caddr(caddr.clone())
+        .authorization_data(authorization_data.clone())
+        .transited(transited.clone())
+        .build()
+        .unwrap();
 
     let bytes = enc_ticket_part.to_der().unwrap();
     let decoded = EncTicketPart::from_der(&bytes).unwrap();
@@ -153,10 +153,7 @@ fn encode_decode_for_enc_ticket_part_works_fine() {
     assert_eq!(decoded.authtime(), authtime);
     assert_eq!(decoded.endtime(), endtime);
     assert_eq!(decoded.transited(), &transited);
-    assert_eq!(
-        decoded.authorization_data(),
-        Some(&authorization_data)
-    );
+    assert_eq!(decoded.authorization_data(), Some(&authorization_data));
     assert_eq!(decoded.caddr(), Some(&caddr));
     assert!(decoded.starttime().is_none());
     assert!(decoded.renew_till().is_none());

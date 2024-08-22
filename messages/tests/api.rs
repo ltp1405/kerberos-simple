@@ -1,121 +1,48 @@
 use messages::basic_types::{
-    AddressTypes, AuthorizationData, Checksum, EncryptedData, EncryptionKey, HostAddress,
-    HostAddresses, KerberosFlags, KerberosString, KerberosTime, NameTypes, OctetString, PaData,
-    PrincipalName, Realm, SequenceOf,
+    AddressTypes, AuthorizationData, EncryptedData, EncryptionKey, HostAddress, HostAddresses,
+    KerberosFlags, KerberosString, KerberosTime, NameTypes, OctetString, PaData, PrincipalName,
+    Realm,
 };
-use messages::{APOptions, AsRep, AsReq, Ecode, EncApRepPart, EncAsRepPart, EncKdcRepPart, EncKdcRepPartBuilder, EncTicketPart, KdcRep, KdcReq, KrbApRep, KrbApReq, KrbCredInfo, KrbErrorMsg, KrbErrorMsgBuilder, LastReq, LastReqEntry, TgsRep, Ticket, TransitedEncoding};
+use messages::{
+    APOptions, AsRep, Ecode, EncApRepPart, EncKdcRepPartBuilder, EncTicketPart, KrbApRep, KrbApReq,
+    KrbErrorMsgBuilder, LastReqEntry, TgsRep, Ticket,
+};
 use std::time::{Duration, SystemTime};
 
-// #[test]
-// fn test_api() {
-//     let kerberos_time = KerberosTime::from_system_time(SystemTime::now()).unwrap();
-//     let host_address1 = HostAddress::new(AddressTypes::Ipv4, OctetString::new(&[1, 2, 3]));
-//     let host_addresses = HostAddresses::new();
-//
-//     let authorization_data = AuthorizationData::new();
-//
-//     let pa_data = PaData::new(1, OctetString::new(&[2, 3, 4]));
-//
-//     let kerberos_flags = KerberosFlags::builder().set(1).set(5).build();
-//
-//     // panic!("kvno is optional")
-//     let encrypted_data = EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]));
-//
-//     let checksum = Checksum::new(1, OctetString::new(&[2, 3, 4]));
-//
-//     let encryption_key = EncryptionKey::new(0, OctetString::new(&[1, 2, 3]));
-//     let enc_ticket_part = EncTicketPart::builder(
-//         kerberos_flags.unwrap(),
-//         encryption_key,
-//         Realm::try_from("ewete").unwrap(),
-//         PrincipalName::new(
-//             NameTypes::NtPrincipal,
-//             [KerberosString::try_from("hello").unwrap()],
-//         )
-//         .unwrap(),
-//         KerberosTime::from_system_time(SystemTime::now()).unwrap(),
-//         KerberosTime::from_system_time(SystemTime::now()).unwrap(),
-//         TransitedEncoding::new(0, OctetString::new(&[1, 2, 3]).unwrap()),
-//     )
-//     .build();
-//
-//     let as_rep = AsRep::new(
-//         Some([pa_data.clone()]),
-//         Realm::try_from("hello").unwrap(),
-//         PrincipalName::new(
-//             NameTypes::NtEnterprise,
-//             [KerberosString::try_from("hello").unwrap()],
-//         ),
-//         Ticket::new(
-//             Realm::try_from("hello").unwrap(),
-//             PrincipalName::new(
-//                 NameTypes::NtEnterprise,
-//                 [KerberosString::try_from("hello").unwrap()],
-//             )
-//             .unwrap(),
-//             encrypted_data.clone(),
-//         ),
-//         encrypted_data.clone(),
-//     );
-//
-//     let kdc_rep = KdcRep::new(
-//         Some([pa_data]),
-//         1,
-//         Realm::try_from("hello").unwrap(),
-//         PrincipalName::new(
-//             NameTypes::NtEnterprise,
-//             [KerberosString::try_from("hello").unwrap()],
-//         ),
-//         Ticket::new(
-//             Realm::try_from("hello").unwrap(),
-//             PrincipalName::new(
-//                 NameTypes::NtEnterprise,
-//                 [KerberosString::try_from("hello").unwrap()],
-//             )
-//             .unwrap(),
-//             encrypted_data.clone(),
-//         ),
-//         encrypted_data,
-//     );
-// }
-
 #[test]
-fn krb_as_req() {
-    let pa_data = PaData::new(1, OctetString::new(&[1, 2, 3]).unwrap());
-    let encrypted_data = EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap());
-    let as_rep = AsRep::new(
-        vec![pa_data.clone()],
+fn ticket() {
+    let ticket = Ticket::new(
         Realm::try_from("hello").unwrap(),
         PrincipalName::new(
             NameTypes::NtEnterprise,
             [KerberosString::try_from("hello").unwrap()],
         )
         .unwrap(),
-        Ticket::new(
-            Realm::try_from("hello".to_string()).unwrap(),
+        EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap()),
+    );
+
+    let enc_part = EncTicketPart::builder()
+        .crealm(Realm::try_from("hello").unwrap())
+        .cname(
             PrincipalName::new(
                 NameTypes::NtEnterprise,
                 [KerberosString::try_from("hello").unwrap()],
             )
             .unwrap(),
-            encrypted_data.clone(),
-        ),
-        encrypted_data.clone(),
-    );
-
-    as_rep.crealm();
-    as_rep.msg_type();
-    as_rep.cname();
-    as_rep.padata();
-    as_rep.ticket();
-    as_rep.enc_part();
+        )
+        .caddr(HostAddresses::from(vec![HostAddress::new(
+            AddressTypes::Ipv4,
+            OctetString::new(&[1, 2, 3]).unwrap(),
+        )
+        .unwrap()]))
+        .endtime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap());
 }
 
 #[test]
+fn krb_as_req() {}
+
+#[test]
 fn krb_error() {
-    let ecode = Ecode::KDC_ERR_NAME_EXP;
-    let i: i32 = ecode.try_into().unwrap();
-    println!("{:?}", i);
     let err = KrbErrorMsgBuilder::default()
         .error_code(Ecode::KDC_ERR_NAME_EXP)
         .sname(
@@ -159,14 +86,14 @@ fn krb_as_rep() {
             NameTypes::NtEnterprise,
             [KerberosString::try_from("hello").unwrap()],
         )
-            .unwrap(),
+        .unwrap(),
         Ticket::new(
             Realm::try_from("hello").unwrap(),
             PrincipalName::new(
                 NameTypes::NtEnterprise,
                 [KerberosString::try_from("hello").unwrap()],
             )
-                .unwrap(),
+            .unwrap(),
             EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap()),
         ),
         EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap()),
@@ -299,9 +226,6 @@ fn krb_tgs_rep() {
     tgs_rep.padata();
     tgs_rep.ticket();
     tgs_rep.enc_part();
-
 }
 #[test]
-fn tgs_req() {
-
-}
+fn tgs_req() {}

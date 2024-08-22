@@ -1,5 +1,5 @@
 use der::asn1::Ia5String;
-use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag, Writer};
+use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
 
 /// Ia5String
 #[derive(PartialEq, Eq, Debug, Clone)]

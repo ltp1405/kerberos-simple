@@ -1,4 +1,4 @@
-pub(crate) mod back_to_enum;
+mod back_to_enum;
 // Section 5.2
 mod basic;
 
@@ -74,17 +74,17 @@ pub use spec_as_tgs_exchange::last_req::LastReqEntry;
 pub use spec_as_tgs_exchange::tgs_rep::TgsRep;
 pub use spec_as_tgs_exchange::tgs_req::TgsReq;
 
-pub use krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
-pub use krb_priv_spec::krb_priv::KrbPriv;
-
-pub use krb_cred_spec::enc_krb_cred_part::EncKrbCredPart;
-pub use krb_cred_spec::krb_cred::KrbCred;
-pub use krb_cred_spec::krb_cred_info::KrbCredInfo;
+// pub use krb_priv_spec::enc_krb_priv_part::EncKrbPrivPart;
+// pub use krb_priv_spec::krb_priv::KrbPriv;
+//
+// pub use krb_cred_spec::enc_krb_cred_part::EncKrbCredPart;
+// pub use krb_cred_spec::krb_cred::KrbCred;
+// pub use krb_cred_spec::krb_cred_info::KrbCredInfo;
 
 pub use krb_error_spec::Ecode;
 pub use krb_error_spec::KrbErrorMsg;
 pub use krb_error_spec::KrbErrorMsgBuilder;
 
-pub use krb_safe_spec::KrbSafe;
-pub use krb_safe_spec::KrbSafeBody;
-pub use krb_safe_spec::KrbSafeBuilder;
+// pub use krb_safe_spec::KrbSafe;
+// pub use krb_safe_spec::KrbSafeBody;
+// pub use krb_safe_spec::KrbSafeBuilder;
