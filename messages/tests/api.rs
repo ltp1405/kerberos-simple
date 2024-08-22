@@ -110,27 +110,27 @@ fn krb_as_rep() {
 #[test]
 fn enc_kdc_rep_part() {
     let enc_part = EncKdcRepPartBuilder::default()
-        .set_key(EncryptionKey::new(0, OctetString::new(&[1, 2, 3]).unwrap()))
-        .set_last_req(vec![LastReqEntry::new(
+        .key(EncryptionKey::new(0, OctetString::new(&[1, 2, 3]).unwrap()))
+        .last_req(vec![LastReqEntry::new(
             0,
             KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap(),
         )])
-        .set_nonce(1_u32)
-        .set_starttime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
-        .set_endtime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
-        .set_authtime(KerberosTime::from_system_time(SystemTime::now()).unwrap())
-        .set_flags(KerberosFlags::builder().set(1).build().unwrap())
-        .set_renew_till(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
-        .set_srealm(Realm::try_from("hello").unwrap())
-        .set_sname(
+        .nonce(1_u32)
+        .starttime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
+        .endtime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
+        .authtime(KerberosTime::from_system_time(SystemTime::now()).unwrap())
+        .flags(KerberosFlags::builder().set(1).build().unwrap())
+        .renew_till(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
+        .srealm(Realm::try_from("hello").unwrap())
+        .sname(
             PrincipalName::new(
                 NameTypes::NtEnterprise,
                 [KerberosString::try_from("hello").unwrap()],
             )
             .unwrap(),
         )
-        .set_key_expiration(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
-        .set_caddr(HostAddresses::from(vec![HostAddress::new(
+        .key_expiration(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
+        .caddr(HostAddresses::from(vec![HostAddress::new(
             AddressTypes::Ipv4,
             OctetString::new(&[1, 2, 3]).unwrap(),
         )
