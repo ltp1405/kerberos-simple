@@ -85,17 +85,17 @@ fn krb_as_req() {
     let encrypted_data = EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap());
     let as_rep = AsRep::new(
         Some(&[pa_data.clone()]),
-        Realm::try_from("hello".to_string()).unwrap(),
+        Realm::try_from("hello").unwrap(),
         PrincipalName::new(
             NameTypes::NtEnterprise,
-            [KerberosString::try_from("hello".to_string()).unwrap()],
+            [KerberosString::try_from("hello").unwrap()],
         )
         .unwrap(),
         Ticket::new(
             Realm::try_from("hello".to_string()).unwrap(),
             PrincipalName::new(
                 NameTypes::NtEnterprise,
-                [KerberosString::try_from("hello".to_string()).unwrap()],
+                [KerberosString::try_from("hello").unwrap()],
             )
             .unwrap(),
             encrypted_data.clone(),
