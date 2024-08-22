@@ -1,3 +1,4 @@
+use crate::back_to_enum;
 use crate::basic::Int32;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -31,6 +32,7 @@ impl From<i32> for NameTypes {
     }
 }
 
+back_to_enum! {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum AddressTypes {
     Ipv4 = 2,
@@ -43,25 +45,9 @@ pub enum AddressTypes {
     NetBios = 20,
     Ipv6 = 24,
 }
-
-#[cfg(test)]
-impl From<i32> for AddressTypes {
-    fn from(value: i32) -> Self {
-        match value {
-            2 => AddressTypes::Ipv4,
-            3 => AddressTypes::Directional,
-            5 => AddressTypes::ChaosNet,
-            6 => AddressTypes::Xns,
-            7 => AddressTypes::Iso,
-            12 => AddressTypes::DecnetPhaseIv,
-            16 => AddressTypes::AppletalkDdp,
-            20 => AddressTypes::NetBios,
-            24 => AddressTypes::Ipv6,
-            _ => panic!("Invalid value for AddressTypes"),
-        }
-    }
 }
 
+back_to_enum! {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum AuthorizationDataTypes {
     IfRelevant = 1,
@@ -69,19 +55,9 @@ pub enum AuthorizationDataTypes {
     AndOr = 5,
     MandatoryForKdc = 8,
 }
-
-impl From<Int32> for AuthorizationDataTypes {
-    fn from(value: Int32) -> Self {
-        match value {
-            1 => AuthorizationDataTypes::IfRelevant,
-            4 => AuthorizationDataTypes::KdcIssued,
-            5 => AuthorizationDataTypes::AndOr,
-            8 => AuthorizationDataTypes::MandatoryForKdc,
-            _ => panic!("Invalid value for AuthorizationDataTypes"),
-        }
-    }
 }
 
+back_to_enum! {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PaDataTypes {
     PaTgsReq = 1,
@@ -90,19 +66,6 @@ pub enum PaDataTypes {
     PaEtypeInfo = 11,
     PaEtypeInfo2 = 19,
 }
-
-impl TryFrom<Int32> for PaDataTypes {
-    type Error = &'static str;
-    fn try_from(value: Int32) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(PaDataTypes::PaTgsReq),
-            2 => Ok(PaDataTypes::PaEncTimestamp),
-            3 => Ok(PaDataTypes::PaPwSalt),
-            11 => Ok(PaDataTypes::PaEtypeInfo),
-            19 => Ok(PaDataTypes::PaEtypeInfo2),
-            _ => Err("Invalid value for PaDataTypes"),
-        }
-    }
 }
 
 pub mod flags {

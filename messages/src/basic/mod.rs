@@ -203,7 +203,7 @@ impl ADRegisteredEntry {
         }
 
         let ad_type = AuthorizationDataTypes::try_from(entry.ad_type)
-            .map_err(|e| format!("Invalid AD type: {}", e))?;
+            .map_err(|e| format!("Invalid AD type {}", entry.ad_type))?;
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
@@ -382,7 +382,7 @@ impl PaDataRegisteredType {
         }
 
         let padata_type = PaDataTypes::try_from(pa_data.padata_type)
-            .map_err(|e| format!("Invalid PA type: {}", e))?;
+            .map_err(|e| format!("Invalid PA type: {}", pa_data.padata_type))?;
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 
@@ -748,6 +748,6 @@ impl Checksum {
     }
 }
 
+mod kerberos_string;
 #[cfg(test)]
 mod test;
-mod kerberos_string;
