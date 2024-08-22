@@ -21,6 +21,15 @@ impl<'a> DecodeValue<'a> for KerberosString {
     }
 }
 
+impl KerberosString {
+    pub fn new<T>(input: &T) -> Result<Self, der::Error>
+    where
+        T: AsRef<[u8]> + ?Sized,
+    {
+        Ok(KerberosString(Ia5String::new(input)?))
+    }
+}
+
 impl<'a> Sequence<'a> for KerberosString {}
 
 impl TryFrom<String> for KerberosString {
@@ -28,5 +37,13 @@ impl TryFrom<String> for KerberosString {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Ok(KerberosString(Ia5String::try_from(value)?))
+    }
+}
+
+impl TryFrom<&'static str> for KerberosString {
+    type Error = der::Error;
+
+    fn try_from(value: &'static str) -> Result<Self, Self::Error> {
+        Ok(KerberosString(Ia5String::try_from(value.to_string())?))
     }
 }
