@@ -1,4 +1,5 @@
 use der::Sequence;
+use derive_builder::Builder;
 
 use crate::{
     basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32},
@@ -6,7 +7,8 @@ use crate::{
     tickets::TicketFlags,
 };
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
+#[builder(setter(into, prefix = "set"))]
 pub struct EncKdcRepPart {
     #[asn1(context_specific = "0")]
     key: EncryptionKey,

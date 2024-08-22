@@ -51,14 +51,14 @@ impl EncApRepPart {
     pub fn new(
         ctime: impl Into<KerberosTime>,
         cusec: impl Into<Microseconds>,
-        subkey: Option<impl Into<EncryptionKey>>,
-        seq_number: Option<impl Into<UInt32>>,
+        subkey: impl Into<Option<EncryptionKey>>,
+        seq_number: impl Into<Option<UInt32>>,
     ) -> Self {
         EncApRepPart(EncApRepPartInner {
             ctime: ctime.into(),
             cusec: cusec.into(),
-            subkey: subkey.map(|subkey| subkey.into()),
-            seq_number: seq_number.map(|seq_number| seq_number.into()),
+            subkey: subkey.into(),
+            seq_number: seq_number.into(),
         })
     }
 

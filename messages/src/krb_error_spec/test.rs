@@ -6,6 +6,7 @@ use crate::krb_error_spec::Ecode;
 use crate::{
     basic::{KerberosString, KerberosTime, NameTypes, PrincipalName, Realm},
     krb_error_spec::KrbErrorMsg,
+    KrbErrorMsgBuilder,
 };
 
 #[test]
@@ -19,14 +20,14 @@ fn krb_err_builder_works_fine() {
         PrincipalName::new(name_type, name_string).unwrap()
     };
     let error_code = Ecode::KDC_ERROR_CLIENT_NOT_TRUSTED;
-    let krb_err = KrbErrorMsg::builder(
-        stime,
-        susec.clone(),
-        error_code.into(),
-        realm.clone(),
-        sname.clone(),
-    )
-    .build();
+    let krb_err = KrbErrorMsgBuilder::default()
+        .stime(stime)
+        .susec(susec.clone())
+        .error_code(error_code)
+        .realm(realm.clone())
+        .sname(sname.clone())
+        .build()
+        .unwrap();
     assert_eq!(krb_err.stime(), &stime);
     assert_eq!(krb_err.susec(), &susec);
     assert_eq!(krb_err.error_code(), error_code);
@@ -49,14 +50,14 @@ fn encode_decode_for_krb_err_msg_works_fine() {
         PrincipalName::new(name_type, name_string).unwrap()
     };
     let error_code = Ecode::KDC_ERROR_CLIENT_NOT_TRUSTED;
-    let krb_err = KrbErrorMsg::builder(
-        stime,
-        susec.clone(),
-        error_code.into(),
-        realm.clone(),
-        sname.clone(),
-    )
-    .build();
+    let krb_err = KrbErrorMsgBuilder::default()
+        .stime(stime)
+        .susec(susec.clone())
+        .error_code(error_code)
+        .realm(realm.clone())
+        .sname(sname.clone())
+        .build()
+        .unwrap();
     let bytes = krb_err.to_der().unwrap();
     let decoded = KrbErrorMsg::from_der(&bytes).unwrap();
     assert_eq!(decoded.stime(), &stime);

@@ -14,7 +14,7 @@ pub struct TgsRep(KdcRep);
 
 impl TgsRep {
     pub fn new(
-        padata: Option<impl Into<SequenceOf<PaData>>>,
+        padata: impl Into<Option<SequenceOf<PaData>>>,
         crealm: impl Into<Realm>,
         cname: impl Into<PrincipalName>,
         ticket: impl Into<Ticket>,

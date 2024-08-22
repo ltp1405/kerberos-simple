@@ -13,6 +13,7 @@ pub mod constants;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
+
 pub type BitString = der::asn1::BitString;
 
 // RFC4120 5.2.4
