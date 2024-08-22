@@ -48,4 +48,51 @@ CL->TGS.KRB_TGS_REQ {
     catch {
         return KRB_AP_ERR_BAD_INTEGRITY
     }
+
+    server = DB.get_server(req_sname)
+    server_key = DB.get_skey(server)
+    // the address field, the client's name and realm, the list
+    // of transited realms, the time of initial authentication, 
+    // the expiration time, and the authorization data
+    copy(tgt, rep_ticket)
+    // ignore transit
+
+    // details in RFC
+    set_endtime(rep_ticket)
+
+    // similar to as exchange
+    // However, in no case may the starttime, endtime, 
+    // or renew-till time of a newly-issued postdated 
+    // ticket extend beyond the renew-till time of the TGT.
+    start_time = get_starttime()
+
+    if (tk_sname != tgs_name 
+        && "server is registered in realm of KDC" 
+        && "req_flags & RENEW"
+    ) { 
+        verify("tgt is renewable")
+        verify("tgt is not invalid")
+        verify(renew_till > cur_time + clock_skew)
+    }
+    if ("req_flags & VALIDATE") {
+        verify(start_time <= cur_time + clock_skew)
+        verify("tgt is invalid")
+    }
+    ticket = issue_ticket()
+    if (authenticator == null) {
+        session_key = get_session_key(tgt)
+        encrypted_ticket = encrypt(ticket, session_key)
+    }
+    else {
+        subkey = get_subkey(authenticator)
+        encrypted_ticket = encrypt(ticket, subkey)
+    }
+    return KRB_TGS_REP
+}
+
+CL.recv(KRB_TGS_REP) {
+    // similar to as exchange
+    // However, if subkey is present in the authenticator,
+    // the client MUST use the subkey to decrypt the ticket.
+    // Otherwise the client MUST use the session key.
 }
