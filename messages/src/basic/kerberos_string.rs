@@ -1,9 +1,13 @@
 use der::asn1::Ia5String;
-use der::{DecodeValue, EncodeValue, Header, Length, Reader, Sequence, Writer};
+use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag, Writer};
 
 /// Ia5String
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct KerberosString(Ia5String);
+
+impl FixedTag for KerberosString {
+    const TAG: Tag = Tag::Ia5String;
+}
 
 impl EncodeValue for KerberosString {
     fn value_len(&self) -> der::Result<Length> {
@@ -29,8 +33,6 @@ impl KerberosString {
         Ok(KerberosString(Ia5String::new(input)?))
     }
 }
-
-impl<'a> Sequence<'a> for KerberosString {}
 
 impl TryFrom<String> for KerberosString {
     type Error = der::Error;
