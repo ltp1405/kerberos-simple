@@ -1,5 +1,6 @@
 use crate::back_to_enum;
 
+back_to_enum! {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NameTypes {
     NtUnknown = 0,
@@ -12,23 +13,6 @@ pub enum NameTypes {
     NtSmtpName = 7,
     NtEnterprise = 10,
 }
-
-#[cfg(test)]
-impl From<i32> for NameTypes {
-    fn from(value: i32) -> Self {
-        match value {
-            0 => NameTypes::NtUnknown,
-            1 => NameTypes::NtPrincipal,
-            2 => NameTypes::NtSrvInst,
-            3 => NameTypes::NtSrcHst,
-            4 => NameTypes::NtSrvXhst,
-            5 => NameTypes::NtUid,
-            6 => NameTypes::NtX500Principal,
-            7 => NameTypes::NtSmtpName,
-            10 => NameTypes::NtEnterprise,
-            _ => panic!("Invalid value for NameTypes"),
-        }
-    }
 }
 
 back_to_enum! {

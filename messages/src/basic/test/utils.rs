@@ -244,7 +244,7 @@ pub fn random_testcases_of_principal_name_1(
     let mut testcases = Vec::new();
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % numbers.len();
-        let name_type = NameTypes::from(numbers[idx]);
+        let name_type = NameTypes::try_from(numbers[idx]).unwrap();
         if empty {
             continue;
         }
@@ -261,7 +261,7 @@ pub fn random_testcases_of_principal_name_2(
     let numbers = vec![0, 1, 2, 3, 4, 5, 6, 7, 10];
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % numbers.len();
-        let name_type = NameTypes::from(numbers[idx]);
+        let name_type = NameTypes::try_from(numbers[idx]).unwrap();
         if empty {
             continue;
         }
