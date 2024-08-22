@@ -1,5 +1,4 @@
 use crate::back_to_enum;
-use crate::basic::Int32;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum NameTypes {
