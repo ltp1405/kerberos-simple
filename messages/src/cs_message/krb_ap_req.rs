@@ -5,36 +5,36 @@ use der::{
     TagNumber, Writer,
 };
 
-use crate::basic::EncryptedData;
+use crate::basic::{EncryptedData, KerberosFlags};
 use crate::tickets::Ticket;
 
-// TODO: Should replace BitString with KerberosFlags when it is correctly implemented
 #[derive(Debug, PartialEq, Clone)]
-pub struct APOptions(BitString);
+pub struct APOptions(KerberosFlags);
 
 enum APOptionFlag {
-    UseSessionKey = 0b0100_0000,
-    MutualRequired = 0b0010_0000,
+    UseSessionKey = 1,
+    MutualRequired = 2,
 }
 
 impl APOptions {
     pub fn new(use_session_key: bool, mutual_required: bool) -> Self {
-        let mut buf = [0x0_u8; 4];
+        let mut flags_builder = KerberosFlags::builder();
         if use_session_key {
-            buf[0] |= APOptionFlag::UseSessionKey as u8;
+            flags_builder.set(APOptionFlag::UseSessionKey as usize);
         }
+
         if mutual_required {
-            buf[0] |= APOptionFlag::MutualRequired as u8;
+            flags_builder.set(APOptionFlag::MutualRequired as usize);
         }
-        Self(BitString::new(0, buf.to_vec()).unwrap())
+        Self(flags_builder.build().expect("This should not failed"))
     }
 
     pub fn use_session_key(&self) -> bool {
-        &self.0.as_bytes().unwrap()[0] & APOptionFlag::UseSessionKey as u8 != 0
+        self.0.is_set(APOptionFlag::UseSessionKey as usize)
     }
 
     pub fn mutual_required(&self) -> bool {
-        &self.0.as_bytes().unwrap()[0] & APOptionFlag::MutualRequired as u8 != 0
+        self.0.is_set(APOptionFlag::MutualRequired as usize)
     }
 }
 
@@ -54,7 +54,7 @@ impl EncodeValue for APOptions {
 
 impl<'a> DecodeValue<'a> for APOptions {
     fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
-        let inner = BitString::decode_value(reader, header)?;
+        let inner = KerberosFlags::decode_value(reader, header)?;
         Ok(Self(inner))
     }
 }

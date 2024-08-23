@@ -625,7 +625,7 @@ impl KerberosFlagsBuilder {
         }
     }
 
-    pub fn set(self, bit_pos: usize) -> Self {
+    pub fn set(&mut self, bit_pos: usize) -> &mut Self {
         unsafe {
             if bit_pos >= self.inner.len() * 8 {
                 return self;
@@ -638,7 +638,7 @@ impl KerberosFlagsBuilder {
         }
     }
 
-    pub fn build(mut self) -> Result<KerberosFlags, &'static str> {
+    pub fn build(&mut self) -> Result<KerberosFlags, &'static str> {
         self.consumed = true;
         let bytes = unsafe { Box::from_raw(self.inner) };
         let inner = BitString::from_bytes(&bytes).map_err(|e| {
