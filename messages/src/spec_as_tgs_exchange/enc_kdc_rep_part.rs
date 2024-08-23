@@ -1,4 +1,5 @@
 use der::Sequence;
+use derive_builder::Builder;
 
 use crate::{
     basic::{EncryptionKey, HostAddresses, KerberosTime, PrincipalName, Realm, UInt32},
@@ -6,7 +7,8 @@ use crate::{
     tickets::TicketFlags,
 };
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
+#[builder(setter(into))]
 pub struct EncKdcRepPart {
     #[asn1(context_specific = "0")]
     key: EncryptionKey,
@@ -46,36 +48,9 @@ pub struct EncKdcRepPart {
 }
 
 impl EncKdcRepPart {
-    pub fn new(
-        key: impl Into<EncryptionKey>,
-        last_req: impl Into<LastReq>,
-        nonce: impl Into<UInt32>,
-        key_expiration: impl Into<Option<KerberosTime>>,
-        flags: impl Into<TicketFlags>,
-        authtime: impl Into<KerberosTime>,
-        starttime: impl Into<Option<KerberosTime>>,
-        endtime: impl Into<KerberosTime>,
-        renew_till: impl Into<Option<KerberosTime>>,
-        srealm: impl Into<Realm>,
-        sname: impl Into<PrincipalName>,
-        caddr: impl Into<Option<HostAddresses>>,
-    ) -> Self {
-        Self {
-            key: key.into(),
-            last_req: last_req.into(),
-            nonce: nonce.into(),
-            key_expiration: key_expiration.into(),
-            flags: flags.into(),
-            authtime: authtime.into(),
-            starttime: starttime.into(),
-            endtime: endtime.into(),
-            renew_till: renew_till.into(),
-            srealm: srealm.into(),
-            sname: sname.into(),
-            caddr: caddr.into(),
-        }
+    fn builder() -> EncKdcRepPartBuilder {
+        EncKdcRepPartBuilder::default()
     }
-
     pub fn key(&self) -> &EncryptionKey {
         &self.key
     }
@@ -138,27 +113,35 @@ pub mod tests {
     use std::time::Duration;
 
     pub fn sample_data() -> EncKdcRepPart {
-        EncKdcRepPart::new(
-            EncryptionKey::new(171, OctetString::new(b"keyvalue").unwrap()),
-            LastReq::new(),
-            1,
-            None,
-            TicketFlags::builder()
-                .set(flags::FORWARDABLE)
-                .build()
-                .unwrap(),
-            KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap(),
-            None,
-            KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap(),
-            None,
-            Realm::new("EXAMPLE.COM".as_bytes()).unwrap(),
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                vec![KerberosString::new("krbtgt".as_bytes()).unwrap()],
+        EncKdcRepPart::builder()
+            .key(EncryptionKey::new(
+                171,
+                OctetString::new(b"keyvalue").unwrap(),
+            ))
+            .last_req(LastReq::new())
+            .nonce(1u32)
+            .key_expiration(None)
+            .flags(
+                TicketFlags::builder()
+                    .set(flags::FORWARDABLE)
+                    .build()
+                    .unwrap(),
             )
-            .unwrap(),
-            None,
-        )
+            .authtime(KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap())
+            .starttime(None)
+            .endtime(KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap())
+            .renew_till(None)
+            .srealm(Realm::new("EXAMPLE.COM".as_bytes()).unwrap())
+            .sname(
+                PrincipalName::new(
+                    NameTypes::NtPrincipal,
+                    vec![KerberosString::new("krbtgt".as_bytes()).unwrap()],
+                )
+                .unwrap(),
+            )
+            .caddr(None)
+            .build()
+            .unwrap()
     }
 
     #[test]

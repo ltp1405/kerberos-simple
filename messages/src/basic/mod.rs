@@ -2,28 +2,30 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use der::{
     self,
-    asn1::{GeneralizedTime, Ia5String, OctetStringRef},
+    asn1::{GeneralizedTime, OctetStringRef},
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
 };
 
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
 pub(super) use constants::*;
 
-mod constants;
+pub mod constants;
 
 pub type SequenceOf<T> = Vec<T>;
 pub type OctetString = der::asn1::OctetString;
+
 pub type BitString = der::asn1::BitString;
 
 // RFC4120 5.2.4
 pub type Int32 = i32;
 // RFC4120 5.2.4
-pub type UInt32 = i32;
+pub type UInt32 = u32;
 // RFC4120 5.2.4
 pub type Microseconds = i32;
 
 // RFC4120 5.2.1
-pub type KerberosString = Ia5String;
+use crate::KrbApReq;
+pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
 pub type KerberosTime = GeneralizedTime;
@@ -201,7 +203,8 @@ impl ADRegisteredEntry {
             )
         }
 
-        let ad_type = AuthorizationDataTypes::from(entry.ad_type);
+        let ad_type = AuthorizationDataTypes::try_from(entry.ad_type)
+            .map_err(|_e| format!("Invalid AD type {}", entry.ad_type))?;
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
@@ -226,7 +229,6 @@ impl ADRegisteredEntry {
                     .decode_into::<AdMandatoryForKdc>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdMandatoryForKdc", e))?,
             ),
-            _ => return Err("Unsupported ad-type value. Please refer to RFC4120".to_string()),
         };
 
         Ok(decoded_element)
@@ -350,7 +352,7 @@ impl PaData {
 }
 
 pub enum PaDataRegisteredType {
-    TgsReq,                       // DER encoding of AP-REQ
+    TgsReq(KrbApReq),             // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
@@ -378,12 +380,18 @@ impl PaDataRegisteredType {
             )
         }
 
-        let padata_type = PaDataTypes::from(pa_data.padata_type);
+        let padata_type = PaDataTypes::try_from(pa_data.padata_type)
+            .map_err(|_e| format!("Invalid PA type: {}", pa_data.padata_type))?;
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 
         let value = match padata_type {
-            PaDataTypes::PaTgsReq => todo!("Wait for the interface of AS-REP"),
+            PaDataTypes::PaTgsReq => {
+                let decoded = octet_str_ref
+                    .decode_into::<KrbApReq>()
+                    .map_err(|e| to_meaningful_error(padata_type, "KrbApRep", e))?;
+                PaDataRegisteredType::TgsReq(decoded)
+            }
             PaDataTypes::PaEncTimestamp => {
                 let decoded = octet_str_ref
                     .decode_into::<EncryptedData>()
@@ -408,7 +416,6 @@ impl PaDataRegisteredType {
                     .map_err(|e| to_meaningful_error(padata_type, "ETYPE-INFO2", e))?;
                 PaDataRegisteredType::ETypeInfo2(decoded)
             }
-            _ => return Err(format!("Unknown PA type: {:?}", padata_type)),
         };
 
         Ok(value)
@@ -422,8 +429,6 @@ impl PaDataRegisteredType {
 pub type PaEncTimestamp = EncryptedData;
 
 impl CipherText for PaEncTimestamp {}
-
-// todo(phatalways_sleeping): implement TryFrom<EncryptedData> for PaEncTsEnc
 
 // RFC4120 5.2.7.2
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
@@ -528,7 +533,7 @@ impl ETypeInfo2Entry {
         &self.etype
     }
 
-    pub fn salt(&self) -> Option<&Ia5String> {
+    pub fn salt(&self) -> Option<&KerberosString> {
         self.salt.as_ref()
     }
 
@@ -620,7 +625,7 @@ impl KerberosFlagsBuilder {
         }
     }
 
-    pub fn set(self, bit_pos: usize) -> Self {
+    pub fn set(&mut self, bit_pos: usize) -> &mut Self {
         unsafe {
             if bit_pos >= self.inner.len() * 8 {
                 return self;
@@ -633,7 +638,7 @@ impl KerberosFlagsBuilder {
         }
     }
 
-    pub fn build(mut self) -> Result<KerberosFlags, &'static str> {
+    pub fn build(&mut self) -> Result<KerberosFlags, &'static str> {
         self.consumed = true;
         let bytes = unsafe { Box::from_raw(self.inner) };
         let inner = BitString::from_bytes(&bytes).map_err(|e| {
@@ -682,7 +687,7 @@ impl EncryptedData {
         &self.etype
     }
 
-    pub fn kvno(&self) -> Option<&Int32> {
+    pub fn kvno(&self) -> Option<&UInt32> {
         self.kvno.as_ref()
     }
 
@@ -743,5 +748,6 @@ impl Checksum {
     }
 }
 
+mod kerberos_string;
 #[cfg(test)]
 mod test;

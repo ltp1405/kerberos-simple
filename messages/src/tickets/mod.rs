@@ -5,26 +5,13 @@ use crate::basic::{
 };
 
 mod enc_ticket_part;
-mod transited_encoding;
+pub(crate) mod transited_encoding;
 
-pub use enc_ticket_part::{EncTicketPart, EncTicketPartBuilder, EncTicketPartInner};
-pub use transited_encoding::TransitedEncoding;
+pub use enc_ticket_part::EncTicketPart;
 
 // RFC 4120 Section 5.3
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Ticket(TicketInner);
-
-impl Ticket {
-    pub fn new(realm: Realm, sname: PrincipalName, enc_part: EncryptedData) -> Self {
-        Self(TicketInner::new(realm, sname, enc_part))
-    }
-}
-
-impl AsRef<TicketInner> for Ticket {
-    fn as_ref(&self) -> &TicketInner {
-        &self.0
-    }
-}
 
 impl EncodeValue for Ticket {
     fn value_len(&self) -> der::Result<der::Length> {
@@ -52,7 +39,7 @@ impl FixedTag for Ticket {
 }
 
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct TicketInner {
+struct TicketInner {
     #[asn1(context_specific = "0")]
     tkt_vno: Int32,
     #[asn1(context_specific = "1")]
@@ -63,31 +50,31 @@ pub struct TicketInner {
     enc_part: EncryptedData,
 }
 
-impl TicketInner {
-    fn new(realm: Realm, sname: PrincipalName, enc_part: EncryptedData) -> Self {
+impl Ticket {
+    pub fn new(realm: Realm, sname: PrincipalName, enc_part: EncryptedData) -> Self {
         let tkt_vno = 5;
-        Self {
+        Self(TicketInner {
             tkt_vno,
             realm,
             sname,
             enc_part,
-        }
+        })
     }
 
     pub fn tkt_vno(&self) -> &Int32 {
-        &self.tkt_vno
+        &self.0.tkt_vno
     }
 
     pub fn realm(&self) -> &KerberosString {
-        &self.realm
+        &self.0.realm
     }
 
     pub fn sname(&self) -> &PrincipalName {
-        &self.sname
+        &self.0.sname
     }
 
     pub fn enc_part(&self) -> &EncryptedData {
-        &self.enc_part
+        &self.0.enc_part
     }
 }
 

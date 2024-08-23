@@ -1,4 +1,5 @@
 use der::{DecodeValue, EncodeValue, FixedTag, Sequence, TagNumber};
+use derive_builder::{Builder, UninitializedFieldError};
 
 use crate::basic::{
     application_tags, AuthorizationData, EncryptionKey, HostAddresses, KerberosTime, PrincipalName,
@@ -9,26 +10,6 @@ use super::{transited_encoding::TransitedEncoding, TicketFlags};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EncTicketPart(EncTicketPartInner);
-
-impl EncTicketPart {
-    pub fn builder(
-        flags: TicketFlags,
-        key: EncryptionKey,
-        crealm: Realm,
-        cname: PrincipalName,
-        authtime: KerberosTime,
-        endtime: KerberosTime,
-        transited: TransitedEncoding,
-    ) -> EncTicketPartBuilder {
-        EncTicketPartInner::builder(flags, key, crealm, cname, authtime, endtime, transited)
-    }
-}
-
-impl AsRef<EncTicketPartInner> for EncTicketPart {
-    fn as_ref(&self) -> &EncTicketPartInner {
-        &self.0
-    }
-}
 
 impl EncodeValue for EncTicketPart {
     fn value_len(&self) -> der::Result<der::Length> {
@@ -55,8 +36,9 @@ impl FixedTag for EncTicketPart {
     };
 }
 
-#[derive(Sequence, PartialEq, Eq, Clone, Debug)]
-pub struct EncTicketPartInner {
+#[derive(Builder, Sequence, PartialEq, Eq, Clone, Debug)]
+#[builder(setter(into), public, build_fn(skip), name = "EncTicketPartBuilder")]
+struct EncTicketPartInner {
     #[asn1(context_specific = "0")]
     flags: TicketFlags,
     #[asn1(context_specific = "1")]
@@ -81,171 +63,89 @@ pub struct EncTicketPartInner {
     authorization_data: Option<AuthorizationData>,
 }
 
-impl EncTicketPartInner {
-    pub fn builder(
-        flags: TicketFlags,
-        key: EncryptionKey,
-        crealm: Realm,
-        cname: PrincipalName,
-        authtime: KerberosTime,
-        endtime: KerberosTime,
-        transited: TransitedEncoding,
-    ) -> EncTicketPartBuilder {
-        EncTicketPartBuilder::new(flags, key, crealm, cname, authtime, endtime, transited)
+impl EncTicketPart {
+    pub fn builder() -> EncTicketPartBuilder {
+        EncTicketPartBuilder::default()
     }
 
     pub fn flags(&self) -> &TicketFlags {
-        &self.flags
+        &self.0.flags
     }
 
     pub fn key(&self) -> &EncryptionKey {
-        &self.key
+        &self.0.key
     }
 
     pub fn crealm(&self) -> &Realm {
-        &self.crealm
+        &self.0.crealm
     }
 
     pub fn cname(&self) -> &PrincipalName {
-        &self.cname
+        &self.0.cname
     }
 
     pub fn transited(&self) -> &TransitedEncoding {
-        &self.transited
+        &self.0.transited
     }
 
     pub fn authtime(&self) -> KerberosTime {
-        self.authtime
+        self.0.authtime
     }
 
     pub fn starttime(&self) -> Option<KerberosTime> {
-        self.starttime
+        self.0.starttime
     }
 
     pub fn endtime(&self) -> KerberosTime {
-        self.endtime
+        self.0.endtime
     }
 
     pub fn renew_till(&self) -> Option<KerberosTime> {
-        self.renew_till
+        self.0.renew_till
     }
 
     pub fn caddr(&self) -> Option<&HostAddresses> {
-        self.caddr.as_ref()
+        self.0.caddr.as_ref()
     }
 
     pub fn authorization_data(&self) -> Option<&AuthorizationData> {
-        self.authorization_data.as_ref()
+        self.0.authorization_data.as_ref()
     }
-}
-
-pub struct EncTicketPartBuilder {
-    flags: TicketFlags,
-    key: EncryptionKey,
-    crealm: Realm,
-    cname: PrincipalName,
-    transited: TransitedEncoding,
-    authtime: KerberosTime,
-    starttime: Option<KerberosTime>,
-    endtime: KerberosTime,
-    renew_till: Option<KerberosTime>,
-    caddr: Option<HostAddresses>,
-    authorization_data: Option<AuthorizationData>,
 }
 
 impl EncTicketPartBuilder {
-    fn new(
-        flags: TicketFlags,
-        key: EncryptionKey,
-        crealm: Realm,
-        cname: PrincipalName,
-        authtime: KerberosTime,
-        endtime: KerberosTime,
-        transited: TransitedEncoding,
-    ) -> Self {
-        Self {
-            flags,
-            key,
-            crealm,
-            cname,
-            transited,
-            authtime,
-            starttime: None,
-            endtime,
-            renew_till: None,
-            caddr: None,
-            authorization_data: None,
-        }
-    }
-
-    pub fn build(self) -> EncTicketPart {
-        EncTicketPart(EncTicketPartInner {
-            flags: self.flags,
-            key: self.key,
-            crealm: self.crealm,
-            cname: self.cname,
-            transited: self.transited,
-            authtime: self.authtime,
-            starttime: self.starttime,
-            endtime: self.endtime,
-            renew_till: self.renew_till,
-            caddr: self.caddr,
-            authorization_data: self.authorization_data,
-        })
-    }
-
-    pub fn flags(mut self, flags: TicketFlags) -> Self {
-        self.flags = flags;
-        self
-    }
-
-    pub fn key(mut self, key: EncryptionKey) -> Self {
-        self.key = key;
-        self
-    }
-
-    pub fn crealm(mut self, crealm: Realm) -> Self {
-        self.crealm = crealm;
-        self
-    }
-
-    pub fn cname(mut self, cname: PrincipalName) -> Self {
-        self.cname = cname;
-        self
-    }
-
-    pub fn transited(mut self, transited: TransitedEncoding) -> Self {
-        self.transited = transited;
-        self
-    }
-
-    pub fn authtime(mut self, authtime: KerberosTime) -> Self {
-        self.authtime = authtime;
-        self
-    }
-
-    pub fn starttime(mut self, starttime: KerberosTime) -> Self {
-        self.starttime = Some(starttime);
-        self
-    }
-
-    pub fn endtime(mut self, endtime: KerberosTime) -> Self {
-        self.endtime = endtime;
-        self
-    }
-
-    pub fn renew_till(mut self, renew_till: KerberosTime) -> Self {
-        self.renew_till = Some(renew_till);
-        self
-    }
-
-    pub fn caddr(mut self, caddr: HostAddresses) -> Self {
-        self.caddr = Some(caddr);
-        self
-    }
-
-    pub fn authorization_data(mut self, authorization_data: AuthorizationData) -> Self {
-        self.authorization_data = Some(authorization_data);
-        self
+    pub fn build(&self) -> Result<EncTicketPart, UninitializedFieldError> {
+        Ok(EncTicketPart(EncTicketPartInner {
+            flags: self
+                .clone()
+                .flags
+                .ok_or(UninitializedFieldError::new("flags"))?,
+            key: self
+                .clone()
+                .key
+                .ok_or(UninitializedFieldError::new("key"))?,
+            crealm: self
+                .clone()
+                .crealm
+                .ok_or(UninitializedFieldError::new("crealm"))?,
+            cname: self
+                .clone()
+                .cname
+                .ok_or(UninitializedFieldError::new("cname"))?,
+            transited: self
+                .clone()
+                .transited
+                .ok_or(UninitializedFieldError::new("transited"))?,
+            authtime: self
+                .authtime
+                .ok_or(UninitializedFieldError::new("authtime"))?,
+            starttime: self.starttime.flatten(),
+            endtime: self
+                .endtime
+                .ok_or(UninitializedFieldError::new("endtime"))?,
+            renew_till: self.renew_till.flatten(),
+            caddr: self.caddr.clone().flatten(),
+            authorization_data: self.authorization_data.clone().flatten(),
+        }))
     }
 }

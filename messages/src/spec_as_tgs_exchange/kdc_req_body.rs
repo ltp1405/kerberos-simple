@@ -159,7 +159,7 @@ pub mod tests {
             Some(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap()),
             KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap(),
             Some(KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap()),
-            3,
+            3u32,
             SequenceOf::from(vec![1]),
             Some(HostAddresses::new()),
             Some(EncryptedData::new(1, 10, OctetString::new(b"key").unwrap())),

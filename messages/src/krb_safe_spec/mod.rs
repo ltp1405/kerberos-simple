@@ -16,7 +16,7 @@ const KRB_SAFE_TAG: TagNumber = TagNumber::new(20);
 pub struct KrbSafe(KrbSafeInner);
 
 impl KrbSafe {
-    fn builder() -> KrbSafeBuilder {
+    pub fn builder() -> KrbSafeBuilder {
         KrbSafeBuilder::new()
     }
 }
@@ -32,7 +32,7 @@ impl EncodeValue for KrbSafe {
 }
 
 impl<'a> DecodeValue<'a> for KrbSafe {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _: Header) -> der::Result<Self> {
         let inner = KrbSafeInner::decode(reader)?;
         Ok(KrbSafe(inner))
     }
@@ -75,43 +75,30 @@ pub struct KrbSafeBody {
 }
 
 impl KrbSafeBody {
-    fn user_data(&self) -> &OctetString {
+    pub fn user_data(&self) -> &OctetString {
         &self.user_data
     }
 
-    fn timestamp(&self) -> Option<&KerberosTime> {
+    pub fn timestamp(&self) -> Option<&KerberosTime> {
         self.timestamp.as_ref().map(|timestamp| timestamp)
     }
 
-    fn usec(&self) -> Option<&Microseconds> {
+    pub fn usec(&self) -> Option<&Microseconds> {
         self.usec.as_ref().map(|usec| usec)
     }
 
-    fn seq_number(&self) -> Option<&UInt32> {
+    pub fn seq_number(&self) -> Option<&UInt32> {
         self.seq_number.as_ref().map(|seq_number| seq_number)
     }
 
-    fn s_address(&self) -> &HostAddress {
+    pub fn s_address(&self) -> &HostAddress {
         &self.s_address
     }
 
-    fn r_address(&self) -> Option<&HostAddress> {
+    pub fn r_address(&self) -> Option<&HostAddress> {
         self.r_address.as_ref().map(|r_address| r_address)
     }
 }
-
-#[derive(Debug)]
-pub struct KrbSafeBuildError {
-    missing_field: &'static str,
-}
-
-impl std::fmt::Display for KrbSafeBuildError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "field is required: {}", self.missing_field)
-    }
-}
-
-impl std::error::Error for KrbSafeBuildError {}
 
 pub struct KrbSafeBuilder {
     user_data: Option<OctetString>,
@@ -171,21 +158,15 @@ impl KrbSafeBuilder {
         self
     }
 
-    pub fn build(self) -> Result<KrbSafe, KrbSafeBuildError> {
+    pub fn build(self) -> Result<KrbSafe, &'static str> {
         if self.user_data.is_none() {
-            return Err(KrbSafeBuildError {
-                missing_field: "user_data",
-            });
+            return Err("user_data is required");
         }
         if self.s_address.is_none() {
-            return Err(KrbSafeBuildError {
-                missing_field: "s_address",
-            });
+            return Err("s_address is required");
         }
         if self.cksum.is_none() {
-            return Err(KrbSafeBuildError {
-                missing_field: "cksum",
-            });
+            return Err("cksum is required");
         }
         Ok(self.build_unsafe())
     }

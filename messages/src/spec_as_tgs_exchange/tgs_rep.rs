@@ -62,8 +62,8 @@ impl FixedTag for TgsRep {
 #[cfg(test)]
 mod tests {
     use crate::basic::{
-        application_tags, EncryptedData, KerberosString, NameTypes, OctetString,
-        PrincipalName, Realm,
+        application_tags, EncryptedData, KerberosString, NameTypes, OctetString, PrincipalName,
+        Realm,
     };
     use crate::spec_as_tgs_exchange::tgs_rep::TgsRep;
     use crate::tickets::Ticket;

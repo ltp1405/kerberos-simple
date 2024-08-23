@@ -22,7 +22,7 @@ impl AsRep {
     ) -> Self {
         let msg_type = 11;
         Self(KdcRep::new(
-            msg_type, padata, crealm, cname, ticket, enc_part,
+            msg_type, padata.into(), crealm, cname, ticket, enc_part,
         ))
     }
 }

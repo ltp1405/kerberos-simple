@@ -1,40 +1,39 @@
-use der::asn1::BitString;
 use der::Tag::Application;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
     TagNumber, Writer,
 };
 
-use crate::basic::EncryptedData;
+use crate::basic::{EncryptedData, KerberosFlags};
 use crate::tickets::Ticket;
 
-// TODO: Should replace BitString with KerberosFlags when it is correctly implemented
 #[derive(Debug, PartialEq, Clone)]
-struct APOptions(BitString);
+pub struct APOptions(KerberosFlags);
 
 enum APOptionFlag {
-    UseSessionKey = 0b0100_0000,
-    MutualRequired = 0b0010_0000,
+    UseSessionKey = 1,
+    MutualRequired = 2,
 }
 
 impl APOptions {
-    fn new(use_session_key: bool, mutual_required: bool) -> Self {
-        let mut buf = [0x0_u8; 4];
+    pub fn new(use_session_key: bool, mutual_required: bool) -> Self {
+        let mut flags_builder = KerberosFlags::builder();
         if use_session_key {
-            buf[0] |= APOptionFlag::UseSessionKey as u8;
+            flags_builder.set(APOptionFlag::UseSessionKey as usize);
         }
+
         if mutual_required {
-            buf[0] |= APOptionFlag::MutualRequired as u8;
+            flags_builder.set(APOptionFlag::MutualRequired as usize);
         }
-        Self(BitString::new(0, buf.to_vec()).unwrap())
+        Self(flags_builder.build().expect("This should not failed"))
     }
 
-    fn use_session_key(&self) -> bool {
-        self.0.as_bytes().unwrap()[0] & APOptionFlag::UseSessionKey as u8 != 0
+    pub fn use_session_key(&self) -> bool {
+        self.0.is_set(APOptionFlag::UseSessionKey as usize)
     }
 
-    fn mutual_required(&self) -> bool {
-        self.0.as_bytes().unwrap()[0] & APOptionFlag::MutualRequired as u8 != 0
+    pub fn mutual_required(&self) -> bool {
+        self.0.is_set(APOptionFlag::MutualRequired as usize)
     }
 }
 
@@ -54,7 +53,7 @@ impl EncodeValue for APOptions {
 
 impl<'a> DecodeValue<'a> for APOptions {
     fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
-        let inner = BitString::decode_value(reader, header)?;
+        let inner = KerberosFlags::decode_value(reader, header)?;
         Ok(Self(inner))
     }
 }
@@ -115,12 +114,12 @@ impl KrbApReq {
         })
     }
 
-    pub fn pvno(&self) -> u8 {
-        self.0.pvno
+    pub fn pvno(&self) -> &u8 {
+        &self.0.pvno
     }
 
-    pub fn msg_type(&self) -> u8 {
-        self.0.msg_type
+    pub fn msg_type(&self) -> &u8 {
+        &self.0.msg_type
     }
 
     pub fn ap_options(&self) -> &APOptions {
@@ -139,7 +138,7 @@ impl KrbApReq {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::basic::{Int32, KerberosString, NameTypes, OctetString, PrincipalName, Realm};
+    use crate::basic::{KerberosString, NameTypes, OctetString, PrincipalName, Realm};
 
     #[test]
     fn ap_option_correct_flag_encoding() {
@@ -173,17 +172,9 @@ mod tests {
                 vec![KerberosString::try_from("name".to_string()).unwrap()],
             )
             .unwrap(),
-            EncryptedData::new(
-                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-                Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-                OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
-            ),
+            EncryptedData::new(0, 0u32, OctetString::new(&[0x0, 0x1, 0x2]).unwrap()),
         );
-        let authenticator = EncryptedData::new(
-            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-            Int32::from_der(&*0.to_der().unwrap()).unwrap(),
-            OctetString::new(&[0x0, 0x1, 0x2]).unwrap(),
-        );
+        let authenticator = EncryptedData::new(0, 0, OctetString::new(&[0x0, 0x1, 0x2]).unwrap());
 
         let msg = KrbApReq::new(ap_options, ticket, authenticator);
 
