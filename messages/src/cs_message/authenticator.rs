@@ -110,7 +110,7 @@ impl AuthenticatorBuilder {
 }
 
 impl<'a> DecodeValue<'a> for Authenticator {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
+    fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = AuthenticatorInner::decode(reader)?;
         Ok(Self(inner))
     }

@@ -24,6 +24,7 @@ pub type UInt32 = u32;
 pub type Microseconds = i32;
 
 // RFC4120 5.2.1
+use crate::KrbApReq;
 pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
@@ -203,11 +204,10 @@ impl ADRegisteredEntry {
         }
 
         let ad_type = AuthorizationDataTypes::try_from(entry.ad_type)
-            .map_err(|e| format!("Invalid AD type {}", entry.ad_type))?;
+            .map_err(|_e| format!("Invalid AD type {}", entry.ad_type))?;
 
         let octet_str_ref: OctetStringRef = (&entry.ad_data).into();
 
-        #[allow(unreachable_patterns)]
         let decoded_element = match ad_type {
             AuthorizationDataTypes::IfRelevant => ADRegisteredEntry::IfRelevant(
                 octet_str_ref
@@ -229,7 +229,6 @@ impl ADRegisteredEntry {
                     .decode_into::<AdMandatoryForKdc>()
                     .map_err(|e| to_meaningful_error(ad_type, "AdMandatoryForKdc", e))?,
             ),
-            _ => return Err("Unsupported ad-type value. Please refer to RFC4120".to_string()),
         };
 
         Ok(decoded_element)
@@ -353,7 +352,7 @@ impl PaData {
 }
 
 pub enum PaDataRegisteredType {
-    TgsReq,                       // DER encoding of AP-REQ
+    TgsReq(KrbApReq),             // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
@@ -382,13 +381,17 @@ impl PaDataRegisteredType {
         }
 
         let padata_type = PaDataTypes::try_from(pa_data.padata_type)
-            .map_err(|e| format!("Invalid PA type: {}", pa_data.padata_type))?;
+            .map_err(|_e| format!("Invalid PA type: {}", pa_data.padata_type))?;
 
         let octet_str_ref: OctetStringRef = (&pa_data.padata_value).into();
 
-        #[allow(unreachable_patterns)]
         let value = match padata_type {
-            PaDataTypes::PaTgsReq => todo!("Wait for the interface of AS-REP"),
+            PaDataTypes::PaTgsReq => {
+                let decoded = octet_str_ref
+                    .decode_into::<KrbApReq>()
+                    .map_err(|e| to_meaningful_error(padata_type, "KrbApRep", e))?;
+                PaDataRegisteredType::TgsReq(decoded)
+            }
             PaDataTypes::PaEncTimestamp => {
                 let decoded = octet_str_ref
                     .decode_into::<EncryptedData>()
@@ -413,7 +416,6 @@ impl PaDataRegisteredType {
                     .map_err(|e| to_meaningful_error(padata_type, "ETYPE-INFO2", e))?;
                 PaDataRegisteredType::ETypeInfo2(decoded)
             }
-            _ => return Err(format!("Unknown PA type: {:?}", padata_type)),
         };
 
         Ok(value)
