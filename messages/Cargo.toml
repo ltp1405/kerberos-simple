@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-der = { version = "0.7.9", features = ["alloc", "derive"] }
+der = { version = "0.7.9", features = ["alloc", "derive", "std"] }
 serde = { version = "1.0.204", features = ["derive"] }
 
 [dev-dependencies]
