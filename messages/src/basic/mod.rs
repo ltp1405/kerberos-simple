@@ -430,8 +430,6 @@ pub type PaEncTimestamp = EncryptedData;
 
 impl CipherText for PaEncTimestamp {}
 
-// todo(phatalways_sleeping): implement TryFrom<EncryptedData> for PaEncTsEnc
-
 // RFC4120 5.2.7.2
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct PaEncTsEnc {
