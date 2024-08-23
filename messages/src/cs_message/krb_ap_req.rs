@@ -1,4 +1,3 @@
-use der::asn1::BitString;
 use der::Tag::Application;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
