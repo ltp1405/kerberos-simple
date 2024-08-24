@@ -52,10 +52,6 @@ pub enum PaDataTypes {
 }
 
 pub mod flags {
-    use crate::back_to_enum;
-
-    back_to_enum! {
-
     #[allow(non_camel_case_types)]
     pub enum KdcOptionsFlag {
         RESERVED = 0,                 // Bit 0
@@ -78,7 +74,6 @@ pub mod flags {
         ENC_TKT_IN_SKEY = 28,         // Bit 28
         RENEW = 30,                   // Bit 30
         VALIDATE = 31,                // Bit 31
-    }
     }
 
     #[allow(non_camel_case_types)]
