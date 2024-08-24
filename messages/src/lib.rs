@@ -51,6 +51,8 @@ pub mod basic_types {
     pub use crate::basic::UInt32;
 }
 
+pub use basic::flags;
+
 pub use tickets::transited_encoding::TransitedEncoding;
 pub use tickets::EncTicketPart;
 pub use tickets::Ticket;

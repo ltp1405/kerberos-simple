@@ -52,39 +52,53 @@ pub enum PaDataTypes {
 }
 
 pub mod flags {
-    pub const RESERVED: usize = 0; // Bit 0
+    #[allow(non_camel_case_types)]
+    pub enum KdcOptionsFlag {
+        RESERVED = 0,                 // Bit 0
+        FORWARDABLE = 1,              // Bit 1
+        FORWARDED = 2,                // Bit 2
+        PROXIABLE = 3,                // Bit 3
+        PROXY = 4,                    // Bit 4
+        MAY_POSTDATE = 5,             // Bit 5
+        POSTDATED = 6,                // Bit 6
+        INVALID = 7,                  // Bit 7
+        RENEWABLE = 8,                // Bit 8
+        UNUSED9 = 9,                  // Bit 9
+        UNUSED10 = 10,                // Bit 10
+        OPT_HARDWARE_AUTH = 11,       // Bit 11
+        UNUSED12 = 12,                // Bit 12
+        UNUSED13 = 13,                // Bit 13
+        UNUSED15 = 15,                // Bit 15
+        DISABLE_TRANSITED_CHECK = 26, // Bit 26
+        RENEWABLE_OK = 27,            // Bit 27
+        ENC_TKT_IN_SKEY = 28,         // Bit 28
+        RENEW = 30,                   // Bit 30
+        VALIDATE = 31,                // Bit 31
+    }
 
-    pub const FORWARDABLE: usize = 1; // Bit 1
-    pub const FORWARDED: usize = 2; // Bit 2
-    pub const PROXIABLE: usize = 3; // Bit 3
-    pub const PROXY: usize = 4; // Bit 4
-    pub const MAY_POSTDATE: usize = 5; // Bit 5
-    pub const POSTDATED: usize = 6; // Bit 6
-    pub const INVALID: usize = 7; // Bit 7
-    pub const RENEWABLE: usize = 8; // Bit 8
+    #[allow(non_camel_case_types)]
+    pub enum TicketFlag {
+        RESERVED = 0,                  // Bit 0
+        FORWARDABLE = 1,               // Bit 1
+        FORWARDED = 2,                 // Bit 2
+        PROXIABLE = 3,                 // Bit 3
+        PROXY = 4,                     // Bit 4
+        MAY_POSTDATE = 5,              // Bit 5
+        POSTDATED = 6,                 // Bit 6
+        INVALID = 7,                   // Bit 7
+        RENEWABLE = 8,                 // Bit 8
+        INITIAL = 9,                   // Bit 9
+        PRE_AUTHENT = 10,              // Bit 10
+        HW_AUTHENT = 11,               // Bit 11
+        TRANSITED_POLICY_CHECKED = 12, // Bit 12
+        OK_AS_DELEGATE = 13,           // Bit 13
+    }
 
-    pub const INITIAL: usize = 9; // Bit 9
-    pub const PRE_AUTHENT: usize = 10; // Bit 10
-    pub const HW_AUTHENT: usize = 11; // Bit 11
-
-    pub const TRANSITED_POLICY_CHECKED: usize = 12; // Bit 12
-    pub const OK_AS_DELEGATE: usize = 13; // Bit 13
-
-    pub const UNUSED9: usize = 9; // Bit 9
-    pub const UNUSED10: usize = 10; // Bit 10
-    pub const OPT_HARDWARE_AUTH: usize = 11; // Bit 11
-    pub const UNUSED12: usize = 12; // Bit 12
-    pub const UNUSED13: usize = 13; // Bit 13
-    pub const UNUSED15: usize = 15; // Bit 15
-
-    pub const DISABLE_TRANSITED_CHECK: usize = 26; // Bit 26
-    pub const RENEWABLE_OK: usize = 27; // Bit 27
-    pub const ENC_TKT_IN_SKEY: usize = 28; // Bit 28
-    pub const RENEW: usize = 30; // Bit 30
-    pub const VALIDATE: usize = 31; // Bit 31
-
-    pub const USE_SESSION_KEY: usize = 1; // Bit 1
-    pub const MUTUAL_REQUIRED: usize = 2; // Bit 2
+    #[allow(non_camel_case_types)]
+    pub enum APOptionsFlag {
+        USE_SESSION_KEY = 1, // Bit 1
+        MUTUAL_REQUIRED = 2, // Bit 2
+    }
 }
 
 pub(crate) mod application_tags {
