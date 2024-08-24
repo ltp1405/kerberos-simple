@@ -458,35 +458,37 @@ fn upgrade_unregistered_pa_data_should_return_err() {
 fn kerberos_flags_should_correctly_identify_its_options() {
     let testcases: Vec<(Result<KerberosFlags, &'static str>, &[usize])> = vec![
         (
-            KerberosFlags::builder().set(flags::PROXY).build(),
-            &[flags::PROXY],
+            KerberosFlags::builder()
+                .set(flags::KdcOptionsFlag::PROXY as usize)
+                .build(),
+            &[flags::KdcOptionsFlag::PROXY as usize],
         ),
         (
             KerberosFlags::builder()
-                .set(flags::PROXY)
-                .set(flags::INITIAL)
-                .set(flags::POSTDATED)
-                .set(flags::FORWARDABLE)
+                .set(flags::TicketFlag::PROXY as usize)
+                .set(flags::TicketFlag::INITIAL as usize)
+                .set(flags::TicketFlag::POSTDATED as usize)
+                .set(flags::TicketFlag::FORWARDABLE as usize)
                 .build(),
             &[
-                flags::PROXY,
-                flags::INITIAL,
-                flags::POSTDATED,
-                flags::FORWARDABLE,
+                flags::TicketFlag::PROXY as usize,
+                flags::TicketFlag::INITIAL as usize,
+                flags::TicketFlag::POSTDATED as usize,
+                flags::TicketFlag::FORWARDABLE as usize,
             ],
         ),
         (
             KerberosFlags::builder()
-                .set(flags::RENEWABLE)
-                .set(flags::OK_AS_DELEGATE)
-                .set(flags::MAY_POSTDATE)
-                .set(flags::TRANSITED_POLICY_CHECKED)
+                .set(flags::TicketFlag::RENEWABLE as usize)
+                .set(flags::TicketFlag::OK_AS_DELEGATE as usize)
+                .set(flags::TicketFlag::MAY_POSTDATE as usize)
+                .set(flags::TicketFlag::TRANSITED_POLICY_CHECKED as usize)
                 .build(),
             &[
-                flags::RENEWABLE,
-                flags::OK_AS_DELEGATE,
-                flags::MAY_POSTDATE,
-                flags::TRANSITED_POLICY_CHECKED,
+                flags::TicketFlag::RENEWABLE as usize,
+                flags::TicketFlag::OK_AS_DELEGATE as usize,
+                flags::TicketFlag::MAY_POSTDATE as usize,
+                flags::TicketFlag::TRANSITED_POLICY_CHECKED as usize,
             ],
         ),
         (KerberosFlags::builder().build(), &[]),
@@ -506,19 +508,22 @@ fn kerberos_flags_should_correctly_identify_its_options() {
 #[test]
 fn encode_decode_kerberos_flags_works_fine() {
     let testcases: Vec<KerberosFlags> = vec![
-        KerberosFlags::builder().set(flags::PROXY).build().unwrap(),
         KerberosFlags::builder()
-            .set(flags::PROXY)
-            .set(flags::INITIAL)
-            .set(flags::POSTDATED)
-            .set(flags::FORWARDABLE)
+            .set(flags::TicketFlag::PROXY as usize)
             .build()
             .unwrap(),
         KerberosFlags::builder()
-            .set(flags::RENEWABLE)
-            .set(flags::OK_AS_DELEGATE)
-            .set(flags::MAY_POSTDATE)
-            .set(flags::TRANSITED_POLICY_CHECKED)
+            .set(flags::TicketFlag::PROXY as usize)
+            .set(flags::TicketFlag::INITIAL as usize)
+            .set(flags::TicketFlag::POSTDATED as usize)
+            .set(flags::TicketFlag::FORWARDABLE as usize)
+            .build()
+            .unwrap(),
+        KerberosFlags::builder()
+            .set(flags::TicketFlag::RENEWABLE as usize)
+            .set(flags::TicketFlag::OK_AS_DELEGATE as usize)
+            .set(flags::TicketFlag::MAY_POSTDATE as usize)
+            .set(flags::TicketFlag::TRANSITED_POLICY_CHECKED as usize)
             .build()
             .unwrap(),
         KerberosFlags::builder().build().unwrap(),

@@ -69,7 +69,7 @@ fn encode_decode_for_transited_encoding_works_fine() {
 #[test]
 fn enc_ticket_part_builder_works_fine() {
     let flags = TicketFlags::builder()
-        .set(flags::DISABLE_TRANSITED_CHECK)
+        .set(flags::KdcOptionsFlag::DISABLE_TRANSITED_CHECK as usize)
         .build()
         .unwrap();
     let key = EncryptionKey::new(5, OctetString::new("bytes".as_bytes()).unwrap());
@@ -109,7 +109,7 @@ fn enc_ticket_part_builder_works_fine() {
 #[test]
 fn encode_decode_for_enc_ticket_part_works_fine() {
     let flags = TicketFlags::builder()
-        .set(flags::DISABLE_TRANSITED_CHECK)
+        .set(flags::KdcOptionsFlag::DISABLE_TRANSITED_CHECK as usize)
         .build()
         .unwrap();
     let key = EncryptionKey::new(5, OctetString::new("bytes".as_bytes()).unwrap());

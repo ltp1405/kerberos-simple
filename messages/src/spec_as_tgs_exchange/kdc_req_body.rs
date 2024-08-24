@@ -138,7 +138,7 @@ pub mod tests {
     pub fn sample_data() -> KdcReqBody {
         KdcReqBody::new(
             KerberosFlags::builder()
-                .set(flags::FORWARDABLE)
+                .set(flags::TicketFlag::FORWARDABLE as usize)
                 .build()
                 .unwrap(),
             Some(
