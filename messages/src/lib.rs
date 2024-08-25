@@ -51,12 +51,17 @@ pub mod basic_types {
     pub use crate::basic::UInt32;
 }
 
+pub use basic::flags;
+
 pub use tickets::transited_encoding::TransitedEncoding;
 pub use tickets::EncTicketPart;
 pub use tickets::Ticket;
 pub use tickets::TicketFlags;
 
 pub use cs_message::APOptions;
+pub use cs_message::Authenticator;
+pub use cs_message::AuthenticatorBuilder;
+pub use cs_message::AuthenticatorBuilderError;
 pub use cs_message::EncApRepPart;
 pub use cs_message::KrbApRep;
 pub use cs_message::KrbApReq;
@@ -66,6 +71,7 @@ pub use spec_as_tgs_exchange::as_req::AsReq;
 pub use spec_as_tgs_exchange::enc_as_rep_part::EncAsRepPart;
 pub use spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPart;
 pub use spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPartBuilder;
+pub use spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPartBuilderError;
 pub use spec_as_tgs_exchange::enc_tgs_rep_part::EncTgsRepPart;
 pub use spec_as_tgs_exchange::kdc_rep::KdcRep;
 pub use spec_as_tgs_exchange::kdc_req::KdcReq;
@@ -84,6 +90,7 @@ pub use spec_as_tgs_exchange::tgs_req::TgsReq;
 pub use krb_error_spec::Ecode;
 pub use krb_error_spec::KrbErrorMsg;
 pub use krb_error_spec::KrbErrorMsgBuilder;
+pub use krb_error_spec::KrbErrorMsgBuilderError;
 
 // pub use krb_safe_spec::KrbSafe;
 // pub use krb_safe_spec::KrbSafeBody;

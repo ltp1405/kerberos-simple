@@ -123,7 +123,7 @@ pub mod tests {
             .key_expiration(None)
             .flags(
                 TicketFlags::builder()
-                    .set(flags::FORWARDABLE)
+                    .set(flags::TicketFlag::FORWARDABLE as usize)
                     .build()
                     .unwrap(),
             )
@@ -156,7 +156,7 @@ pub mod tests {
         assert_eq!(
             *data.flags(),
             TicketFlags::builder()
-                .set(flags::FORWARDABLE)
+                .set(flags::TicketFlag::FORWARDABLE as usize)
                 .build()
                 .unwrap()
         );
