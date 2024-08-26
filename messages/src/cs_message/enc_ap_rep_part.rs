@@ -51,14 +51,14 @@ impl EncApRepPart {
     pub fn new(
         ctime: impl Into<KerberosTime>,
         cusec: impl Into<Microseconds>,
-        subkey: Option<impl Into<EncryptionKey>>,
-        seq_number: Option<impl Into<UInt32>>,
+        subkey: impl Into<Option<EncryptionKey>>,
+        seq_number: impl Into<Option<UInt32>>,
     ) -> Self {
         EncApRepPart(EncApRepPartInner {
             ctime: ctime.into(),
             cusec: cusec.into(),
-            subkey: subkey.map(|subkey| subkey.into()),
-            seq_number: seq_number.map(|seq_number| seq_number.into()),
+            subkey: subkey.into(),
+            seq_number: seq_number.into(),
         })
     }
 
@@ -93,7 +93,7 @@ mod tests {
             KerberosTime::from_system_time(SystemTime::now()).unwrap(),
             564,
             None::<EncryptionKey>,
-            Some(2),
+            Some(2u32),
         );
         let encoded = msg.to_der().unwrap();
         let decoded = EncApRepPart::from_der(&encoded).unwrap();
@@ -106,7 +106,7 @@ mod tests {
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
             1000,
             None::<EncryptionKey>,
-            Some(2),
+            Some(2u32),
         );
         #[rustfmt::skip]
         let expected_encoding = vec![
@@ -122,7 +122,7 @@ mod tests {
             KerberosTime::from_system_time(UNIX_EPOCH.add(Duration::from_secs(10000))).unwrap(),
             1000,
             Some(EncryptionKey::new(1, OctetString::new(&[1, 2, 3]).unwrap())),
-            Some(2),
+            Some(2u32),
         );
         println!("{:?}", msg.to_der().unwrap());
 

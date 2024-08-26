@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 der = { version = "0.7.9", features = ["alloc", "derive", "std"] }
+derive_builder = "0.20.0"
 serde = { version = "1.0.204", features = ["derive"] }
 
 [dev-dependencies]

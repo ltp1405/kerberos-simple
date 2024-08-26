@@ -5,8 +5,8 @@ use rand::{Rng, SeedableRng};
 use crate::basic::{
     ADEntry, AdAndOr, AdIfRelevant, AdKdcIssued, AdMandatoryForKdc, AddressTypes,
     AuthorizationData, Checksum, ETypeInfo, ETypeInfo2, ETypeInfo2Entry, ETypeInfoEntry,
-    EncryptedData, EncryptionKey, HostAddress, Int32, KerberosString, KerberosTime, NameTypes,
-    OctetString, PaData, PaEncTimestamp, PaEncTsEnc, PrincipalName, Realm, SequenceOf,
+    EncryptedData, EncryptionKey, Int32, KerberosString, KerberosTime, NameTypes, OctetString,
+    PaData, PaEncTimestamp, PaEncTsEnc, PrincipalName, Realm, SequenceOf,
 };
 
 pub struct Scope<T> {
@@ -229,7 +229,7 @@ pub fn random_testcases_of_address_type(
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed as u64);
     for _ in 0..size {
         let idx: usize = rng.gen::<usize>() % numbers.len();
-        let address_type = AddressTypes::from(numbers[idx]);
+        let address_type = AddressTypes::try_from(numbers[idx]).unwrap();
         let octet_string = random_octet_string(seed);
         testcases.push((address_type, octet_string));
     }
@@ -244,7 +244,7 @@ pub fn random_testcases_of_principal_name_1(
     let mut testcases = Vec::new();
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % numbers.len();
-        let name_type = NameTypes::from(numbers[idx]);
+        let name_type = NameTypes::try_from(numbers[idx]).unwrap();
         if empty {
             continue;
         }
@@ -261,7 +261,7 @@ pub fn random_testcases_of_principal_name_2(
     let numbers = vec![0, 1, 2, 3, 4, 5, 6, 7, 10];
     for _ in 0..size {
         let idx: usize = rand::random::<usize>() % numbers.len();
-        let name_type = NameTypes::from(numbers[idx]);
+        let name_type = NameTypes::try_from(numbers[idx]).unwrap();
         if empty {
             continue;
         }

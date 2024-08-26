@@ -6,8 +6,10 @@ use crate::{
     tickets::Ticket,
 };
 use der::Sequence;
+use derive_builder::Builder;
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
+#[builder(setter(into), public)]
 pub struct KdcReqBody {
     #[asn1(context_specific = "0")]
     pub kdc_options: KdcOptions,
@@ -47,36 +49,6 @@ pub struct KdcReqBody {
 }
 
 impl KdcReqBody {
-    pub fn new(
-        kdc_options: impl Into<KdcOptions>,
-        cname: impl Into<Option<PrincipalName>>,
-        realm: impl Into<Realm>,
-        sname: impl Into<Option<PrincipalName>>,
-        from: impl Into<Option<KerberosTime>>,
-        till: impl Into<KerberosTime>,
-        rtime: impl Into<Option<KerberosTime>>,
-        nonce: impl Into<UInt32>,
-        etype: impl Into<SequenceOf<Int32>>,
-        addresses: impl Into<Option<HostAddresses>>,
-        enc_authorization_data: impl Into<Option<EncryptedData>>,
-        additional_tickets: impl Into<Option<SequenceOf<Ticket>>>,
-    ) -> Self {
-        Self {
-            kdc_options: kdc_options.into(),
-            cname: cname.into(),
-            realm: realm.into(),
-            sname: sname.into(),
-            from: from.into(),
-            till: till.into(),
-            rtime: rtime.into(),
-            nonce: nonce.into(),
-            etype: etype.into(),
-            addresses: addresses.into(),
-            enc_authorization_data: enc_authorization_data.into(),
-            additional_tickets: additional_tickets.into(),
-        }
-    }
-
     pub fn kdc_options(&self) -> &KdcOptions {
         &self.kdc_options
     }
@@ -136,34 +108,44 @@ pub mod tests {
     use std::time::Duration;
 
     pub fn sample_data() -> KdcReqBody {
-        KdcReqBody::new(
-            KerberosFlags::builder()
-                .set(flags::FORWARDABLE)
-                .build()
-                .unwrap(),
-            Some(
+        KdcReqBodyBuilder::default()
+            .kdc_options(
+                KerberosFlags::builder()
+                    .set(flags::TicketFlag::FORWARDABLE as usize)
+                    .build()
+                    .unwrap(),
+            )
+            .cname(Some(
                 PrincipalName::new(
                     NameTypes::NtEnterprise,
                     vec![KerberosString::try_from("host".to_string()).unwrap()],
                 )
                 .unwrap(),
-            ),
-            Realm::new("EXAMPLE.COM").unwrap(),
-            Some(
+            ))
+            .realm(Realm::new("EXAMPLE.COM").unwrap())
+            .sname(Some(
                 PrincipalName::new(
                     NameTypes::NtPrincipal,
                     vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
                 )
                 .unwrap(),
-            ),
-            Some(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap()),
-            KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap(),
-            Some(KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap()),
-            3,
-            SequenceOf::from(vec![1]),
-            Some(HostAddresses::new()),
-            Some(EncryptedData::new(1, 10, OctetString::new(b"key").unwrap())),
-            Some(SequenceOf::from(vec![Ticket::new(
+            ))
+            .from(Some(
+                KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap(),
+            ))
+            .till(KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap())
+            .rtime(Some(
+                KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap(),
+            ))
+            .nonce(3u32)
+            .etype(SequenceOf::from(vec![1]))
+            .addresses(Some(HostAddresses::new()))
+            .enc_authorization_data(Some(EncryptedData::new(
+                1,
+                10,
+                OctetString::new(b"key").unwrap(),
+            )))
+            .additional_tickets(Some(SequenceOf::from(vec![Ticket::new(
                 Realm::new("EXAMPLE.COM").unwrap(),
                 PrincipalName::new(
                     NameTypes::NtPrincipal,
@@ -171,8 +153,9 @@ pub mod tests {
                 )
                 .unwrap(),
                 EncryptedData::new(1, 10, OctetString::new(b"key").unwrap()),
-            )])),
-        )
+            )])))
+            .build()
+            .unwrap()
     }
 
     #[test]

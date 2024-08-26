@@ -2,7 +2,7 @@ use der::Sequence;
 
 use crate::basic::{Int32, KerberosTime, SequenceOf};
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Sequence, Eq, PartialEq, Debug, Clone)]
 pub struct LastReqEntry {
     #[asn1(context_specific = "0")]
     pub lr_type: Int32,
