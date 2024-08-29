@@ -75,6 +75,7 @@ pub use spec_as_tgs_exchange::enc_kdc_rep_part::EncKdcRepPartBuilderError;
 pub use spec_as_tgs_exchange::enc_tgs_rep_part::EncTgsRepPart;
 pub use spec_as_tgs_exchange::kdc_rep::KdcRep;
 pub use spec_as_tgs_exchange::kdc_req::KdcReq;
+pub use spec_as_tgs_exchange::kdc_req_body::KdcReqBody;
 pub use spec_as_tgs_exchange::last_req::LastReq;
 pub use spec_as_tgs_exchange::last_req::LastReqEntry;
 pub use spec_as_tgs_exchange::tgs_rep::TgsRep;
