@@ -1,6 +1,7 @@
 mod sendable;
 mod errors;
 mod entry;
+mod utils;
 
 #[cfg(feature = "client-tcp")]
 mod tcp;

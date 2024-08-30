@@ -5,8 +5,10 @@ use tokio::{
 };
 
 use crate::server::{
-    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver,
-    utils::extract_bytes_or_delegate_to_router, ExchangeError,
+    entry::Entry,
+    errors::KrbInfraSvrResult,
+    receiver::AsyncReceiver,
+    utils::{extract_bytes_or_delegate_to_router, TagLengthStreamReader},
 };
 
 pub struct TcpEntry<R: AsyncReceiver + 'static> {
@@ -24,47 +26,19 @@ impl<R: AsyncReceiver> TcpEntry<R> {
 impl<R: AsyncReceiver> Entry for TcpEntry<R> {
     async fn handle(&mut self) -> KrbInfraSvrResult<()> {
         let bytes = {
-            // Allocate 4 octets for the length of the message
-            let mut buffer = [0u8; 4];
+            let (mut incoming_buffer, mut buffer) = TagLengthStreamReader::from(&mut self.stream)
+                .try_into()
+                .await?;
 
-            // Read the length of the message
-            self.stream.read_exact(&mut buffer).await?;
+            // Read the message
+            self.stream.read_exact(&mut incoming_buffer).await?;
 
-            // Convert to u32 and check for the highest bit (this bit must be set to 0 in the current implementation)
-            let length = u32::from_be_bytes(buffer);
-
-            if length & 0x80000000 != 0 {
-                let result = self
-                    .receiver
-                    .error(ExchangeError::LengthPrefix { value: length });
-
-                let response = extract_bytes_or_delegate_to_router(result)?;
-
-                // Send the length of the message first
-                let length = (response.len() as u32).to_be_bytes();
-                self.stream.write_all(&length).await?;
-
-                // Send the message
-                self.stream.write_all(&response).await?;
-
-                return Ok(());
-            }
-
-            // Allocate a buffer of the length of the message and read the message
-            let mut buffer = vec![0; length as usize];
-
-            self.stream.read_exact(&mut buffer).await?;
+            buffer.extend_from_slice(&incoming_buffer);
 
             buffer
         };
 
-        let result = self.receiver.receive(&bytes).await;
-
-        let response = extract_bytes_or_delegate_to_router(result)?;
-
-        // Send the length of the message first
-        let length = (response.len() as u32).to_be_bytes();
-        self.stream.write_all(&length).await?;
+        let response = extract_bytes_or_delegate_to_router(self.receiver.receive(&bytes).await)?;
 
         // Send the message
         self.stream.write_all(&response).await?;
