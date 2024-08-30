@@ -24,7 +24,7 @@ pub type UInt32 = u32;
 pub type Microseconds = i32;
 
 // RFC4120 5.2.1
-use crate::KrbApReq;
+use crate::ApReq;
 pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
@@ -352,7 +352,7 @@ impl PaData {
 }
 
 pub enum PaDataRegisteredType {
-    TgsReq(KrbApReq),             // DER encoding of AP-REQ
+    TgsReq(ApReq),             // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
@@ -388,7 +388,7 @@ impl PaDataRegisteredType {
         let value = match padata_type {
             PaDataTypes::PaTgsReq => {
                 let decoded = octet_str_ref
-                    .decode_into::<KrbApReq>()
+                    .decode_into::<ApReq>()
                     .map_err(|e| to_meaningful_error(padata_type, "KrbApRep", e))?;
                 PaDataRegisteredType::TgsReq(decoded)
             }

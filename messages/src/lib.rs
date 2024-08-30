@@ -59,12 +59,12 @@ pub use tickets::Ticket;
 pub use tickets::TicketFlags;
 
 pub use cs_message::APOptions;
+pub use cs_message::ApRep;
+pub use cs_message::ApReq;
 pub use cs_message::Authenticator;
 pub use cs_message::AuthenticatorBuilder;
 pub use cs_message::AuthenticatorBuilderError;
 pub use cs_message::EncApRepPart;
-pub use cs_message::KrbApRep;
-pub use cs_message::KrbApReq;
 
 pub use spec_as_tgs_exchange::as_rep::AsRep;
 pub use spec_as_tgs_exchange::as_req::AsReq;
@@ -98,3 +98,6 @@ pub use krb_error_spec::KrbErrorMsgBuilderError;
 // pub use krb_safe_spec::KrbSafe;
 // pub use krb_safe_spec::KrbSafeBody;
 // pub use krb_safe_spec::KrbSafeBuilder;
+
+pub use der::Decode;
+pub use der::Encode;

@@ -5,23 +5,23 @@ use der::{
 
 /// KRB_AP_REP message - 5.5.1
 #[derive(Debug, PartialEq, Clone)]
-pub struct KrbApRep(KrbApRepInner);
+pub struct ApRep(KrbApRepInner);
 
-impl<'a> DecodeValue<'a> for KrbApRep {
+impl<'a> DecodeValue<'a> for ApRep {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: der::Header) -> der::Result<Self> {
         let inner = KrbApRepInner::decode(reader)?;
         Ok(Self(inner))
     }
 }
 
-impl FixedTag for KrbApRep {
+impl FixedTag for ApRep {
     const TAG: der::Tag = der::Tag::Application {
         number: TagNumber::new(15),
         constructed: true,
     };
 }
 
-impl EncodeValue for KrbApRep {
+impl EncodeValue for ApRep {
     fn value_len(&self) -> der::Result<Length> {
         self.0.encoded_len()
     }
@@ -43,9 +43,9 @@ struct KrbApRepInner {
     enc_part: EncryptedData,
 }
 
-impl KrbApRep {
+impl ApRep {
     pub fn new(enc_part: EncryptedData) -> Self {
-        KrbApRep(KrbApRepInner {
+        ApRep(KrbApRepInner {
             pvno: 5,
             msg_type: 15,
             enc_part,
@@ -68,12 +68,12 @@ impl KrbApRep {
 #[cfg(test)]
 mod tests {
     use crate::basic::{EncryptedData, OctetString};
-    use crate::cs_message::KrbApRep;
+    use crate::cs_message::ApRep;
     use der::{Decode, Encode};
 
     #[test]
     fn encode_then_decode() {
-        let msg = KrbApRep::new(EncryptedData::new(
+        let msg = ApRep::new(EncryptedData::new(
             0,
             0,
             OctetString::new(b"encrypted data".to_vec()).unwrap(),
@@ -81,14 +81,14 @@ mod tests {
         let encoded_msg = msg.to_der().unwrap();
         println!("{:x?}", encoded_msg);
 
-        let decoded_msg = super::KrbApRep::from_der(&encoded_msg).unwrap();
+        let decoded_msg = super::ApRep::from_der(&encoded_msg).unwrap();
 
         assert_eq!(msg, decoded_msg);
     }
 
     #[test]
     fn correct_encode() {
-        let msg = KrbApRep::new(EncryptedData::new(
+        let msg = ApRep::new(EncryptedData::new(
             0,
             0,
             OctetString::new(b"encrypted data".to_vec()).unwrap(),

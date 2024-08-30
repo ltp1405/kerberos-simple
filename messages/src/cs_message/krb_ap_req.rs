@@ -77,16 +77,16 @@ struct KrbApReqInner {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct KrbApReq(KrbApReqInner);
+pub struct ApReq(KrbApReqInner);
 
-impl FixedTag for KrbApReq {
+impl FixedTag for ApReq {
     const TAG: Tag = Application {
         number: TagNumber::new(14),
         constructed: true,
     };
 }
 
-impl EncodeValue for KrbApReq {
+impl EncodeValue for ApReq {
     fn value_len(&self) -> der::Result<Length> {
         self.0.encoded_len()
     }
@@ -96,16 +96,16 @@ impl EncodeValue for KrbApReq {
     }
 }
 
-impl<'a> DecodeValue<'a> for KrbApReq {
+impl<'a> DecodeValue<'a> for ApReq {
     fn decode_value<R: Reader<'a>>(reader: &mut R, _header: Header) -> der::Result<Self> {
         let inner = KrbApReqInner::decode(reader)?;
         Ok(Self(inner))
     }
 }
 
-impl KrbApReq {
+impl ApReq {
     pub fn new(ap_options: APOptions, ticket: Ticket, authenticator: EncryptedData) -> Self {
-        KrbApReq(KrbApReqInner {
+        ApReq(KrbApReqInner {
             pvno: 5,
             msg_type: 14,
             ap_options,
@@ -176,7 +176,7 @@ mod tests {
         );
         let authenticator = EncryptedData::new(0, 0, OctetString::new(&[0x0, 0x1, 0x2]).unwrap());
 
-        let msg = KrbApReq::new(ap_options, ticket, authenticator);
+        let msg = ApReq::new(ap_options, ticket, authenticator);
 
         let encoded_msg = msg.to_der().unwrap();
 
