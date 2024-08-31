@@ -222,17 +222,3 @@ fn valid_ticket_time(
     };
     Ok(())
 }
-
-#[test]
-fn do_test() {
-    let time = Local::now().round_subsecs(0).to_utc();
-    println!("{:?}", time);
-
-    // let time = SystemTime::now();
-    // println!("{:?}", time);
-    //
-    let time = KerberosTime::from_unix_duration(Duration::from_secs(time.timestamp() as u64));
-    println!("{:?}", time);
-
-    panic!()
-}
