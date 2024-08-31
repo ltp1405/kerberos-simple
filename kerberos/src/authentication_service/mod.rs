@@ -32,27 +32,8 @@ where
 #[derive(Debug)]
 enum ServerError {
     ProtocolError(KrbErrorMsg),
-    ClientPrincipalNameNotFound,
-    ServerPrincipalNameNotFound,
-    BadKeyVersion,
-    ApNoKey,
-    CannotDecode,
-    ApBadAddress,
-    ApSkew,
     Internal,
-    ApTicketInvalid,
-    ApTicketExpired,
-    BadMsgType,
-}
-
-impl From<ServerError> for Ecode {
-    fn from(value: ServerError) -> Self {
-        match value {
-            ServerError::ClientPrincipalNameNotFound => Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN,
-            ServerError::ServerPrincipalNameNotFound => Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN,
-            _ => panic!(),
-        }
-    }
+    CannotDecode,
 }
 
 pub trait PrincipalDatabase {
@@ -60,22 +41,22 @@ pub trait PrincipalDatabase {
     fn get_server_principal_key(&self, principal_name: &PrincipalName) -> Option<String>;
 }
 
-fn handle_krb_as_req(db: &impl PrincipalDatabase, as_req: AsReq) -> Result<AsRep, ServerError> {
-    db.get_client_principal_key(
-        as_req
-            .req_body()
-            .cname()
-            .ok_or(ServerError::ClientPrincipalNameNotFound)?,
-    );
-
-    db.get_server_principal_key(
-        as_req
-            .req_body()
-            .cname()
-            .ok_or(ServerError::ServerPrincipalNameNotFound)?,
-    );
-    unimplemented!();
-}
+// fn handle_krb_as_req(db: &impl PrincipalDatabase, as_req: AsReq) -> Result<AsRep, ServerError> {
+//     db.get_client_principal_key(
+//         as_req
+//             .req_body()
+//             .cname()
+//             .ok_or(ServerError::ClientPrincipalNameNotFound)?,
+//     );
+//
+//     db.get_server_principal_key(
+//         as_req
+//             .req_body()
+//             .cname()
+//             .ok_or(ServerError::ServerPrincipalNameNotFound)?,
+//     );
+//     unimplemented!();
+// }
 
 impl<'a, C, K, Crypto> AuthenticationService<'a, C, K, Crypto>
 where
@@ -83,13 +64,13 @@ where
     K: KeyFinder,
     Crypto: Cryptography,
 {
-    fn verify_msg_type(&self, msg_type: &u8) -> Result<(), ServerError> {
+    fn verify_msg_type(&self, msg_type: &u8) -> Result<(), Ecode> {
         match msg_type {
             14 => Ok(()),
-            _ => Err(ServerError::BadMsgType),
+            _ => Err(Ecode::KRB_AP_ERR_MSG_TYPE),
         }
     }
-    fn verify_key(&self, key_version: &Int32) -> Result<(), ServerError> {
+    fn verify_key(&self, key_version: &Int32) -> Result<(), Ecode> {
         todo!()
     }
 
@@ -120,25 +101,24 @@ where
         let mut error_msg = Self::default_error_builder();
 
         self.verify_msg_type(ap_req.msg_type())
-            .and(self.verify_key(ap_req.ticket().tkt_vno()))?;
+            .and(self.verify_key(ap_req.ticket().tkt_vno()))
+            .map_err(|error_code| {
+                ProtocolError(error_msg.error_code(error_code).build().unwrap())
+            })?;
 
         let key = self
             .get_key_for_decrypt(ap_req.ticket().realm())
-            .ok_or(ServerError::ApNoKey)?;
+            .ok_or(ProtocolError(
+                error_msg
+                    .error_code(Ecode::KRB_AP_ERR_BADKEYVER)
+                    .build()
+                    .unwrap(),
+            ))?;
 
         let decrypted_ticket = crypto
             .decrypt(ap_req.ticket().enc_part().cipher().as_bytes(), &key)
             .map_err(|_| ServerError::CannotDecode)
-            .and_then(|d| {
-                EncTicketPart::from_der(&d).map_err(|_| {
-                    ProtocolError(
-                        error_msg
-                            .error_code(ServerError::CannotDecode)
-                            .build()
-                            .unwrap(),
-                    )
-                })
-            })?;
+            .and_then(|d| EncTicketPart::from_der(&d).map_err(|_| ServerError::CannotDecode))?;
         // TODO: check for decrypted msg's integrity
 
         let ss_key = decrypted_ticket.key().keyvalue().as_bytes();
@@ -157,7 +137,12 @@ where
             .caddr()
             .is_some_and(|t| self.search_for_addresses(t))
             .then_some(())
-            .ok_or(ServerError::ApBadAddress)?;
+            .ok_or(ProtocolError(
+                error_msg
+                    .error_code(Ecode::KRB_AP_ERR_BADADDR)
+                    .build()
+                    .unwrap(),
+            ))?;
 
         let ticket_time = decrypted_ticket
             .starttime()
