@@ -28,7 +28,7 @@ use crate::ApReq;
 pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
-pub type KerberosTime = GeneralizedTime;
+pub use kerberos_time::KerberosTime;
 
 // RFC4120 5.2.2
 pub type Realm = KerberosString;
@@ -462,7 +462,7 @@ impl PaEncTsEnc {
         Self::new(kerberos_time, Some(microseconds))
     }
 
-    pub fn pa_timestamp(&self) -> GeneralizedTime {
+    pub fn pa_timestamp(&self) -> KerberosTime {
         self.pa_timestamp
     }
 
@@ -751,3 +751,4 @@ impl Checksum {
 mod kerberos_string;
 #[cfg(test)]
 mod test;
+mod kerberos_time;
