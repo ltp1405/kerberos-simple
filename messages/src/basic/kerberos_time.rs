@@ -1,7 +1,7 @@
 use chrono::{DateTime, Local, RoundingError, TimeZone};
 use der::asn1::GeneralizedTime;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
-use std::ops::Deref;
+use std::ops::{Add, AddAssign, Deref};
 use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -48,7 +48,74 @@ impl KerberosTime {
         KerberosTime(GeneralizedTime::from_date_time(date_time))
     }
 
+    pub fn from_timestamp(seconds: u64) -> Option<Self> {
+        KerberosTime::from_unix_duration(Duration::from_secs(seconds)).ok()
+    }
+
+    pub fn now() -> Self {
+        KerberosTime::from_unix_duration(Duration::from_secs(Local::now().timestamp() as u64))
+            .expect("Should not failed")
+    }
+
     pub fn to_unix_duration(&self) -> Duration {
         self.0.to_unix_duration()
+    }
+
+    pub fn checked_add_duration(self, rhs: Duration) -> Option<KerberosTime> {
+        let new_dur = self.0.to_unix_duration() + rhs;
+        GeneralizedTime::from_unix_duration(new_dur)
+            .ok()
+            .map(KerberosTime)
+    }
+
+    pub fn timestamp(&self) -> i64 {
+        self.0.to_unix_duration().as_secs() as i64
+    }
+}
+
+impl Add<Duration> for KerberosTime {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        let new_dur = self.0.to_unix_duration() + rhs;
+        KerberosTime(GeneralizedTime::from_unix_duration(new_dur).expect("Overflow"))
+    }
+}
+
+impl AddAssign<Duration> for KerberosTime {
+    fn add_assign(&mut self, rhs: Duration) {
+        let new_dur = self.0.to_unix_duration() + rhs;
+        self.0 = GeneralizedTime::from_unix_duration(new_dur).expect("Overflow")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::basic::KerberosTime;
+    use std::time::Duration;
+
+    #[test]
+    #[should_panic]
+    fn add_overflow_unchecked() {
+        let t = KerberosTime::from_unix_duration(Duration::from_secs(10000)).unwrap();
+        let t = t + Duration::from_secs(10e15 as u64);
+    }
+
+    #[test]
+    fn add_overflow_check() {
+        let t = KerberosTime::from_unix_duration(Duration::from_secs(10000)).unwrap();
+        assert!(t
+            .checked_add_duration(Duration::from_secs(10e15 as u64))
+            .is_none());
+    }
+
+    #[test]
+    fn correct_add() {
+        let mut t = KerberosTime::from_unix_duration(Duration::from_secs(10000)).unwrap();
+        t += Duration::from_secs(1000);
+        assert_eq!(
+            t,
+            KerberosTime::from_unix_duration(Duration::from_secs(11000)).unwrap()
+        );
     }
 }
