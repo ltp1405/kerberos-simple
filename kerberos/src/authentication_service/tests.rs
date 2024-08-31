@@ -19,11 +19,11 @@ impl ReplayCache for MockedReplayCached {
     type ReplayCacheError = &'static str;
 
     fn store(&self, entry: ReplayCacheEntry) -> Result<(), ReplayCacheEntry> {
-        todo!()
+        Ok(())
     }
 
     fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, ReplayCacheEntry> {
-        todo!()
+        Ok(true)
     }
 }
 
@@ -31,7 +31,7 @@ struct MockedKeyStorage;
 
 impl KeyFinder for MockedKeyStorage {
     fn get_key_for_srealm(&self, srealm: &Realm) -> Option<Vec<u8>> {
-        todo!()
+        vec![1; 16].into()
     }
 }
 
@@ -58,6 +58,8 @@ fn test_handle_ap_req() {
     let crypto = MockedCrypto;
     let key = crypto.generate_key().unwrap();
     let auth_service = AuthenticationServiceBuilder::default()
+        .realm("me".try_into().unwrap())
+        .sname(PrincipalName::new(NameTypes::NtPrincipal, vec!["me".try_into().unwrap()]).unwrap())
         .accept_empty_address_ticket(true)
         .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
         .replay_cache(&cache)
@@ -105,40 +107,38 @@ fn test_handle_ap_req() {
         .unwrap();
     let encrypted_ticket = crypto.encrypt(&ticket_inner, &key).unwrap();
     let ticket = Ticket::new(
-        Realm::new("me".to_string().as_bytes()).unwrap(),
+        Realm::try_from("me".to_string()).unwrap(),
         PrincipalName::new(
             NameTypes::NtPrincipal,
-            vec![KerberosString::new("me1".to_string().as_bytes()).unwrap()],
+            vec![KerberosString::try_from("me1".to_string()).unwrap()],
         )
         .unwrap(),
         EncryptedData::new(0, 0, OctetString::new(encrypted_ticket).unwrap()),
     );
 
     let authenticator = AuthenticatorBuilder::default()
-        .ctime(
-            KerberosTime::from_unix_duration(Duration::new(
-                Local::now().timestamp() as u64, /* u32 */
-                0,
-            ))
-                .unwrap(),
-        )
+        .ctime(KerberosTime::now())
         .cusec(0)
-        .crealm(Realm::new("me".to_string().as_bytes()).unwrap())
+        .crealm(Realm::try_from("me".to_string()).unwrap())
         .cname(
             PrincipalName::new(
                 NameTypes::NtPrincipal,
-                vec![KerberosString::new("me1".to_string().as_bytes()).unwrap()],
+                vec!["me1".to_string().try_into().unwrap()],
             )
-                .unwrap(),
+            .unwrap(),
         )
         .build()
         .unwrap()
         .to_der()
         .unwrap();
-    let encrypted_authenticator = crypto.encrypt(&ticket_inner, &key).unwrap();
-    let authenticator = EncryptedData::new(0, 0, OctetString::new(authenticator).unwrap());
+    let encrypted_authenticator = crypto.encrypt(&authenticator, &key).unwrap();
+    let authenticator =
+        EncryptedData::new(0, 0, OctetString::new(encrypted_authenticator).unwrap());
 
     let ap_req = ApReq::new(APOptions::new(false, false), ticket, authenticator);
 
-    assert!(auth_service.handle_krb_ap_req(ap_req).is_ok());
+    assert!(auth_service
+        .handle_krb_ap_req(ap_req)
+        .inspect_err(|e| println!("{:?}", e))
+        .is_ok());
 }

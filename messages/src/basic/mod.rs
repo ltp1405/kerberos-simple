@@ -1,9 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use der::{
-    self,
-    asn1::{GeneralizedTime, OctetStringRef},
-    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
+    self, asn1::OctetStringRef, Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length,
+    Reader, Sequence, Writer,
 };
 
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
@@ -352,7 +351,7 @@ impl PaData {
 }
 
 pub enum PaDataRegisteredType {
-    TgsReq(ApReq),             // DER encoding of AP-REQ
+    TgsReq(ApReq),                // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
@@ -749,6 +748,6 @@ impl Checksum {
 }
 
 mod kerberos_string;
+mod kerberos_time;
 #[cfg(test)]
 mod test;
-mod kerberos_time;

@@ -8,7 +8,8 @@ use crate::cryptography::Cryptography;
 use chrono::{DateTime, Local, SubsecRound};
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName, Realm,
+    EncryptedData, HostAddresses, Int32, KerberosString, KerberosTime, OctetString, PrincipalName,
+    Realm,
 };
 use messages::flags::TicketFlag;
 use messages::{
@@ -25,6 +26,8 @@ where
     K: KeyFinder,
     Crypto: Cryptography,
 {
+    realm: Realm,
+    sname: PrincipalName,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
     replay_cache: &'a C,
@@ -74,7 +77,8 @@ where
         }
     }
     fn verify_key(&self, key_version: &Int32) -> Result<(), Ecode> {
-        todo!()
+        // TODO: correctly implement this
+        Ok(())
     }
 
     fn search_for_addresses(&self, host_addresses: &HostAddresses) -> bool {
@@ -85,23 +89,22 @@ where
         self.key_finder.get_key_for_srealm(srealm)
     }
 
-    fn default_error_builder() -> KrbErrorMsgBuilder {
+    fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
         let time = now.round_subsecs(0).to_utc().timestamp();
         let usec = now.timestamp_subsec_micros();
         KrbErrorMsgBuilder::default()
-            .stime(
-                KerberosTime::from_unix_duration(Duration::from_secs(time as u64))
-                    .expect("Should not fail"),
-            )
+            .stime(KerberosTime::now())
             .susec(usec as i32)
+            .sname(self.sname.clone())
+            .realm(self.realm.clone())
             .to_owned()
     }
 
     pub fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
         let crypto = self.crypto;
-        let mut error_msg = Self::default_error_builder();
+        let mut error_msg = self.default_error_builder();
 
         self.verify_msg_type(ap_req.msg_type())
             .and(self.verify_key(ap_req.ticket().tkt_vno()))
@@ -128,7 +131,11 @@ where
         let authenticator = crypto
             .decrypt(ap_req.authenticator().cipher().as_bytes(), &ss_key)
             .map_err(|_| ServerError::CannotDecode)
-            .and_then(|d| Authenticator::from_der(&d).map_err(|_| ServerError::CannotDecode))?;
+            .and_then(|d| {
+                Authenticator::from_der(&d)
+                    .inspect_err(|e| println!("{:?}", e))
+                    .map_err(|_| ServerError::CannotDecode)
+            })?;
 
         error_msg
             .ctime(authenticator.ctime().to_owned())
@@ -136,10 +143,12 @@ where
             .crealm(authenticator.crealm().to_owned())
             .cname(authenticator.cname().to_owned());
 
-        decrypted_ticket
-            .caddr()
-            .is_some_and(|t| self.search_for_addresses(t))
+        self.accept_empty_address_ticket
             .then_some(())
+            .or(decrypted_ticket
+                .caddr()
+                .is_some_and(|t| self.search_for_addresses(t))
+                .then_some(()))
             .ok_or(ProtocolError(
                 error_msg
                     .error_code(Ecode::KRB_AP_ERR_BADADDR)
@@ -151,8 +160,7 @@ where
             .starttime()
             .unwrap_or(decrypted_ticket.authtime());
 
-        let local_time =
-            KerberosTime::from_system_time(SystemTime::now()).map_err(|_| ServerError::Internal)?;
+        let local_time = KerberosTime::now();
 
         decrypted_ticket
             .flags()
@@ -182,6 +190,8 @@ where
         let rep_authenticator = AuthenticatorBuilder::default()
             .ctime(authenticator.ctime())
             .cusec(authenticator.cusec())
+            .crealm(authenticator.crealm().clone())
+            .cname(authenticator.cname().clone())
             .build()
             .unwrap()
             .to_der()
