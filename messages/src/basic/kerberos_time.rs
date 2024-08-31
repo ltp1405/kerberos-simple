@@ -1,3 +1,4 @@
+use crate::basic::Microseconds;
 use chrono::{DateTime, Local, RoundingError, TimeZone};
 use der::asn1::GeneralizedTime;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
@@ -38,10 +39,10 @@ impl KerberosTime {
 
     pub fn from_chrono_datetime<Tz: TimeZone>(
         time: DateTime<Tz>,
-    ) -> Result<KerberosTime, der::Error> {
-        Ok(KerberosTime::from_unix_duration(Duration::from_secs(
-            time.timestamp() as u64,
-        ))?)
+    ) -> Option<(KerberosTime, Microseconds)> {
+        KerberosTime::from_unix_duration(Duration::from_secs(time.timestamp() as u64))
+            .ok()
+            .map(|t| (t, time.timestamp_subsec_micros() as Microseconds))
     }
 
     pub fn from_date_time(date_time: der::DateTime) -> Self {
