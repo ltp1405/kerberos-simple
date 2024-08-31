@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 mod traits;
 
 use crate::authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
@@ -16,6 +18,7 @@ use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
 use std::time::{Duration, SystemTime};
 
 #[derive(Builder)]
+#[builder(pattern = "owned", setter(strip_option))]
 pub struct AuthenticationService<'a, C, K, Crypto>
 where
     C: ReplayCache,

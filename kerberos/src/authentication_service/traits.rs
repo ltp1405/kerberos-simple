@@ -13,7 +13,7 @@ pub struct ReplayCacheEntry {
 }
 
 pub trait ReplayCache {
-    type ReplayCacheError: Error;
+    type ReplayCacheError;
     fn store(&self, entry: ReplayCacheEntry) -> Result<(), ReplayCacheEntry>;
     fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, ReplayCacheEntry>;
 }
