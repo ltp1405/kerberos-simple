@@ -1,8 +1,8 @@
 use crate::basic::Microseconds;
-use chrono::{DateTime, Local, RoundingError, TimeZone};
+use chrono::{DateTime, Local, RoundingError, TimeDelta, TimeZone};
 use der::asn1::GeneralizedTime;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
-use std::ops::{Add, AddAssign, Deref};
+use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
 use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -83,9 +83,25 @@ impl Add<Duration> for KerberosTime {
     }
 }
 
+impl Sub<Duration> for KerberosTime {
+    type Output = Self;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        let new_dur = self.0.to_unix_duration() - rhs;
+        KerberosTime(GeneralizedTime::from_unix_duration(new_dur).expect("Overflow"))
+    }
+}
+
 impl AddAssign<Duration> for KerberosTime {
     fn add_assign(&mut self, rhs: Duration) {
         let new_dur = self.0.to_unix_duration() + rhs;
+        self.0 = GeneralizedTime::from_unix_duration(new_dur).expect("Overflow")
+    }
+}
+
+impl SubAssign<Duration> for KerberosTime {
+    fn sub_assign(&mut self, rhs: Duration) {
+        let new_dur = self.0.to_unix_duration() - rhs;
         self.0 = GeneralizedTime::from_unix_duration(new_dur).expect("Overflow")
     }
 }
