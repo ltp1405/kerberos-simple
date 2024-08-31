@@ -45,41 +45,41 @@ struct AuthenticatorInner {
     authorization_data: Option<AuthorizationData>,
 }
 
-impl AuthenticatorInner {
+impl Authenticator {
     pub fn authenticator_vno(&self) -> u8 {
-        self.authenticator_vno
+        self.0.authenticator_vno
     }
 
     pub fn crealm(&self) -> &Realm {
-        &self.crealm
+        &self.0.crealm
     }
 
     pub fn cname(&self) -> &PrincipalName {
-        &self.cname
+        &self.0.cname
     }
 
     pub fn cksum(&self) -> Option<&Checksum> {
-        self.cksum.as_ref()
+        self.0.cksum.as_ref()
     }
 
     pub fn cusec(&self) -> Microseconds {
-        self.cusec
+        self.0.cusec
     }
 
     pub fn ctime(&self) -> KerberosTime {
-        self.ctime
+        self.0.ctime
     }
 
     pub fn subkey(&self) -> Option<&EncryptionKey> {
-        self.subkey.as_ref()
+        self.0.subkey.as_ref()
     }
 
     pub fn seq_number(&self) -> Option<Int32> {
-        self.seq_number
+        self.0.seq_number
     }
 
     pub fn authorization_data(&self) -> Option<&AuthorizationData> {
-        self.authorization_data.as_ref()
+        self.0.authorization_data.as_ref()
     }
 }
 
