@@ -5,18 +5,15 @@ mod traits;
 use crate::authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
 use crate::authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use chrono::{DateTime, Local, SubsecRound};
+use chrono::{Local, SubsecRound};
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, HostAddresses, Int32, KerberosString, KerberosTime, OctetString, PrincipalName,
-    Realm,
+    EncryptedData, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName, Realm,
 };
 use messages::flags::TicketFlag;
-use messages::{
-    ApRep, ApReq, AsRep, AsReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode,
-};
+use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
