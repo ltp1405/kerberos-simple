@@ -17,14 +17,12 @@ pub fn prepare_as_request(client_env: &impl ClientEnv) -> Result<AsReq, ClientEr
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
     let nonce = generate_nonce();
     let current_time = client_env.get_current_time()?;
-    let duration = KerberosTime::from_unix_duration(Duration::new(60 * 60 * 24, 0))
+    let duration = Duration::new(60 * 60 * 24, 0);
+    let till = KerberosTime::from_unix_duration(current_time + duration)
         .or(Err(ClientError::DecodeError))?;
-    let till = KerberosTime::from_unix_duration(
-        current_time.to_unix_duration() + duration.to_unix_duration(),
-    )
-    .or(Err(ClientError::DecodeError))?;
     let etypes = client_env.get_supported_etypes()?;
     let pa_data = Vec::new();
+
     let req_body = KdcReqBodyBuilder::default()
         .cname(cname)
         .realm(server_realm)
@@ -82,7 +80,7 @@ pub fn receive_as_response(
     }
 
     let auth_time = as_rep_part.authtime().to_unix_duration();
-    let client_time = client_env.get_current_time()?.to_unix_duration();
+    let client_time = client_env.get_current_time()?;
     let is_client_earlier = client_time.le(&auth_time);
     let clock_diff = if is_client_earlier {
         auth_time.sub(client_time)
@@ -115,7 +113,7 @@ pub fn receive_as_response(
         ));
     }
 
-    client_env.save_reply_data(as_rep_part)?;
+    client_env.save_as_reply(as_rep)?;
     Ok(())
 }
 
