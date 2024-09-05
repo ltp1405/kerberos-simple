@@ -10,6 +10,7 @@ async-trait = "0.1"
 
 [dev-dependencies]
 rand = "0.8.5"
+der = { version = "0.7.9", features = ["alloc", "std"] }
 
 [features]
 default = ["full"]
