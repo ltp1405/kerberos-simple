@@ -11,6 +11,7 @@ pub enum ClientError {
     PrepareRequestError(KdcReqBodyBuilderError),
     InvalidAsReq(String),
     ReponseDoesNotMatch(String),
+    EncodeError,
     DecodeError,
     GenericError(String),
 }
@@ -23,6 +24,7 @@ impl Display for ClientError {
             ClientError::PrepareRequestError(e) => write!(f, "Prepare request error: {}", e),
             ClientError::InvalidAsReq(e) => write!(f, "Invalid AS-REQ: {}", e),
             ClientError::ReponseDoesNotMatch(e) => write!(f, "Response does not match: {}", e),
+            ClientError::EncodeError => write!(f, "Encode error"),
             ClientError::DecodeError => write!(f, "Decode error"),
             ClientError::GenericError(e) => write!(f, "Generic error: {}", e),
             _ => write!(f, "Unknown error"),
