@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ClientError {
     ClientEnvError(ClientEnvError),
     CryptographyError(CryptographyError),
@@ -27,7 +28,6 @@ impl Display for ClientError {
             ClientError::EncodeError => write!(f, "Encode error"),
             ClientError::DecodeError => write!(f, "Decode error"),
             ClientError::GenericError(e) => write!(f, "Generic error: {}", e),
-            _ => write!(f, "Unknown error"),
         }
     }
 }
@@ -48,7 +48,7 @@ impl From<CryptographyError> for ClientError {
 
 impl From<KdcReqBodyBuilderError> for ClientError {
     fn from(e: KdcReqBodyBuilderError) -> Self {
-        ClientError::PrepareRequestError(e)
+        ClientError::PrepareRequestError(e.to_string())
     }
 }
 
