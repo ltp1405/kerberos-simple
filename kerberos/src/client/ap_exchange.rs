@@ -33,7 +33,7 @@ pub fn prepare_ap_request(
     authenticator
         .encode(&mut encoded_authenticator.as_mut_slice())
         .or(Err(ClientError::EncodeError))?;
-    let mut decrypted_ticket_part = cryptography.decrypt(
+    let decrypted_ticket_part = cryptography.decrypt(
         ticket.enc_part().cipher().as_ref(),
         client_env
             .get_client_key(*ticket.enc_part().etype())?
