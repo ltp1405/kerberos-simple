@@ -1,6 +1,6 @@
 use crate::client::client_env_error::ClientEnvError;
 use crate::cryptography_error::CryptographyError;
-use messages::KdcReqBodyBuilderError;
+use messages::{AuthenticatorBuilderError, KdcReqBodyBuilderError};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 pub enum ClientError {
     ClientEnvError(ClientEnvError),
     CryptographyError(CryptographyError),
-    PrepareRequestError(KdcReqBodyBuilderError),
+    PrepareRequestError(String),
     InvalidAsReq(String),
     ReponseDoesNotMatch(String),
     EncodeError,
@@ -49,5 +49,11 @@ impl From<CryptographyError> for ClientError {
 impl From<KdcReqBodyBuilderError> for ClientError {
     fn from(e: KdcReqBodyBuilderError) -> Self {
         ClientError::PrepareRequestError(e)
+    }
+}
+
+impl From<AuthenticatorBuilderError> for ClientError {
+    fn from(e: AuthenticatorBuilderError) -> Self {
+        ClientError::PrepareRequestError(e.to_string())
     }
 }
