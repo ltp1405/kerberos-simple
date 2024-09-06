@@ -1,5 +1,6 @@
 use crate::application_authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
-use crate::application_authentication_service::{ApplicationAuthenticationService, AuthenticationServiceBuilder, PrincipalDatabase};
+use crate::application_authentication_service::ApplicationAuthenticationServiceBuilder;
+use crate::authentication_service::PrincipalDatabase;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
 use chrono::{DateTime, Local};
@@ -51,30 +52,17 @@ impl Cryptography for MockedCrypto {
     }
 }
 
-struct MockedPrincipalDb;
-
-impl PrincipalDatabase for MockedPrincipalDb {
-    fn get_client_principal_key(&self, principal_name: &PrincipalName) -> Option<String> {
-        todo!()
-    }
-
-    fn get_server_principal_key(&self, principal_name: &PrincipalName) -> Option<String> {
-        todo!()
-    }
-}
 #[test]
 fn test_handle_ap_req() {
     let cache = MockedReplayCached;
     let key_storage = MockedKeyStorage;
     let crypto = MockedCrypto;
-    let principal_db = MockedPrincipalDb;
     let key = crypto.generate_key().unwrap();
-    let auth_service = AuthenticationServiceBuilder::default()
+    let auth_service = ApplicationAuthenticationServiceBuilder::default()
         .realm("me".try_into().unwrap())
         .sname(PrincipalName::new(NameTypes::NtPrincipal, vec!["me".try_into().unwrap()]).unwrap())
         .accept_empty_address_ticket(true)
         .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
-        .principal_db(&principal_db)
         .replay_cache(&cache)
         .key_finder(&key_storage)
         .crypto(&crypto)

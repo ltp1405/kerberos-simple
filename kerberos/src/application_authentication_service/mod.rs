@@ -20,12 +20,11 @@ use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-pub struct ApplicationAuthenticationService<'a, C, K, Crypto, PrincipalDb>
+pub struct ApplicationAuthenticationService<'a, C, K, Crypto>
 where
     C: ReplayCache,
     K: KeyFinder,
     Crypto: Cryptography,
-    PrincipalDb: PrincipalDatabase,
 {
     realm: Realm,
     sname: PrincipalName,
@@ -34,7 +33,6 @@ where
     replay_cache: &'a C,
     key_finder: &'a K,
     crypto: &'a Crypto,
-    principal_db: &'a PrincipalDb,
 }
 
 #[derive(Debug)]
@@ -44,7 +42,7 @@ enum ServerError {
     CannotDecode,
 }
 
-impl<'a, C, K, Crypto, P> ApplicationAuthenticationService<'a, C, K, Crypto, P>
+impl<'a, C, K, Crypto> ApplicationAuthenticationService<'a, C, K, Crypto>
 where
     C: ReplayCache,
     K: KeyFinder,
