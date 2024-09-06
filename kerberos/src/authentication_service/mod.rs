@@ -5,10 +5,16 @@ use messages::basic_types::{
     AddressTypes, EncryptedData, EncryptionKey, HostAddress, HostAddresses, Int32, KerberosTime,
     NameTypes, OctetString, PrincipalName, Realm, SequenceOf,
 };
-use messages::{AsRep, AsReq, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg, KrbErrorMsgBuilder, LastReq, LastReqEntry, Ticket, TicketFlags};
+use messages::{
+    AsRep, AsReq, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
+    KrbErrorMsgBuilder, LastReq, LastReqEntry, Ticket, TicketFlags,
+};
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
 use std::time::Duration;
+
+#[cfg(test)]
+mod tests;
 
 pub trait PrincipalDatabase {
     fn get_client_principal_key(&self, principal_name: &PrincipalName) -> Option<Vec<u8>>;
@@ -111,7 +117,10 @@ where
             )
             .crealm(as_req.req_body().realm().clone())
             // TODO: what should be the key type?
-            .key(EncryptionKey::new(0, OctetString::new(ss_key.clone()).unwrap()))
+            .key(EncryptionKey::new(
+                0,
+                OctetString::new(ss_key.clone()).unwrap(),
+            ))
             .build()
             .unwrap()
             .to_der()
@@ -131,11 +140,12 @@ where
             .flags(ticket_flags)
             .renew_till(renew_till)
             .starttime(starttime)
-            .caddr(HostAddresses::from(client_addr))
+            .caddr(HostAddresses::from([client_addr]))
             .nonce(*as_req.req_body().nonce())
-
             .build()
             .unwrap();
+
+        let enc_part = EncryptedData::new(0, 0u32, OctetString::new([1, 2, 3]).unwrap());
 
         Ok(AsRep::new(
             None, // pre-auth is not implemented
@@ -146,7 +156,7 @@ where
             )
             .unwrap(),
             ticket,
-            todo!(),
+            enc_part,
         ))
     }
 
