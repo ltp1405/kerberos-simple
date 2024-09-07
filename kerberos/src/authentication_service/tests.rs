@@ -1,6 +1,4 @@
-use crate::authentication_service::{
-    AuthenticationService, AuthenticationServiceBuilder, PrincipalDatabase,
-};
+use crate::authentication_service::AuthenticationServiceBuilder;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
 use messages::basic_types::{
@@ -10,6 +8,7 @@ use messages::basic_types::{
 use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBody, KdcReqBodyBuilder};
 use std::time::Duration;
+use crate::authentication_service::traits::PrincipalDatabase;
 
 struct MockedCrypto;
 

@@ -14,28 +14,12 @@ use messages::{
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
 use std::time::Duration;
+use crate::authentication_service::traits::PrincipalDatabase;
 
 #[cfg(test)]
 mod tests;
+mod traits;
 
-pub trait PrincipalDatabase {
-    fn get_client_principal_key(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey>;
-    fn get_server_principal_key(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey>;
-
-    fn get_server_supported_encryption_types(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<Int32>;
-}
 #[derive(Debug)]
 enum ServerError {
     ProtocolError(KrbErrorMsg),
