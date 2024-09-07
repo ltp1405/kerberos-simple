@@ -52,7 +52,7 @@ pub struct EncKdcRepPart {
 }
 
 impl EncKdcRepPart {
-    fn builder() -> EncKdcRepPartBuilder {
+    pub fn builder() -> EncKdcRepPartBuilder {
         EncKdcRepPartBuilder::default()
     }
     pub fn key(&self) -> &EncryptionKey {

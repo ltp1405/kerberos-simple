@@ -1,8 +1,8 @@
 use crate::basic::Microseconds;
-use chrono::{DateTime, Local, RoundingError, TimeDelta, TimeZone};
+use chrono::{DateTime, Local, TimeZone};
 use der::asn1::GeneralizedTime;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
-use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
