@@ -37,7 +37,7 @@ impl FixedTag for EncTicketPart {
 }
 
 #[derive(Builder, Sequence, PartialEq, Eq, Clone, Debug)]
-#[builder(setter(into), public, build_fn(skip), name = "EncTicketPartBuilder")]
+#[builder(setter(into, strip_option), public, build_fn(skip), name = "EncTicketPartBuilder")]
 struct EncTicketPartInner {
     #[asn1(context_specific = "0")]
     flags: TicketFlags,
