@@ -6,7 +6,6 @@ use crate::cryptography::Cryptography;
 use messages::basic_types::{KerberosTime, NameTypes, OctetString, PaData, PrincipalName};
 use messages::{Encode, KdcReqBodyBuilder, TgsReq};
 use std::time::Duration;
-use messages::basic_types::PaDataTypes::PaTgsReq;
 
 pub fn prepare_tgs_request(
     client_env: impl ClientEnv,
@@ -33,7 +32,7 @@ pub fn prepare_tgs_request(
         .encode_to_vec(&mut ap_req_buf)
         .or(Err(ClientError::EncodeError))?;
     let auth_header = PaData::new(
-        PaTgsReq as i32, // PaTgsReq
+        1, // PaTgsReq
         OctetString::new(ap_req_buf).or(Err(ClientError::EncodeError))?,
     );
     let pa_data = vec![auth_header];
