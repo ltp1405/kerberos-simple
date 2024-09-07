@@ -125,8 +125,8 @@ where
             .then_some(())
             .or(decrypted_ticket
                 .caddr()
-                .is_some_and(|t| self.search_for_addresses(t))
-                .then_some(()))
+                .filter(|t| self.search_for_addresses(t))
+                .and(Some(())))
             .ok_or(ProtocolError(
                 error_msg
                     .error_code(Ecode::KRB_AP_ERR_BADADDR)

@@ -59,7 +59,7 @@ pub mod flags {
         FORWARDED = 2,                // Bit 2
         PROXIABLE = 3,                // Bit 3
         PROXY = 4,                    // Bit 4
-        MAY_POSTDATE = 5,             // Bit 5
+        ALLOW_POSTDATE = 5,             // Bit 5
         POSTDATED = 6,                // Bit 6
         INVALID = 7,                  // Bit 7
         RENEWABLE = 8,                // Bit 8

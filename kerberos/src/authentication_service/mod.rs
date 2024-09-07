@@ -1,25 +1,40 @@
 use crate::authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
 use chrono::{Local, SubsecRound};
+use derive_builder::Builder;
 use messages::basic_types::{
     AddressTypes, EncryptedData, EncryptionKey, HostAddress, HostAddresses, Int32, KerberosTime,
     NameTypes, OctetString, PrincipalName, Realm, SequenceOf,
 };
+use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{
     AsRep, AsReq, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
-    KrbErrorMsgBuilder, LastReq, LastReqEntry, Ticket, TicketFlags,
+    KrbErrorMsgBuilder, LastReq, LastReqEntry, Ticket, TicketFlags, TransitedEncoding,
 };
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
 use std::time::Duration;
-use derive_builder::Builder;
 
 #[cfg(test)]
 mod tests;
 
 pub trait PrincipalDatabase {
-    fn get_client_principal_key(&self, principal_name: &PrincipalName) -> Option<Vec<u8>>;
-    fn get_server_principal_key(&self, principal_name: &PrincipalName) -> Option<Vec<u8>>;
+    fn get_client_principal_key(
+        &self,
+        principal_name: &PrincipalName,
+        realm: Realm,
+    ) -> Vec<EncryptionKey>;
+    fn get_server_principal_key(
+        &self,
+        principal_name: &PrincipalName,
+        realm: Realm,
+    ) -> Vec<EncryptionKey>;
+
+    fn get_server_supported_encryption_types(
+        &self,
+        principal_name: &PrincipalName,
+        realm: Realm,
+    ) -> Vec<Int32>;
 }
 #[derive(Debug)]
 enum ServerError {
@@ -30,24 +45,22 @@ enum ServerError {
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-struct AuthenticationService<'a, P, C>
+struct AuthenticationService<'a, P>
 where
     P: PrincipalDatabase,
-    C: Cryptography,
 {
     require_pre_authenticate: bool,
+    supported_crypto_systems: Vec<Box<dyn Cryptography>>,
     principal_db: &'a P,
-    crypto: &'a C,
     realm: Realm,
     sname: PrincipalName,
 }
 
 type Result<T> = std::result::Result<T, ServerError>;
 
-impl<'a, P, C> AuthenticationService<'a, P, C>
+impl<'a, P> AuthenticationService<'a, P>
 where
     P: PrincipalDatabase,
-    C: Cryptography,
 {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
@@ -61,28 +74,104 @@ where
             .to_owned()
     }
 
-    fn handle_krb_as_req(&self, client_addr: HostAddress, as_req: &AsReq) -> Result<AsRep> {
-        let mut error_msg = self.default_error_builder();
-        self.principal_db.get_client_principal_key(
-            as_req.req_body().cname().ok_or(ServerError::ProtocolError(
-                error_msg
+    fn get_suitable_client_key(
+        &self,
+        client_name: &PrincipalName,
+        realm: &Realm,
+        requested_etypes: &SequenceOf<Int32>,
+    ) -> Result<EncryptionKey> {
+        let client_keys = self
+            .principal_db
+            .get_client_principal_key(client_name, realm.clone());
+        if client_keys.is_empty() {
+            return Err(ProtocolError(
+                self.default_error_builder()
                     .error_code(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN)
                     .build()
                     .unwrap(),
-            ))?,
-        );
+            ));
+        }
+
+        let client_key = requested_etypes
+            .iter()
+            .find_map(|etype| client_keys.iter().find(|key| key.keytype() == etype))
+            .ok_or(ProtocolError(
+                self.default_error_builder()
+                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                    .build()
+                    .unwrap(),
+            ))?;
+
+        Ok(client_key.clone())
+    }
+
+    fn generate_suitable_session_key(
+        &self,
+        etypes: &SequenceOf<Int32>,
+    ) -> Option<Result<EncryptionKey>> {
+        etypes.iter().find_map(|etype| {
+            self.get_supported_crypto_systems()
+                .iter()
+                .find_map(|crypto| {
+                    if crypto.get_etype() == *etype {
+                        Some(
+                            crypto
+                                .generate_key()
+                                .map_err(|_| ServerError::Internal)
+                                .map(|key| {
+                                    EncryptionKey::new(
+                                        etype.clone(),
+                                        OctetString::new(key).unwrap(),
+                                    )
+                                }),
+                        )
+                    } else {
+                        None
+                    }
+                })
+        })
+    }
+
+    fn get_supported_crypto_systems(&self) -> &[Box<dyn Cryptography>] {
+        self.supported_crypto_systems.as_slice()
+    }
+
+    fn get_endtime(&self, as_req: &AsReq) -> KerberosTime {
+        // TODO: implement this correctly
+        let till = as_req.req_body().till();
+        *till
+    }
+
+    // Current implementation is just get the first key that is found
+    fn get_suitable_server_key(
+        &self,
+        sname: &PrincipalName,
+        realm: Realm,
+    ) -> Option<EncryptionKey> {
+        self.principal_db
+            .get_server_principal_key(sname, realm)
+            .first()
+            .cloned()
+    }
+
+    fn handle_krb_as_req(&self, client_addr: HostAddress, as_req: &AsReq) -> Result<AsRep> {
+        let mut error_msg = self.default_error_builder();
+        let kdc_time = KerberosTime::now();
+
+        let client_key = self.get_suitable_client_key(
+            // TODO: what should be the default value here?
+            as_req.req_body().cname().expect("Client name is missing"),
+            as_req.req_body().realm(),
+            as_req.req_body().etype(),
+        )?;
 
         let server_key = self
-            .principal_db
-            .get_server_principal_key(
-                as_req.req_body().cname().ok_or(ServerError::ProtocolError(
-                    error_msg
-                        .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
-                        .build()
-                        .unwrap(),
-                ))?,
+            .get_suitable_server_key(
+                // TODO: what should be the default value here?
+                as_req.req_body().sname().expect("Server name is missing"),
+                as_req.req_body().realm().clone(),
             )
-            .ok_or(ServerError::ProtocolError(
+            .ok_or(ProtocolError(
                 error_msg
                     .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
                     .build()
@@ -90,16 +179,28 @@ where
             ))?;
 
         if self.require_pre_authenticate {
+            if as_req.padata().is_none() {
+                return Err(ProtocolError(
+                    error_msg
+                        .error_code(Ecode::KDC_ERR_PREAUTH_REQUIRED)
+                        .build()
+                        .unwrap(),
+                ));
+            }
             todo!("Pre-auth is not yet implemented")
         }
         self.verify_encryption_type(as_req)?;
 
-        let ss_key = self
-            .crypto
-            .generate_key()
-            .map_err(|_| ServerError::Internal)?;
+        let session_key = self
+            .generate_suitable_session_key(as_req.req_body().etype())
+            .ok_or(ProtocolError(
+                error_msg
+                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                    .build()
+                    .unwrap(),
+            ))??;
 
-        let selected_client_key = self.get_suitable_encryption_key(as_req.req_body().etype())?;
+        let selected_client_key = client_key;
 
         let starttime = self
             .get_starttime(as_req)
@@ -113,9 +214,18 @@ where
 
         let ticket_flags = self.generate_ticket_flags(as_req).unwrap();
 
-        let ticket = EncTicketPart::builder()
+        let mut ticket = EncTicketPart::builder();
+        if let Some(v) = renew_till {
+            ticket.renew_till(v);
+        }
+        let session_key = EncryptionKey::new(
+            0,
+            OctetString::new(session_key.keyvalue().as_bytes()).unwrap(),
+        );
+
+        let endtime = self.get_endtime(as_req);
+        let ticket = ticket
             .flags(ticket_flags.clone())
-            .renew_till(renew_till)
             .starttime(starttime)
             .cname(
                 as_req
@@ -126,43 +236,74 @@ where
             )
             .crealm(as_req.req_body().realm().clone())
             // TODO: what should be the key type?
-            .key(EncryptionKey::new(
-                0,
-                OctetString::new(ss_key.clone()).unwrap(),
-            ))
+            .key(session_key.clone())
+            .transited(TransitedEncoding::empty(0))
+            .authtime(kdc_time)
+            .endtime(endtime)
             .build()
             .unwrap()
             .to_der()
             .unwrap();
 
-        let enc_ticket = self.crypto.encrypt(&ticket, &server_key).unwrap();
+        let enc_ticket = self
+            .get_supported_crypto_systems()
+            .iter()
+            .filter(|crypto| crypto.get_etype() == *server_key.keytype())
+            .next()
+            .unwrap()
+            .encrypt(&ticket, server_key.keyvalue().as_bytes())
+            .unwrap();
+
+        let sname = as_req.req_body().sname().unwrap().clone();
+        let srealm = as_req.req_body().realm().clone();
+
         let ticket = Ticket::new(
-            self.realm.clone(),
-            self.sname.clone(),
+            srealm.clone(),
+            sname.clone(),
             EncryptedData::new(0, 0, OctetString::new(enc_ticket).unwrap()),
         );
 
-        let enc_part = EncKdcRepPartBuilder::default()
-            .key(EncryptionKey::new(0, OctetString::new(ss_key).unwrap()))
+        let mut enc_part = EncKdcRepPartBuilder::default();
+        if let Some(v) = renew_till {
+            enc_part.renew_till(v);
+        }
+        let enc_part = enc_part
+            .sname(sname)
+            .srealm(srealm)
+            .key(session_key)
             .last_req(vec![])
             .flags(ticket_flags)
-            .renew_till(renew_till)
             .starttime(starttime)
+            .endtime(endtime)
+            .authtime(kdc_time)
             .caddr(HostAddresses::from([client_addr]))
             .nonce(*as_req.req_body().nonce())
             .build()
             .unwrap();
 
-        let enc_part = EncryptedData::new(0, 0u32, OctetString::new([1, 2, 3]).unwrap());
+        let enc_part = self
+            .get_supported_crypto_systems()
+            .iter()
+            .filter(|crypto| crypto.get_etype() == *selected_client_key.keytype())
+            .next()
+            .unwrap()
+            .encrypt(
+                &enc_part.to_der().unwrap(),
+                selected_client_key.keyvalue().as_bytes(),
+            )
+            .map_err(|_| ServerError::Internal)
+            .map(|x| {
+                EncryptedData::new(
+                    *selected_client_key.keytype(),
+                    0,
+                    OctetString::new(x).unwrap(),
+                )
+            })?;
 
         Ok(AsRep::new(
             None, // pre-auth is not implemented
             as_req.req_body().realm().clone(),
-            PrincipalName::new(
-                NameTypes::NtPrincipal, // TODO: is this correct???
-                vec![],
-            )
-            .unwrap(),
+            as_req.req_body().cname().unwrap().clone(),
             ticket,
             enc_part,
         ))
@@ -172,12 +313,59 @@ where
         Ok(())
     }
 
+    // TODO: implement this correctly
     fn generate_ticket_flags(&self, as_req: &AsReq) -> std::result::Result<TicketFlags, Ecode> {
-        todo!()
+        let kdc_options = as_req.req_body().kdc_options();
+        let mut ticket_flag = TicketFlags::builder();
+        if kdc_options.is_set(KdcOptionsFlag::FORWARDABLE as usize) {
+            ticket_flag.set(TicketFlag::FORWARDABLE as usize);
+        }
+
+        if kdc_options.is_set(KdcOptionsFlag::FORWARDED as usize) {
+            ticket_flag.set(TicketFlag::FORWARDED as usize);
+        }
+
+        if kdc_options.is_set(KdcOptionsFlag::PROXIABLE as usize) {
+            ticket_flag.set(TicketFlag::PROXIABLE as usize);
+        }
+
+        if kdc_options.is_set(KdcOptionsFlag::ALLOW_POSTDATE as usize) {
+            ticket_flag.set(TicketFlag::PROXY as usize);
+        }
+
+        Ok(ticket_flag.build().unwrap())
     }
 
-    fn calculate_renew_till(&self, as_req: &AsReq) -> std::result::Result<KerberosTime, Ecode> {
-        todo!()
+    // TODO: implement this correctly
+    fn calculate_renew_till(
+        &self,
+        as_req: &AsReq,
+    ) -> std::result::Result<Option<KerberosTime>, Ecode> {
+        if as_req
+            .req_body()
+            .kdc_options()
+            .is_set(messages::flags::KdcOptionsFlag::RENEWABLE as usize)
+        {
+            Ok(Some(
+                KerberosTime::now() + Duration::from_secs(60 * 60 * 24),
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn verify_kdc_option(&self, as_req: AsReq) -> std::result::Result<(), Ecode> {
+        let kdc_options = as_req.req_body().kdc_options();
+        if kdc_options.is_set(KdcOptionsFlag::RENEW as usize)
+            || kdc_options.is_set(KdcOptionsFlag::VALIDATE as usize)
+            || kdc_options.is_set(KdcOptionsFlag::ENC_TKT_IN_SKEY as usize)
+            || kdc_options.is_set(KdcOptionsFlag::FORWARDED as usize)
+            || kdc_options.is_set(KdcOptionsFlag::PROXY as usize)
+        {
+            Err(Ecode::KDC_ERR_BADOPTION)
+        } else {
+            Ok(())
+        }
     }
 
     fn calculate_ticket_expire_time(&self, requested_endtime: &KerberosTime) -> KerberosTime {
@@ -187,8 +375,9 @@ where
             .unwrap_or(self.get_maximum_endtime_allowed())
     }
 
+    // TODO: implement this correctly
     fn get_maximum_endtime_allowed(&self) -> KerberosTime {
-        todo!()
+        KerberosTime::now() + Duration::from_secs(60 * 60 * 24)
     }
 
     fn get_acceptable_clock_skew(&self) -> RangeInclusive<KerberosTime> {
@@ -217,9 +406,5 @@ where
         } else {
             todo!("This section should be checked using local policy")
         }
-    }
-
-    fn get_suitable_encryption_key(&self, etype: &SequenceOf<Int32>) -> Result<Vec<u8>> {
-        todo!()
     }
 }
