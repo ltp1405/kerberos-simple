@@ -95,7 +95,7 @@ where
             .map_err(|e| ProtocolError(error_msg.error_code(e).build().unwrap()))?;
 
         let ticket_expire_time = self
-            .calculate_ticket_expire_time(as_req)
+            .calculate_ticket_expire_time(as_req.req_body().till())
             .map_err(|e| ProtocolError(error_msg.error_code(e).build().unwrap()))?;
 
         let renew_till = self
@@ -178,9 +178,20 @@ where
 
     fn calculate_ticket_expire_time(
         &self,
-        as_req: &AsReq,
+        as_req: &KerberosTime,
     ) -> std::result::Result<KerberosTime, Ecode> {
         todo!()
+        // Some(as_req.req_body().till())
+        //     .and_then(|x| if x.to_unix_duration() == Duration::from_secs(0) {
+        //         Some(x) } else {None
+        //     }
+        //     ).unwrap_or(
+        //     self.get_maximum_endtime_allowed()
+        // )
+        // if as_req.req_body().till().to_unix_duration() == Duration::from_secs(0) {
+        //     self.get_maximum_endtime_allowed()
+        // }
+        // as_req.req_body().till()
     }
 
     fn get_acceptable_clock_skew(&self) -> RangeInclusive<KerberosTime> {
