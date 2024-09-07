@@ -12,6 +12,7 @@ use messages::{
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
 use std::time::Duration;
+use derive_builder::Builder;
 
 #[cfg(test)]
 mod tests;
@@ -27,6 +28,8 @@ enum ServerError {
     CannotDecode,
 }
 
+#[derive(Builder)]
+#[builder(pattern = "owned", setter(strip_option))]
 struct AuthenticationService<'a, P, C>
 where
     P: PrincipalDatabase,
@@ -69,14 +72,22 @@ where
             ))?,
         );
 
-        let server_key = self.principal_db.get_server_principal_key(
-            as_req.req_body().cname().ok_or(ServerError::ProtocolError(
+        let server_key = self
+            .principal_db
+            .get_server_principal_key(
+                as_req.req_body().cname().ok_or(ServerError::ProtocolError(
+                    error_msg
+                        .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
+                        .build()
+                        .unwrap(),
+                ))?,
+            )
+            .ok_or(ServerError::ProtocolError(
                 error_msg
                     .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
                     .build()
                     .unwrap(),
-            ))?,
-        );
+            ))?;
 
         if self.require_pre_authenticate {
             todo!("Pre-auth is not yet implemented")
@@ -94,9 +105,7 @@ where
             .get_starttime(as_req)
             .map_err(|e| ProtocolError(error_msg.error_code(e).build().unwrap()))?;
 
-        let ticket_expire_time = self
-            .calculate_ticket_expire_time(as_req.req_body().till())
-            .map_err(|e| ProtocolError(error_msg.error_code(e).build().unwrap()))?;
+        let ticket_expire_time = self.calculate_ticket_expire_time(as_req.req_body().till());
 
         let renew_till = self
             .calculate_renew_till(as_req)
@@ -126,8 +135,7 @@ where
             .to_der()
             .unwrap();
 
-        let enc_key = self.get_enc_key().ok_or(ServerError::Internal)?;
-        let enc_ticket = self.crypto.encrypt(&ticket, &enc_key).unwrap();
+        let enc_ticket = self.crypto.encrypt(&ticket, &server_key).unwrap();
         let ticket = Ticket::new(
             self.realm.clone(),
             self.sname.clone(),
@@ -149,7 +157,7 @@ where
 
         Ok(AsRep::new(
             None, // pre-auth is not implemented
-            as_req.req_body().realm.clone(),
+            as_req.req_body().realm().clone(),
             PrincipalName::new(
                 NameTypes::NtPrincipal, // TODO: is this correct???
                 vec![],
@@ -158,10 +166,6 @@ where
             ticket,
             enc_part,
         ))
-    }
-
-    fn get_enc_key(&self) -> Option<Vec<u8>> {
-        todo!()
     }
 
     fn verify_encryption_type(&self, as_req: &AsReq) -> Result<()> {
@@ -176,22 +180,15 @@ where
         todo!()
     }
 
-    fn calculate_ticket_expire_time(
-        &self,
-        as_req: &KerberosTime,
-    ) -> std::result::Result<KerberosTime, Ecode> {
+    fn calculate_ticket_expire_time(&self, requested_endtime: &KerberosTime) -> KerberosTime {
+        Some(requested_endtime)
+            .filter(|x| x.to_unix_duration() == Duration::from_secs(0))
+            .map(|x| *x)
+            .unwrap_or(self.get_maximum_endtime_allowed())
+    }
+
+    fn get_maximum_endtime_allowed(&self) -> KerberosTime {
         todo!()
-        // Some(as_req.req_body().till())
-        //     .and_then(|x| if x.to_unix_duration() == Duration::from_secs(0) {
-        //         Some(x) } else {None
-        //     }
-        //     ).unwrap_or(
-        //     self.get_maximum_endtime_allowed()
-        // )
-        // if as_req.req_body().till().to_unix_duration() == Duration::from_secs(0) {
-        //     self.get_maximum_endtime_allowed()
-        // }
-        // as_req.req_body().till()
     }
 
     fn get_acceptable_clock_skew(&self) -> RangeInclusive<KerberosTime> {
@@ -205,7 +202,7 @@ where
         let acceptable_clock_skew = self.get_acceptable_clock_skew();
         let postdated = as_req
             .req_body()
-            .kdc_options
+            .kdc_options()
             .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
         let start_time = as_req.req_body().from();
         if start_time.is_none()
