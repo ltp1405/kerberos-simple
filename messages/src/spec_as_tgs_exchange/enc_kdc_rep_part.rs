@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Builder, Sequence, Eq, PartialEq, Debug)]
-#[builder(setter(into))]
+#[builder(setter(into, strip_option))]
 pub struct EncKdcRepPart {
     #[asn1(context_specific = "0")]
     key: EncryptionKey,
@@ -20,6 +20,7 @@ pub struct EncKdcRepPart {
     nonce: UInt32,
 
     #[asn1(context_specific = "3", optional = "true")]
+    #[builder(default)]
     key_expiration: Option<KerberosTime>,
 
     #[asn1(context_specific = "4")]
@@ -29,12 +30,14 @@ pub struct EncKdcRepPart {
     authtime: KerberosTime,
 
     #[asn1(context_specific = "6", optional = "true")]
+    #[builder(default)]
     starttime: Option<KerberosTime>,
 
     #[asn1(context_specific = "7")]
     endtime: KerberosTime,
 
     #[asn1(context_specific = "8", optional = "true")]
+    #[builder(default)]
     renew_till: Option<KerberosTime>,
 
     #[asn1(context_specific = "9")]
@@ -44,11 +47,12 @@ pub struct EncKdcRepPart {
     sname: PrincipalName,
 
     #[asn1(context_specific = "11", optional = "true")]
+    #[builder(default)]
     caddr: Option<HostAddresses>,
 }
 
 impl EncKdcRepPart {
-    fn builder() -> EncKdcRepPartBuilder {
+    pub fn builder() -> EncKdcRepPartBuilder {
         EncKdcRepPartBuilder::default()
     }
     pub fn key(&self) -> &EncryptionKey {
@@ -120,7 +124,6 @@ pub mod tests {
             ))
             .last_req(LastReq::new())
             .nonce(1u32)
-            .key_expiration(None)
             .flags(
                 TicketFlags::builder()
                     .set(flags::TicketFlag::FORWARDABLE as usize)
@@ -128,9 +131,7 @@ pub mod tests {
                     .unwrap(),
             )
             .authtime(KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap())
-            .starttime(None)
             .endtime(KerberosTime::from_unix_duration(Duration::from_secs(10)).unwrap())
-            .renew_till(None)
             .srealm(Realm::new("EXAMPLE.COM".as_bytes()).unwrap())
             .sname(
                 PrincipalName::new(
@@ -139,7 +140,6 @@ pub mod tests {
                 )
                 .unwrap(),
             )
-            .caddr(None)
             .build()
             .unwrap()
     }

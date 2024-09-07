@@ -120,7 +120,7 @@ fn enc_kdc_rep_part() {
         .endtime(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
         .authtime(KerberosTime::from_system_time(SystemTime::now()).unwrap())
         .flags(KerberosFlags::builder().set(1).build().unwrap())
-        .renew_till(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
+        .renew_till(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
         .srealm(Realm::try_from("hello").unwrap())
         .sname(
             PrincipalName::new(
@@ -129,7 +129,7 @@ fn enc_kdc_rep_part() {
             )
             .unwrap(),
         )
-        .key_expiration(KerberosTime::from_unix_duration(Duration::from_secs(1)).ok())
+        .key_expiration(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
         .caddr(HostAddresses::from(vec![HostAddress::new(
             AddressTypes::Ipv4,
             OctetString::new(&[1, 2, 3]).unwrap(),

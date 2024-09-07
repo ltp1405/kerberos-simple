@@ -47,20 +47,20 @@ pub fn receive_as_response(
     match req_cname {
         Some(cname) => {
             if cname != rep_cname {
-                return Err(ClientError::ReponseDoesNotMatch(
+                return Err(ClientError::ResponseDoesNotMatch(
                     "AS Response's cname does not match that of AS Request".to_string(),
                 ));
             }
         }
         None => {
-            return Err(ClientError::InvalidAsReq(
+            return Err(ClientError::InvalidKdcReq(
                 "AS Request does not contain cname".to_string(),
             ))
         }
     }
     let req_crealm = as_req.req_body().realm();
     if req_crealm != rep_crealm {
-        return Err(ClientError::ReponseDoesNotMatch(
+        return Err(ClientError::ResponseDoesNotMatch(
             "AS Response's realm does not match that of AS Request".to_string(),
         ));
     }
@@ -74,7 +74,7 @@ pub fn receive_as_response(
     let rep_nonce = as_rep_part.nonce();
     let req_nonce = as_req.req_body().nonce();
     if rep_nonce != req_nonce {
-        return Err(ClientError::ReponseDoesNotMatch(
+        return Err(ClientError::ResponseDoesNotMatch(
             "AS Response's nonce does not match that of AS Request".to_string(),
         ));
     }
@@ -96,19 +96,19 @@ pub fn receive_as_response(
     match req_sname {
         Some(sname) => {
             if sname != rep_sname {
-                return Err(ClientError::ReponseDoesNotMatch(
+                return Err(ClientError::ResponseDoesNotMatch(
                     "AS Response's sname does not match that of AS Request".to_string(),
                 ));
             }
         }
         None => {
-            return Err(ClientError::InvalidAsReq(
+            return Err(ClientError::InvalidKdcReq(
                 "AS Request does not contain sname".to_string(),
             ))
         }
     }
     if req_srealm != rep_srealm {
-        return Err(ClientError::ReponseDoesNotMatch(
+        return Err(ClientError::ResponseDoesNotMatch(
             "AS Response's realm does not match that of AS Request".to_string(),
         ));
     }

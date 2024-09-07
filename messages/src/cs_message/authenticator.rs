@@ -14,7 +14,7 @@ use derive_builder::Builder;
 pub struct Authenticator(AuthenticatorInner);
 
 #[derive(Builder, Sequence, PartialEq, Eq, Clone, Debug)]
-#[builder(setter(into), public, build_fn(skip), name = "AuthenticatorBuilder")]
+#[builder(setter(into, strip_option), public, build_fn(skip), name = "AuthenticatorBuilder")]
 struct AuthenticatorInner {
     #[asn1(context_specific = "0")]
     #[builder(setter(skip))]

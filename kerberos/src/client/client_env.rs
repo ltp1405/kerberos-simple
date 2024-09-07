@@ -1,7 +1,8 @@
-use messages::basic_types::{EncryptionKey, KerberosString, OctetString};
+use messages::basic_types::{EncryptionKey, KerberosString, KerberosTime, OctetString};
 use std::time::Duration;
-use messages::AsRep;
+use messages::{AsRep, EncAsRepPart, TgsRep};
 use crate::client::client_env_error::ClientEnvError;
+use crate::cryptography::Cryptography;
 
 pub trait ClientEnv {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError>;
@@ -14,9 +15,13 @@ pub trait ClientEnv {
 
     fn get_client_address(&self) -> Result<OctetString, ClientEnvError>;
 
-    fn get_current_time(&self) -> Result<Duration, ClientEnvError>;
+    fn get_current_time(&self) -> Result<Duration, ClientEnvError> {
+        Ok(KerberosTime::now().to_unix_duration())
+    }
 
     fn get_supported_etypes(&self) -> Result<Vec<i32>, ClientEnvError>;
+
+    fn get_crypto(&self) -> Result<Box<dyn Cryptography>, ClientEnvError>;
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError>;
 
@@ -25,4 +30,12 @@ pub trait ClientEnv {
     fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError>;
 
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError>;
+
+    fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
+
+    fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError>;
+
+    fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
+
+    fn get_tgs_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
 }
