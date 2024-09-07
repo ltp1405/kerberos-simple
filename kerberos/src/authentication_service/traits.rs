@@ -1,20 +1,17 @@
-use messages::basic_types::{EncryptionKey, Int32, PrincipalName, Realm};
+use std::time::Duration;
+use messages::basic_types::{EncryptionKey, Int32, PrincipalName, Realm, UInt32};
+
+pub(crate) struct PrincipalDatabaseRecord {
+    pub key: EncryptionKey,
+    pub p_kvno: Option<UInt32>,
+    pub max_renewable_life: Duration,
+    pub supported_encryption_types: Vec<Int32>,
+}
 
 pub trait PrincipalDatabase {
-    fn get_client_principal_key(
+    fn get_principal(
         &self,
         principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey>;
-    fn get_server_principal_key(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey>;
-
-    fn get_server_supported_encryption_types(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<Int32>;
+        realm: &Realm,
+    ) -> Option<PrincipalDatabaseRecord>;
 }

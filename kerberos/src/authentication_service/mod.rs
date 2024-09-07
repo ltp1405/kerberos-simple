@@ -1,3 +1,4 @@
+use crate::authentication_service::traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use crate::authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
 use chrono::{Local, SubsecRound};
@@ -13,8 +14,7 @@ use messages::{
 };
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
-use std::time::Duration;
-use crate::authentication_service::traits::PrincipalDatabase;
+use std::time::{Duration, SystemTime};
 
 #[cfg(test)]
 mod tests;
@@ -58,37 +58,6 @@ where
             .to_owned()
     }
 
-    fn get_suitable_client_key(
-        &self,
-        client_name: &PrincipalName,
-        realm: &Realm,
-        requested_etypes: &SequenceOf<Int32>,
-    ) -> Result<EncryptionKey> {
-        let client_keys = self
-            .principal_db
-            .get_client_principal_key(client_name, realm.clone());
-        if client_keys.is_empty() {
-            return Err(ProtocolError(
-                self.default_error_builder()
-                    .error_code(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN)
-                    .build()
-                    .unwrap(),
-            ));
-        }
-
-        let client_key = requested_etypes
-            .iter()
-            .find_map(|etype| client_keys.iter().find(|key| key.keytype() == etype))
-            .ok_or(ProtocolError(
-                self.default_error_builder()
-                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
-                    .build()
-                    .unwrap(),
-            ))?;
-
-        Ok(client_key.clone())
-    }
-
     fn generate_suitable_session_key(
         &self,
         etypes: &SequenceOf<Int32>,
@@ -123,44 +92,44 @@ where
     fn get_endtime(&self, as_req: &AsReq) -> KerberosTime {
         // TODO: implement this correctly
         let till = as_req.req_body().till();
-        *till
+        if till.to_unix_duration() == Duration::from_secs(0) {
+            todo!("Max this out")
+        } else {
+            *till
+        }
     }
 
-    // Current implementation is just get the first key that is found
-    fn get_suitable_server_key(
-        &self,
-        sname: &PrincipalName,
-        realm: Realm,
-    ) -> Option<EncryptionKey> {
-        self.principal_db
-            .get_server_principal_key(sname, realm)
-            .first()
-            .cloned()
+    fn get_client(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
+        as_req
+            .req_body()
+            .cname()
+            .and_then(|cname| self.principal_db.get_principal(&cname, &self.realm))
+    }
+
+    fn get_server(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
+        as_req
+            .req_body()
+            .sname()
+            .and_then(|sname| self.principal_db.get_principal(&sname, &self.realm))
     }
 
     fn handle_krb_as_req(&self, client_addr: HostAddress, as_req: &AsReq) -> Result<AsRep> {
         let mut error_msg = self.default_error_builder();
         let kdc_time = KerberosTime::now();
-
-        let client_key = self.get_suitable_client_key(
-            // TODO: what should be the default value here?
-            as_req.req_body().cname().expect("Client name is missing"),
-            as_req.req_body().realm(),
-            as_req.req_body().etype(),
-        )?;
-
-        let server_key = self
-            .get_suitable_server_key(
-                // TODO: what should be the default value here?
-                as_req.req_body().sname().expect("Server name is missing"),
-                as_req.req_body().realm().clone(),
-            )
-            .ok_or(ProtocolError(
-                error_msg
-                    .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
-                    .build()
-                    .unwrap(),
-            ))?;
+        let client = self.get_client(as_req).ok_or(ProtocolError(
+            error_msg
+                .error_code(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN)
+                .build()
+                .unwrap(),
+        ))?;
+        let server = self.get_server(as_req).ok_or(ProtocolError(
+            error_msg
+                .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
+                .build()
+                .unwrap(),
+        ))?;
+        let client_key = client.key;
+        let server_key = server.key;
 
         if self.require_pre_authenticate {
             if as_req.padata().is_none() {
@@ -174,6 +143,25 @@ where
             todo!("Pre-auth is not yet implemented")
         }
         self.verify_encryption_type(as_req)?;
+
+        let use_crypto_system = self
+            .get_supported_crypto_systems()
+            .iter()
+            .find_map(|crypto| {
+                as_req.req_body().etype().iter().find_map(|etype| {
+                    if crypto.get_etype() == *etype {
+                        Some(crypto)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .ok_or(ProtocolError(
+                error_msg
+                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                    .build()
+                    .unwrap(),
+            ))?;
 
         let session_key = self
             .generate_suitable_session_key(as_req.req_body().etype())
@@ -202,6 +190,9 @@ where
         if let Some(v) = renew_till {
             ticket.renew_till(v);
         }
+        if let Some(addr) = as_req.req_body().addresses() {
+            ticket.caddr(addr.clone());
+        }
         let session_key = EncryptionKey::new(
             0,
             OctetString::new(session_key.keyvalue().as_bytes()).unwrap(),
@@ -219,14 +210,11 @@ where
                     .clone(),
             )
             .crealm(as_req.req_body().realm().clone())
-            // TODO: what should be the key type?
             .key(session_key.clone())
             .transited(TransitedEncoding::empty(0))
             .authtime(kdc_time)
             .endtime(endtime)
             .build()
-            .unwrap()
-            .to_der()
             .unwrap();
 
         let enc_ticket = self
@@ -235,7 +223,7 @@ where
             .filter(|crypto| crypto.get_etype() == *server_key.keytype())
             .next()
             .unwrap()
-            .encrypt(&ticket, server_key.keyvalue().as_bytes())
+            .encrypt(&ticket.to_der().unwrap(), server_key.keyvalue().as_bytes())
             .unwrap();
 
         let sname = as_req.req_body().sname().unwrap().clone();
@@ -265,12 +253,7 @@ where
             .build()
             .unwrap();
 
-        let enc_part = self
-            .get_supported_crypto_systems()
-            .iter()
-            .filter(|crypto| crypto.get_etype() == *selected_client_key.keytype())
-            .next()
-            .unwrap()
+        let enc_part = use_crypto_system
             .encrypt(
                 &enc_part.to_der().unwrap(),
                 selected_client_key.keyvalue().as_bytes(),
@@ -279,7 +262,7 @@ where
             .map(|x| {
                 EncryptedData::new(
                     *selected_client_key.keytype(),
-                    0,
+                    client.p_kvno,
                     OctetString::new(x).unwrap(),
                 )
             })?;

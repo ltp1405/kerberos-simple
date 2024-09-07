@@ -1,3 +1,4 @@
+use crate::authentication_service::traits::PrincipalDatabase;
 use crate::authentication_service::AuthenticationServiceBuilder;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
@@ -8,7 +9,6 @@ use messages::basic_types::{
 use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBody, KdcReqBodyBuilder};
 use std::time::Duration;
-use crate::authentication_service::traits::PrincipalDatabase;
 
 struct MockedCrypto;
 
@@ -38,28 +38,19 @@ impl Cryptography for MockedCrypto {
 struct MockedPrincipalDb;
 
 impl PrincipalDatabase for MockedPrincipalDb {
-    fn get_client_principal_key(
+    fn get_principal(
         &self,
         principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey> {
-        vec![EncryptionKey::new(1, OctetString::new([1, 2, 3]).unwrap())]
-    }
-
-    fn get_server_principal_key(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<EncryptionKey> {
-        vec![EncryptionKey::new(1, OctetString::new([0xff; 8]).unwrap())]
-    }
-
-    fn get_server_supported_encryption_types(
-        &self,
-        principal_name: &PrincipalName,
-        realm: Realm,
-    ) -> Vec<Int32> {
-        todo!()
+        realm: &Realm,
+    ) -> Option<crate::authentication_service::traits::PrincipalDatabaseRecord> {
+        Some(
+            crate::authentication_service::traits::PrincipalDatabaseRecord {
+                key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
+                p_kvno: Some(1),
+                max_renewable_life: Duration::from_secs(5 * 60),
+                supported_encryption_types: vec![1, 2, 3],
+            },
+        )
     }
 }
 
