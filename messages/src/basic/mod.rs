@@ -348,6 +348,14 @@ impl PaData {
     pub fn for_unregistered_use(&self) -> Result<bool, &'static str> {
         self.for_registered_use().map(|b| !b)
     }
+
+    pub fn padata_type(&self) -> &Int32 {
+        &self.padata_type
+    }
+
+    pub fn padata_value(&self) -> &OctetString {
+        &self.padata_value
+    }
 }
 
 pub enum PaDataRegisteredType {
