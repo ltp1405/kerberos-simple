@@ -7,6 +7,6 @@ pub use authenticator::Authenticator;
 pub use authenticator::AuthenticatorBuilder;
 pub use authenticator::AuthenticatorBuilderError;
 pub use enc_ap_rep_part::EncApRepPart;
-pub use krb_ap_rep::KrbApRep;
+pub use krb_ap_rep::ApRep;
 pub use krb_ap_req::APOptions;
-pub use krb_ap_req::KrbApReq;
+pub use krb_ap_req::ApReq;

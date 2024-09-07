@@ -4,7 +4,7 @@ use messages::basic_types::{
     Realm,
 };
 use messages::{
-    APOptions, AsRep, Ecode, EncApRepPart, EncKdcRepPartBuilder, EncTicketPart, KrbApRep, KrbApReq,
+    APOptions, AsRep, Ecode, EncApRepPart, EncKdcRepPartBuilder, EncTicketPart, ApRep, ApReq,
     KrbErrorMsgBuilder, LastReqEntry, TgsRep, Ticket,
 };
 use std::time::{Duration, SystemTime};
@@ -154,7 +154,7 @@ fn enc_kdc_rep_part() {
 
 #[test]
 fn krb_ap_rep() {
-    let ap_rep = KrbApRep::new(EncryptedData::new(0, 1, OctetString::new(&[2, 3]).unwrap()));
+    let ap_rep = ApRep::new(EncryptedData::new(0, 1, OctetString::new(&[2, 3]).unwrap()));
 
     let enc_data = EncApRepPart::new(
         KerberosTime::from_system_time(SystemTime::now()).unwrap(),
@@ -184,7 +184,7 @@ fn krb_ap_req() {
         .unwrap(),
         EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap()),
     );
-    let ap_req = KrbApReq::new(
+    let ap_req = ApReq::new(
         APOptions::new(true, false),
         ticket,
         EncryptedData::new(0, 1, OctetString::new(&[1, 2, 3]).unwrap()),

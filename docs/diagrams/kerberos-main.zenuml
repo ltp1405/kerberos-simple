@@ -1,0 +1,34 @@
+CL as Client
+SV as Server
+
+group KDC {
+  AS as "Authentication Service"
+  TGS as "Ticket Granting Service"
+}
+
+CL->AS.KRB_AS_REQ {
+  if (no_error) {
+    return KRB_AS_REP
+  }
+  else {
+    return KRB_ERROR
+  }
+}
+
+CL->TGS.KRB_TGS_REQ {
+  if (no_error) {
+    return KRB_TGS_REP
+  }
+  else {
+    return KRB_ERROR
+  }
+}
+
+CL->SV.KRB_AP_REQ {
+  if (no_error) {
+    return KRB_TGS_REP
+  }
+  else {
+    return KRB_ERROR
+  }
+}

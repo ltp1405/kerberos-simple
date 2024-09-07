@@ -1,9 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use der::{
-    self,
-    asn1::{GeneralizedTime, OctetStringRef},
-    Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Writer,
+    self, asn1::OctetStringRef, Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length,
+    Reader, Sequence, Writer,
 };
 
 pub use constants::flags; // Export flags from constants module for external use of KerberosFlags
@@ -24,11 +23,11 @@ pub type UInt32 = u32;
 pub type Microseconds = i32;
 
 // RFC4120 5.2.1
-use crate::KrbApReq;
+use crate::ApReq;
 pub use kerberos_string::KerberosString;
 
 // RFC4120 5.2.3
-pub type KerberosTime = GeneralizedTime;
+pub use kerberos_time::KerberosTime;
 
 // RFC4120 5.2.2
 pub type Realm = KerberosString;
@@ -352,7 +351,7 @@ impl PaData {
 }
 
 pub enum PaDataRegisteredType {
-    TgsReq(KrbApReq),             // DER encoding of AP-REQ
+    TgsReq(ApReq),                // DER encoding of AP-REQ
     EncTimeStamp(PaEncTimestamp), // DER encoding of PA-ENC-TIMESTAMP
     // The padata-value for this pre-authentication type contains the salt
     // for the string-to-key to be used by the client to obtain the key for
@@ -388,7 +387,7 @@ impl PaDataRegisteredType {
         let value = match padata_type {
             PaDataTypes::PaTgsReq => {
                 let decoded = octet_str_ref
-                    .decode_into::<KrbApReq>()
+                    .decode_into::<ApReq>()
                     .map_err(|e| to_meaningful_error(padata_type, "KrbApRep", e))?;
                 PaDataRegisteredType::TgsReq(decoded)
             }
@@ -462,7 +461,7 @@ impl PaEncTsEnc {
         Self::new(kerberos_time, Some(microseconds))
     }
 
-    pub fn pa_timestamp(&self) -> GeneralizedTime {
+    pub fn pa_timestamp(&self) -> KerberosTime {
         self.pa_timestamp
     }
 
@@ -749,5 +748,6 @@ impl Checksum {
 }
 
 mod kerberos_string;
+mod kerberos_time;
 #[cfg(test)]
 mod test;
