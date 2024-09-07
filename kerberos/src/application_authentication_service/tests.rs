@@ -1,5 +1,6 @@
-use crate::authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
-use crate::authentication_service::{AuthenticationService, AuthenticationServiceBuilder};
+use crate::application_authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
+use crate::application_authentication_service::ApplicationAuthenticationServiceBuilder;
+use crate::authentication_service::PrincipalDatabase;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
 use chrono::{DateTime, Local};
@@ -57,7 +58,7 @@ fn test_handle_ap_req() {
     let key_storage = MockedKeyStorage;
     let crypto = MockedCrypto;
     let key = crypto.generate_key().unwrap();
-    let auth_service = AuthenticationServiceBuilder::default()
+    let auth_service = ApplicationAuthenticationServiceBuilder::default()
         .realm("me".try_into().unwrap())
         .sname(PrincipalName::new(NameTypes::NtPrincipal, vec!["me".try_into().unwrap()]).unwrap())
         .accept_empty_address_ticket(true)
