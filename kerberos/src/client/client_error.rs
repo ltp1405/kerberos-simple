@@ -5,12 +5,11 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum ClientError {
     ClientEnvError(ClientEnvError),
     CryptographyError(CryptographyError),
     PrepareRequestError(String),
-    InvalidAsReq(String),
+    InvalidKdcReq(String),
     ResponseDoesNotMatch(String),
     EncodeError,
     DecodeError,
@@ -23,7 +22,7 @@ impl Display for ClientError {
             ClientError::ClientEnvError(e) => write!(f, "ClientEnvError: {}", e),
             ClientError::CryptographyError(e) => write!(f, "ClientError: {}", e),
             ClientError::PrepareRequestError(e) => write!(f, "Prepare request error: {}", e),
-            ClientError::InvalidAsReq(e) => write!(f, "Invalid AS-REQ: {}", e),
+            ClientError::InvalidKdcReq(e) => write!(f, "Invalid KDC-REQ: {}", e),
             ClientError::ResponseDoesNotMatch(e) => write!(f, "Response does not match: {}", e),
             ClientError::EncodeError => write!(f, "Encode error"),
             ClientError::DecodeError => write!(f, "Decode error"),

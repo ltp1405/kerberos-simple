@@ -53,7 +53,7 @@ pub fn receive_as_response(
             }
         }
         None => {
-            return Err(ClientError::InvalidAsReq(
+            return Err(ClientError::InvalidKdcReq(
                 "AS Request does not contain cname".to_string(),
             ))
         }
@@ -102,7 +102,7 @@ pub fn receive_as_response(
             }
         }
         None => {
-            return Err(ClientError::InvalidAsReq(
+            return Err(ClientError::InvalidKdcReq(
                 "AS Request does not contain sname".to_string(),
             ))
         }
