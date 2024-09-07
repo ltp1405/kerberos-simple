@@ -38,7 +38,7 @@ pub fn prepare_tgs_request(
         .encode_to_vec(&mut ap_req_buf)
         .or(Err(ClientError::EncodeError))?;
     let auth_header = PaData::new(
-        1, // PaTgsReq
+        PaTgsReq as i32,
         OctetString::new(ap_req_buf).or(Err(ClientError::EncodeError))?,
     );
     let pa_data = vec![auth_header];
