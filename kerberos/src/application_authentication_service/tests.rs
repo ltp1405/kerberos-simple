@@ -39,6 +39,10 @@ impl KeyFinder for MockedKeyStorage {
 struct MockedCrypto;
 
 impl Cryptography for MockedCrypto {
+    fn get_etype(&self) -> i32 {
+        1
+    }
+
     fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
         Ok(data.into())
     }
