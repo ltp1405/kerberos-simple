@@ -38,4 +38,8 @@ pub trait ClientEnv {
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 
     fn get_tgs_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
+
+    fn save_subkey(&self, key: EncryptionKey) -> Result<(), ClientEnvError>;
+
+    fn save_seq_number(&self, seq_num: u32) -> Result<(), ClientEnvError>;
 }
