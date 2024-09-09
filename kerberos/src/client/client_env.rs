@@ -21,7 +21,7 @@ pub trait ClientEnv {
 
     fn get_supported_etypes(&self) -> Result<Vec<i32>, ClientEnvError>;
 
-    fn get_crypto(&self) -> Result<Box<dyn Cryptography>, ClientEnvError>;
+    fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError>;
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError>;
 
