@@ -1,13 +1,19 @@
 use crate::cryptography::Cryptography;
 use crate::service_traits::PrincipalDatabaseRecord;
-use chrono::{Duration, Local, SubsecRound};
-use messages::basic_types::{EncryptionKey, Int32, KerberosTime, PrincipalName, Realm};
+use crate::ticket_granting_service::ServerError::ProtocolError;
+use chrono::{Local, SubsecRound};
+use messages::basic_types::{
+    AuthorizationData, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
+    PrincipalName, Realm,
+};
 use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{
     ApReq, Authenticator, Decode, Ecode, EncKdcRepPart, EncKdcRepPartBuilder, EncTgsRepPart,
-    EncTicketPart, Encode, KrbErrorMsg, KrbErrorMsgBuilder, KrbErrorMsgBuilderError, TgsRep,
-    TgsReq, Ticket, TicketFlags,
+    EncTicketPart, Encode, KrbErrorMsg, KrbErrorMsgBuilder, KrbErrorMsgBuilderError, LastReq,
+    TgsRep, TgsReq, Ticket, TicketFlags,
 };
+use std::cmp::min;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -99,7 +105,7 @@ impl TicketGrantingService {
             })
     }
 
-    fn generate_random_session_key(&self) -> Vec<u8> {
+    fn generate_random_session_key(&self) -> EncryptionKey {
         todo!()
     }
 
@@ -178,21 +184,27 @@ impl TicketGrantingService {
 
         let mut tgt_rep = EncKdcRepPartBuilder::default();
 
-        let new_ticket_enc_part = EncTicketPart::builder()
-            .caddr(tgt.caddr().expect("caddr should be present in tgt").clone());
+        let mut new_ticket_enc_part = EncTicketPart::builder();
+        let mut new_ticket_enc_part =
+            new_ticket_enc_part.caddr(tgt.caddr().expect("caddr should be present in tgt").clone());
 
         let mut new_ticket_flags = TicketFlags::builder();
+
+        let mut check_tgs_req_flag = |flag: KdcOptionsFlag, err: Ecode| {
+            if !tgs_req.req_body().kdc_options().is_set(flag as usize) {
+                return Err(ServerError::ProtocolError(
+                    error.error_code(err).build().unwrap(),
+                ));
+            }
+            Ok(())
+        };
 
         if tgs_req
             .req_body()
             .kdc_options
             .is_set(KdcOptionsFlag::FORWARDABLE as usize)
         {
-            if !tgt.flags().is_set(TicketFlag::FORWARDABLE as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
-                ));
-            }
+            check_tgs_req_flag(KdcOptionsFlag::FORWARDABLE, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::FORWARDABLE as usize);
         }
 
@@ -201,11 +213,7 @@ impl TicketGrantingService {
             .kdc_options
             .is_set(KdcOptionsFlag::FORWARDED as usize)
         {
-            if !tgt.flags().is_set(TicketFlag::FORWARDABLE as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
-                ));
-            }
+            check_tgs_req_flag(KdcOptionsFlag::FORWARDED, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::FORWARDED as usize);
             new_ticket_enc_part.caddr(
                 tgs_req
@@ -232,11 +240,7 @@ impl TicketGrantingService {
             .kdc_options()
             .is_set(KdcOptionsFlag::PROXIABLE as usize)
         {
-            if !tgt.flags().is_set(TicketFlag::PROXIABLE as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
-                ));
-            }
+            check_tgs_req_flag(KdcOptionsFlag::PROXIABLE, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::PROXIABLE as usize);
         }
 
@@ -245,11 +249,7 @@ impl TicketGrantingService {
             .kdc_options()
             .is_set(KdcOptionsFlag::PROXY as usize)
         {
-            if !tgt.flags().is_set(TicketFlag::PROXIABLE as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
-                ));
-            }
+            check_tgs_req_flag(KdcOptionsFlag::PROXY, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::PROXY as usize);
             new_ticket_enc_part.caddr(
                 tgs_req
@@ -274,11 +274,7 @@ impl TicketGrantingService {
             .kdc_options()
             .is_set(KdcOptionsFlag::VALIDATE as usize)
         {
-            if !tgt.flags().is_set(TicketFlag::INVALID as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_POLICY).build().unwrap(),
-                ));
-            }
+            check_tgs_req_flag(KdcOptionsFlag::VALIDATE, Ecode::KDC_ERR_BADOPTION)?;
             if tgt.starttime().expect("starttime should be present in tgt") > KerberosTime::now() {
                 return Err(ServerError::ProtocolError(
                     error.error_code(Ecode::KRB_AP_ERR_TKT_NYV).build().unwrap(),
@@ -295,6 +291,8 @@ impl TicketGrantingService {
         // TODO: more flag verification
 
         new_ticket_enc_part.authtime(tgt.authtime().clone());
+
+        let mut req_rtime = KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap();
 
         if tgs_req
             .req_body()
@@ -319,16 +317,230 @@ impl TicketGrantingService {
                 ));
             }
             new_ticket_enc_part.starttime(KerberosTime::now());
-            let old_life = tgt.endtime() - tgt.starttime();
+            let old_life = tgt.endtime() - tgt.starttime().unwrap();
             new_ticket_enc_part.endtime(std::cmp::min(
                 KerberosTime::now() + old_life,
                 tgt.renew_till()
                     .expect("renew_till should be present in tgt")
                     .clone(),
             ));
+            new_ticket_enc_part.starttime(KerberosTime::now());
         } else {
+            new_ticket_enc_part.starttime(KerberosTime::now());
+            let till = if tgs_req.req_body().till().timestamp() == 0 {
+                todo!("return infinite time")
+            } else {
+                tgs_req.req_body().till().clone()
+            };
+
+            let new_tkt_endtime = [
+                till,
+                tgt.endtime(),
+                // KerberosTime::now() + todo!("max life of client"),
+                // KerberosTime::now() + todo!("max life of server"),
+                // KerberosTime::now() + todo!("max life of realm"),
+            ]
+            .iter()
+            .min()
+            .expect("till and endtime should be present in tgs_req")
+            .clone();
+
+            new_ticket_enc_part.endtime(new_tkt_endtime);
+
+            if tgs_req
+                .req_body()
+                .kdc_options()
+                .is_set(KdcOptionsFlag::RENEWABLE_OK as usize)
+                && new_tkt_endtime < till
+                && tgt.flags().is_set(TicketFlag::RENEWABLE as usize)
+            {
+                new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
+                new_ticket_enc_part.renew_till(
+                    tgt.renew_till()
+                        .expect("renew_till should be present in tgt")
+                        .clone(),
+                );
+            }
+            req_rtime = min(till, tgt.renew_till().unwrap());
         }
 
+        let rtime = if req_rtime.timestamp() == 0 {
+            todo!("return infinite time")
+        } else {
+            tgs_req.req_body().rtime().unwrap()
+        };
+
+        if tgs_req
+            .req_body()
+            .kdc_options()
+            .is_set(KdcOptionsFlag::RENEWABLE as usize)
+        {
+            new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
+            new_ticket_enc_part.renew_till(
+                *[
+                    rtime,
+                    // todo!("max renewable life of client"),
+                    // todo!("max renewable life of server"),
+                    // todo!("max renewable life of realm"),
+                ]
+                .iter()
+                .min()
+                .unwrap()
+                .clone(),
+            );
+        }
+
+        let decrypted_auth = tgs_req
+            .req_body()
+            .enc_authorization_data()
+            .map(|auth_data| {
+                let key = authenticator
+                    .subkey()
+                    .expect("enc_authorization_data must be decrypted with subkey");
+                self.supported_crypto
+                    .iter()
+                    .find(|crypto| crypto.get_etype() == *key.keytype())
+                    .ok_or(ServerError::ProtocolError(
+                        error
+                            .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                            .build()
+                            .unwrap(),
+                    ))
+                    .and_then(|crypto| {
+                        crypto
+                            .decrypt(auth_data.cipher().as_bytes(), key.keyvalue().as_bytes())
+                            .map_err(|_| ServerError::Internal)
+                            .map(|data| {
+                                AuthorizationData::from_der(data.as_slice())
+                                    .expect("authorization data should be decoded")
+                            })
+                    })
+            });
+
+        let auth_data = decrypted_auth.map(|decrypted_auth| {
+            let auth_data = authenticator
+                .authorization_data()
+                .expect("authorization data should be present in authenticator")
+                .iter()
+                .map(|x| x.clone())
+                .chain(decrypted_auth?.into_iter())
+                .collect::<AuthorizationData>();
+            Ok(auth_data)
+        });
+        if let Some(auth_data) = auth_data {
+            new_ticket_enc_part.authorization_data(auth_data?);
+        }
+
+        new_ticket_enc_part.key(session_key.clone());
+        new_ticket_enc_part.crealm(tgt.crealm().clone());
+        new_ticket_enc_part.cname(authenticator.cname().clone());
+
+        if self.get_tgt_realm(&tgt) == realm {
+            new_ticket_enc_part.transited(tgt.transited().clone());
+        } else {
+            todo!("Inter-realm is currently not supported");
+        }
+
+        let ticket = new_ticket_enc_part.build().expect("ticket should be built");
+        let encrypted_ticket = self
+            .supported_crypto
+            .iter()
+            .find(|crypto| crypto.get_etype() == *server.key.keytype())
+            .ok_or(ServerError::ProtocolError(
+                error
+                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                    .build()
+                    .unwrap(),
+            ))?
+            .encrypt(
+                &ticket.to_der().expect("ticket should be encoded"),
+                server.key.keyvalue().as_bytes(),
+            )
+            .map(|data| {
+                EncryptedData::new(*server.key.keytype(), None, OctetString::new(data).unwrap())
+            })
+            .map_err(|_| ServerError::Internal)?;
+
+        let new_ticket = Ticket::new(
+            realm.clone(),
+            tgs_req
+                .req_body()
+                .sname()
+                .expect("sname should be present in tgs_req")
+                .clone(),
+            encrypted_ticket,
+        );
+
+        tgt_rep.key(session_key.clone());
+        tgt_rep.last_req(self.fetch_last_request_info());
+        tgt_rep.nonce(tgs_req.req_body().nonce().clone());
+        tgt_rep.flags(new_ticket_flags.build().unwrap());
+        tgt_rep.authtime(tgt.authtime().clone());
+        if let Some(starttime) = tgt.starttime() {
+            tgt_rep.starttime(starttime.clone());
+        }
+        tgt_rep.endtime(ticket.endtime().clone());
+
+        tgt_rep.sname(
+            tgs_req
+                .req_body()
+                .sname()
+                .expect("sname should be present in tgs_req")
+                .clone(),
+        );
+        tgt_rep.srealm(realm.clone());
+        if ticket.flags().is_set(TicketFlag::RENEWABLE as usize) {
+            tgt_rep.renew_till(
+                ticket
+                    .renew_till()
+                    .expect("renew_till should be present in ticket")
+                    .clone(),
+            );
+        }
+
+        let tgt_rep = tgt_rep.build().expect("tgt_rep should be built");
+
+        /// Encrypt data using `use_etype` encryption type
+        let mut encrypt_data = |key: &[u8]| {
+            self.supported_crypto
+                .iter()
+                .find(|crypto| crypto.get_etype() == use_etype)
+                .ok_or(ServerError::ProtocolError(
+                    error
+                        .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
+                        .build()
+                        .unwrap(),
+                ))?
+                .encrypt(&tgt_rep.to_der().unwrap(), key)
+                .map_err(|_| ServerError::Internal)
+        };
+
+        let tgs_rep = if let Some(subkey) = authenticator.subkey() {
+            let data = encrypt_data(subkey.keyvalue().as_bytes())?;
+            EncryptedData::new(
+                *subkey.keytype(),
+                None,
+                OctetString::new(data).expect("data should be encrypted"),
+            )
+        } else {
+            let data = encrypt_data(session_key.keyvalue().as_bytes())?;
+            EncryptedData::new(
+                *session_key.keytype(),
+                None,
+                OctetString::new(data).expect("data should be encrypted"),
+            )
+        };
+
+        Ok(TgsRep::new(
+            None,
+            tgt.crealm().clone(),
+            tgt.cname().clone(),
+            new_ticket,
+            tgs_rep,
+        ))
+    }
+
+    fn fetch_last_request_info(&self) -> LastReq {
         todo!()
     }
 }
