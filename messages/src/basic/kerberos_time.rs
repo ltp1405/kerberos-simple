@@ -83,6 +83,14 @@ impl Add<Duration> for KerberosTime {
     }
 }
 
+impl Sub<KerberosTime> for KerberosTime {
+    type Output = Duration;
+
+    fn sub(self, rhs: KerberosTime) -> Self::Output {
+        self.0.to_unix_duration() - rhs.0.to_unix_duration()
+    }
+}
+
 impl Sub<Duration> for KerberosTime {
     type Output = Self;
 
