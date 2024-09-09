@@ -4,3 +4,4 @@ pub mod ticket_granting_service;
 pub mod cryptography;
 pub mod cryptography_error;
 pub mod authentication_service;
+pub mod service_traits;

@@ -1,4 +1,3 @@
-use crate::authentication_service::traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use crate::authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
 use chrono::{Local, SubsecRound};
@@ -15,6 +14,7 @@ use messages::{
 use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::thread::available_parallelism;
 use std::time::{Duration, SystemTime};
+use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 
 #[cfg(test)]
 mod tests;
@@ -31,7 +31,7 @@ enum ServerError {
 #[builder(pattern = "owned", setter(strip_option))]
 struct AuthenticationService<'a, P>
 where
-    P: PrincipalDatabase,
+    P: PrincipalDatabase
 {
     require_pre_authenticate: bool,
     supported_crypto_systems: Vec<Box<dyn Cryptography>>,
