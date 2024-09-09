@@ -1,8 +1,8 @@
 use crate::client::ap_exchange::prepare_ap_request;
 use crate::client::client_env::ClientEnv;
+use crate::client::client_env_error::ClientEnvError;
 use crate::client::client_error::ClientError;
 use crate::client::util::generate_nonce;
-use crate::cryptography::Cryptography;
 use messages::basic_types::PaDataTypes::PaTgsReq;
 use messages::basic_types::{
     EncryptionKey, KerberosTime, NameTypes, OctetString, PaData, PrincipalName,
@@ -13,10 +13,7 @@ use messages::{
 use std::ops::Sub;
 use std::time::Duration;
 
-pub fn prepare_tgs_request(
-    client_env: impl ClientEnv,
-    cryptography: impl Cryptography,
-) -> Result<TgsReq, ClientError> {
+pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientError> {
     let client_name = client_env.get_client_name()?;
     let server_realm = client_env.get_server_realm()?;
     let server_name = client_env.get_server_name()?;
@@ -30,9 +27,14 @@ pub fn prepare_tgs_request(
     let till = KerberosTime::from_unix_duration(current_time + duration)
         .or(Err(ClientError::DecodeError))?;
     let etypes = client_env.get_supported_etypes()?;
+    if etypes.len() < 1 {
+        return Err(ClientError::ClientEnvError(ClientEnvError {
+            message: "no encryption type supported".to_string(),
+        }));
+    }
 
     // authentication header
-    let ap_req = prepare_ap_request(&client_env, &cryptography, false)?;
+    let ap_req = prepare_ap_request(&client_env, false)?;
     let mut ap_req_buf: Vec<u8> = Vec::new();
     ap_req
         .encode_to_vec(&mut ap_req_buf)
@@ -59,7 +61,6 @@ pub fn receive_tgs_response(
     tgs_req: &TgsReq,
     tgs_rep: &TgsRep,
     client_env: &impl ClientEnv,
-    crypto: &impl Cryptography,
 ) -> Result<(), ClientError> {
     let rep_cname = tgs_rep.cname();
     let rep_crealm = tgs_rep.crealm();
@@ -85,6 +86,7 @@ pub fn receive_tgs_response(
         ));
     }
 
+    let crypto = client_env.get_crypto(*client_env.get_tgs_reply_enc_part()?.key().keytype())?;
     let binding = client_env.get_tgs_reply_enc_part()?;
     let decrypt_key = tgs_rep
         .padata()

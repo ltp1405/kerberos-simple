@@ -21,7 +21,7 @@ pub trait ClientEnv {
 
     fn get_supported_etypes(&self) -> Result<Vec<i32>, ClientEnvError>;
 
-    fn get_crypto(&self) -> Result<Box<dyn Cryptography>, ClientEnvError>;
+    fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError>;
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError>;
 
@@ -38,4 +38,8 @@ pub trait ClientEnv {
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 
     fn get_tgs_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
+
+    fn save_subkey(&self, key: EncryptionKey) -> Result<(), ClientEnvError>;
+
+    fn save_seq_number(&self, seq_num: u32) -> Result<(), ClientEnvError>;
 }

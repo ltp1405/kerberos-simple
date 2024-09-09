@@ -1,7 +1,6 @@
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::client::util::generate_nonce;
-use crate::cryptography::Cryptography;
 use messages::basic_types::{KerberosTime, NameTypes, PrincipalName};
 use messages::{AsRep, AsReq, Decode, EncAsRepPart, KdcReqBodyBuilder, KrbErrorMsg};
 use std::ops::Sub;
@@ -39,7 +38,6 @@ pub fn receive_as_response(
     as_req: &AsReq,
     as_rep: &AsRep,
     client_env: &impl ClientEnv,
-    crypto: &impl Cryptography,
 ) -> Result<(), ClientError> {
     let rep_cname = as_rep.cname();
     let rep_crealm = as_rep.crealm();
@@ -66,6 +64,7 @@ pub fn receive_as_response(
     }
 
     let client_key = client_env.get_client_key(*as_rep.enc_part().etype())?;
+    let crypto = client_env.get_crypto(*as_rep.enc_part().etype())?;
     let decrypted_data = crypto.decrypt(
         as_rep.enc_part().cipher().as_bytes(),
         client_key.keyvalue().as_ref(),
