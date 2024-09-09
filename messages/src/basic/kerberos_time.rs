@@ -72,6 +72,18 @@ impl KerberosTime {
     pub fn timestamp(&self) -> i64 {
         self.0.to_unix_duration().as_secs() as i64
     }
+
+    pub fn zero() -> Self {
+        KerberosTime(GeneralizedTime::from_unix_duration(Duration::from_secs(0)).unwrap())
+    }
+
+    pub fn max() -> Self {
+        KerberosTime(GeneralizedTime::from_date_time(der::DateTime::INFINITY))
+    }
+
+    pub fn infinity() -> Self {
+        KerberosTime(GeneralizedTime::from_date_time(der::DateTime::INFINITY))
+    }
 }
 
 impl Add<Duration> for KerberosTime {
