@@ -3,7 +3,7 @@ use crate::service_traits::PrincipalDatabaseRecord;
 use crate::ticket_granting_service::ServerError::ProtocolError;
 use chrono::{Local, SubsecRound};
 use messages::basic_types::{
-    AuthorizationData, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
+    AuthorizationData, Checksum, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
     PrincipalName, Realm,
 };
 use messages::flags::{KdcOptionsFlag, TicketFlag};
@@ -82,29 +82,6 @@ impl TicketGrantingService {
         todo!()
     }
 
-    fn verify_authenticator(
-        &self,
-        authenticator: &Authenticator,
-        tgs_req: &TgsReq,
-    ) -> Result<(), Ecode> {
-        authenticator
-            .cksum()
-            .ok_or(Ecode::KRB_AP_ERR_INAPP_CKSUM)
-            .and_then(|cksum| {
-                let supported_checksums = self.get_supported_checksums();
-                if !supported_checksums.contains(&cksum.cksumtype()) {
-                    return Err(Ecode::KRB_AP_ERR_INAPP_CKSUM);
-                }
-                if cksum.checksum().as_bytes()
-                    != &self
-                        .compute_checksum(&tgs_req.req_body().to_der().unwrap(), *cksum.cksumtype())
-                {
-                    return Err(Ecode::KRB_AP_ERR_MODIFIED);
-                }
-                Ok(())
-            })
-    }
-
     fn generate_random_session_key(&self) -> EncryptionKey {
         todo!()
     }
@@ -118,6 +95,18 @@ impl TicketGrantingService {
     }
 
     fn replay_detected(&self, ticket: &EncTicketPart) -> bool {
+        todo!()
+    }
+
+    fn is_checksum_supported(&self, checksum: &Checksum) -> bool {
+        todo!()
+    }
+
+    fn is_checksum_keyed(&self, checksum: &Checksum) -> bool {
+        todo!()
+    }
+
+    fn is_checksum_collision_proof(&self, checksum: &Checksum) -> bool {
         todo!()
     }
 
@@ -144,14 +133,51 @@ impl TicketGrantingService {
 
         let authenticator = self.decrypt_authenticator(&auth_header)?;
 
-        if authenticator.cksum().is_none() {
-            return Err(ServerError::ProtocolError(
+        let auth_checksum = authenticator
+            .cksum()
+            .ok_or(ServerError::ProtocolError(
                 error
                     .error_code(Ecode::KRB_AP_ERR_INAPP_CKSUM)
                     .build()
                     .unwrap(),
-            ));
-        }
+            ))
+            .and_then(|t| {
+                if !self.is_checksum_supported(&t) {
+                    return Err(ServerError::ProtocolError(
+                        error
+                            .error_code(Ecode::KDC_ERR_SUMTYPE_NOSUPP)
+                            .build()
+                            .unwrap(),
+                    ));
+                }
+                Ok(t)
+            })
+            .and_then(|t| {
+                if self.is_checksum_keyed(&t) && self.is_checksum_collision_proof(&t) {
+                    return Err(ServerError::ProtocolError(
+                        error
+                            .error_code(Ecode::KDC_ERR_SUMTYPE_NOSUPP)
+                            .build()
+                            .unwrap(),
+                    ));
+                }
+                Ok(t)
+            })
+            .and_then(|c| {
+                let checksum = self.compute_checksum(
+                    tgs_req.req_body().to_der().unwrap().as_slice(),
+                    *c.cksumtype(),
+                );
+                if checksum != c.checksum().as_bytes() {
+                    return Err(ServerError::ProtocolError(
+                        error
+                            .error_code(Ecode::KRB_AP_ERR_MODIFIED)
+                            .build()
+                            .unwrap(),
+                    ));
+                }
+                Ok(c)
+            })?;
 
         let server = self.get_server(tgs_req.req_body().sname(), &realm).ok_or(
             // does not support outside realm, so we return a protocol error
@@ -185,11 +211,13 @@ impl TicketGrantingService {
         let mut tgt_rep = EncKdcRepPartBuilder::default();
 
         let mut new_ticket_enc_part = EncTicketPart::builder();
-        let mut new_ticket_enc_part =
-            new_ticket_enc_part.caddr(tgt.caddr().expect("caddr should be present in tgt").clone());
+        if let Some(caddr) = tgt.caddr() {
+            new_ticket_enc_part.caddr(caddr.clone());
+        }
 
         let mut new_ticket_flags = TicketFlags::builder();
 
+        /// Check if the flag is set in the tgs request, if not return a protocol error
         let mut check_tgs_req_flag = |flag: KdcOptionsFlag, err: Ecode| {
             if !tgs_req.req_body().kdc_options().is_set(flag as usize) {
                 return Err(ServerError::ProtocolError(
@@ -201,7 +229,7 @@ impl TicketGrantingService {
 
         if tgs_req
             .req_body()
-            .kdc_options
+            .kdc_options()
             .is_set(KdcOptionsFlag::FORWARDABLE as usize)
         {
             check_tgs_req_flag(KdcOptionsFlag::FORWARDABLE, Ecode::KDC_ERR_BADOPTION)?;
@@ -215,20 +243,10 @@ impl TicketGrantingService {
         {
             check_tgs_req_flag(KdcOptionsFlag::FORWARDED, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::FORWARDED as usize);
-            new_ticket_enc_part.caddr(
-                tgs_req
-                    .req_body()
-                    .addresses()
-                    .expect("addresses should be present in tgs_req")
-                    .clone(),
-            );
-            tgt_rep.caddr(
-                tgs_req
-                    .req_body()
-                    .addresses()
-                    .expect("addresses should be present in tgs_req")
-                    .clone(),
-            );
+            if let Some(caddr) = tgt.caddr() {
+                new_ticket_enc_part.caddr(caddr.clone());
+                tgt_rep.caddr(caddr.clone());
+            }
         }
 
         if tgt.flags().is_set(TicketFlag::FORWARDED as usize) {
@@ -251,20 +269,10 @@ impl TicketGrantingService {
         {
             check_tgs_req_flag(KdcOptionsFlag::PROXY, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::PROXY as usize);
-            new_ticket_enc_part.caddr(
-                tgs_req
-                    .req_body()
-                    .addresses()
-                    .expect("addresses should be present in tgs_req")
-                    .clone(),
-            );
-            tgt_rep.caddr(
-                tgs_req
-                    .req_body()
-                    .addresses()
-                    .expect("addresses should be present in tgs_req")
-                    .clone(),
-            );
+            if let Some(caddr) = tgt.caddr() {
+                new_ticket_enc_part.caddr(caddr.clone());
+                tgt_rep.caddr(caddr.clone());
+            }
         }
 
         // TODO: Check postdate flags
@@ -274,7 +282,7 @@ impl TicketGrantingService {
             .kdc_options()
             .is_set(KdcOptionsFlag::VALIDATE as usize)
         {
-            check_tgs_req_flag(KdcOptionsFlag::VALIDATE, Ecode::KDC_ERR_BADOPTION)?;
+            check_tgs_req_flag(KdcOptionsFlag::INVALID, Ecode::KDC_ERR_POLICY)?;
             if tgt.starttime().expect("starttime should be present in tgt") > KerberosTime::now() {
                 return Err(ServerError::ProtocolError(
                     error.error_code(Ecode::KRB_AP_ERR_TKT_NYV).build().unwrap(),
@@ -292,7 +300,9 @@ impl TicketGrantingService {
 
         new_ticket_enc_part.authtime(tgt.authtime().clone());
 
-        let mut req_rtime = KerberosTime::from_unix_duration(Duration::from_secs(0)).unwrap();
+        let mut req_rtime = KerberosTime::zero();
+
+        let kdc_time = KerberosTime::now();
 
         if tgs_req
             .req_body()
@@ -304,11 +314,7 @@ impl TicketGrantingService {
                     error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
                 ));
             }
-            if tgt
-                .renew_till()
-                .expect("renew_till should be present in tgt")
-                >= KerberosTime::now()
-            {
+            if tgt.renew_till().unwrap_or(KerberosTime::zero()) >= kdc_time {
                 return Err(ServerError::ProtocolError(
                     error
                         .error_code(Ecode::KRB_AP_ERR_TKT_EXPIRED)
@@ -316,19 +322,17 @@ impl TicketGrantingService {
                         .unwrap(),
                 ));
             }
-            new_ticket_enc_part.starttime(KerberosTime::now());
-            let old_life = tgt.endtime() - tgt.starttime().unwrap();
+            new_ticket_enc_part.starttime(kdc_time);
+            let old_life = tgt.endtime() - tgt.starttime().unwrap_or(tgt.authtime());
             new_ticket_enc_part.endtime(std::cmp::min(
-                KerberosTime::now() + old_life,
-                tgt.renew_till()
-                    .expect("renew_till should be present in tgt")
-                    .clone(),
+                kdc_time + old_life,
+                tgt.renew_till().unwrap_or(KerberosTime::max()),
             ));
-            new_ticket_enc_part.starttime(KerberosTime::now());
+            new_ticket_enc_part.starttime(kdc_time);
         } else {
-            new_ticket_enc_part.starttime(KerberosTime::now());
-            let till = if tgs_req.req_body().till().timestamp() == 0 {
-                todo!("return infinite time")
+            new_ticket_enc_part.starttime(kdc_time);
+            let till = if tgs_req.req_body().till() == &KerberosTime::zero() {
+                KerberosTime::max()
             } else {
                 tgs_req.req_body().till().clone()
             };
