@@ -346,7 +346,7 @@ impl TicketGrantingService {
             ]
             .iter()
             .min()
-            .expect("till and endtime should be present in tgs_req")
+            .unwrap()
             .clone();
 
             new_ticket_enc_part.endtime(new_tkt_endtime);
@@ -355,7 +355,7 @@ impl TicketGrantingService {
                 .req_body()
                 .kdc_options()
                 .is_set(KdcOptionsFlag::RENEWABLE_OK as usize)
-                && new_tkt_endtime < till
+                && &new_tkt_endtime < tgs_req.req_body().till()
                 && tgt.flags().is_set(TicketFlag::RENEWABLE as usize)
             {
                 new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
