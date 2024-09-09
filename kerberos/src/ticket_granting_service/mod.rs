@@ -116,6 +116,7 @@ impl TicketGrantingService {
             .verify_padata(tgs_req)
             .map_err(|e| ServerError::ProtocolError(error.error_code(e).build().unwrap()))?;
 
+        let kdc_options = tgs_req.req_body().kdc_options();
         let auth_header = ap_req;
         let tgt = auth_header.ticket();
 
@@ -227,20 +228,12 @@ impl TicketGrantingService {
             Ok(())
         };
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::FORWARDABLE as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::FORWARDABLE as usize) {
             check_tgs_req_flag(KdcOptionsFlag::FORWARDABLE, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::FORWARDABLE as usize);
         }
 
-        if tgs_req
-            .req_body()
-            .kdc_options
-            .is_set(KdcOptionsFlag::FORWARDED as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::FORWARDED as usize) {
             check_tgs_req_flag(KdcOptionsFlag::FORWARDED, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::FORWARDED as usize);
             if let Some(caddr) = tgt.caddr() {
@@ -253,20 +246,12 @@ impl TicketGrantingService {
             new_ticket_flags.set(TicketFlag::FORWARDED as usize);
         }
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::PROXIABLE as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::PROXIABLE as usize) {
             check_tgs_req_flag(KdcOptionsFlag::PROXIABLE, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::PROXIABLE as usize);
         }
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::PROXY as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::PROXY as usize) {
             check_tgs_req_flag(KdcOptionsFlag::PROXY, Ecode::KDC_ERR_BADOPTION)?;
             new_ticket_flags.set(TicketFlag::PROXY as usize);
             if let Some(caddr) = tgt.caddr() {
@@ -277,11 +262,7 @@ impl TicketGrantingService {
 
         // TODO: Check postdate flags
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::VALIDATE as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::VALIDATE as usize) {
             check_tgs_req_flag(KdcOptionsFlag::INVALID, Ecode::KDC_ERR_POLICY)?;
             if tgt.starttime().expect("starttime should be present in tgt") > KerberosTime::now() {
                 return Err(ServerError::ProtocolError(
@@ -304,11 +285,9 @@ impl TicketGrantingService {
 
         let kdc_time = KerberosTime::now();
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::RENEW as usize)
-        {
+        let mut req_renewable = false;
+
+        if kdc_options.is_set(KdcOptionsFlag::RENEW as usize) {
             if !tgt.flags().is_set(TicketFlag::RENEWABLE as usize) {
                 return Err(ServerError::ProtocolError(
                     error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
@@ -358,27 +337,19 @@ impl TicketGrantingService {
                 && &new_tkt_endtime < tgs_req.req_body().till()
                 && tgt.flags().is_set(TicketFlag::RENEWABLE as usize)
             {
-                new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
-                new_ticket_enc_part.renew_till(
-                    tgt.renew_till()
-                        .expect("renew_till should be present in tgt")
-                        .clone(),
-                );
+                req_renewable = true;
+                req_rtime = min(till, tgt.renew_till().unwrap_or(KerberosTime::max()));
             }
             req_rtime = min(till, tgt.renew_till().unwrap());
         }
 
-        let rtime = if req_rtime.timestamp() == 0 {
-            todo!("return infinite time")
+        let rtime = if req_rtime == KerberosTime::zero() {
+            KerberosTime::max()
         } else {
-            tgs_req.req_body().rtime().unwrap()
+            req_rtime
         };
 
-        if tgs_req
-            .req_body()
-            .kdc_options()
-            .is_set(KdcOptionsFlag::RENEWABLE as usize)
-        {
+        if kdc_options.is_set(KdcOptionsFlag::RENEWABLE as usize) {
             new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
             new_ticket_enc_part.renew_till(
                 *[
@@ -446,6 +417,7 @@ impl TicketGrantingService {
         }
 
         let ticket = new_ticket_enc_part.build().expect("ticket should be built");
+        // Only encrypt case where server is specified
         let encrypted_ticket = self
             .supported_crypto
             .iter()
@@ -485,21 +457,14 @@ impl TicketGrantingService {
         }
         tgt_rep.endtime(ticket.endtime().clone());
 
-        tgt_rep.sname(
-            tgs_req
-                .req_body()
-                .sname()
-                .expect("sname should be present in tgs_req")
-                .clone(),
-        );
+        if let Some(sname) = tgs_req.req_body().sname() {
+            tgt_rep.sname(sname.clone());
+        }
         tgt_rep.srealm(realm.clone());
         if ticket.flags().is_set(TicketFlag::RENEWABLE as usize) {
-            tgt_rep.renew_till(
-                ticket
-                    .renew_till()
-                    .expect("renew_till should be present in ticket")
-                    .clone(),
-            );
+            if let Some(renew_till) = ticket.renew_till() {
+                tgt_rep.renew_till(renew_till.clone());
+            }
         }
 
         let tgt_rep = tgt_rep.build().expect("tgt_rep should be built");
