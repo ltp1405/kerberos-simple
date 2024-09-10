@@ -4,7 +4,7 @@ use crate::{
 };
 use der::Sequence;
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Sequence, Eq, PartialEq, Debug, Clone)]
 pub struct KdcRep {
     #[asn1(context_specific = "0", tag_mode = "EXPLICIT")]
     pvno: Int32,

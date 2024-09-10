@@ -5,7 +5,7 @@ use crate::{
     spec_as_tgs_exchange::kdc_req_body::KdcReqBody,
 };
 
-#[derive(Sequence, Eq, PartialEq, Debug)]
+#[derive(Sequence, Eq, PartialEq, Debug, Clone)]
 pub struct KdcReq {
     #[asn1(context_specific = "1")]
     pvno: Int32,

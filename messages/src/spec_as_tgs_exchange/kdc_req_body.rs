@@ -8,7 +8,7 @@ use crate::{
 use der::Sequence;
 use derive_builder::Builder;
 
-#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug, Clone)]
 #[builder(setter(into, strip_option), public)]
 pub struct KdcReqBody {
     #[asn1(context_specific = "0")]
