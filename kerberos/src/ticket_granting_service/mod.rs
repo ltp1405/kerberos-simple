@@ -352,7 +352,7 @@ impl TicketGrantingService {
         if kdc_options.is_set(KdcOptionsFlag::RENEWABLE as usize) {
             new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
             new_ticket_enc_part.renew_till(
-                *[
+                [
                     rtime,
                     // todo!("max renewable life of client"),
                     // todo!("max renewable life of server"),

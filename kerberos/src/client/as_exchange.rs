@@ -1,7 +1,7 @@
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::client::util::generate_nonce;
-use messages::basic_types::{KerberosFlags, KerberosTime, NameTypes, PrincipalName};
+use messages::basic_types::{KerberosTime, NameTypes, PrincipalName};
 use messages::flags::KdcOptionsFlag::{POSTDATED, RENEWABLE};
 use messages::{AsRep, AsReq, Decode, EncAsRepPart, KdcReqBodyBuilder, KrbErrorMsg};
 use std::ops::Sub;
@@ -28,14 +28,15 @@ pub fn prepare_as_request(
     let kdc_options = client_env.get_kdc_options()?;
     let pa_data = Vec::new();
 
-    let req_body = KdcReqBodyBuilder::default()
+    let mut req_body = KdcReqBodyBuilder::default();
+    let req_body = req_body
         .cname(cname)
         .realm(server_realm)
         .sname(sname)
         .nonce(nonce)
         .till(till)
         .etype(etypes)
-        .kdc_options(kdc_options);
+        .kdc_options(kdc_options.clone());
     if kdc_options.is_set(POSTDATED as usize) {
         match starttime {
             None => {
@@ -61,7 +62,7 @@ pub fn prepare_as_request(
             }
         }
     }
-    req_body.build()?;
+    let req_body = req_body.build()?;
     let as_req = AsReq::new(pa_data, req_body);
     Ok(as_req)
 }
