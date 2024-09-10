@@ -1,13 +1,18 @@
 use async_trait::async_trait;
-
-use der::{asn1::OctetString, Encode};
-use kerberos_infra::server::{AsyncReceiver, ExchangeError, KrbInfraSvrResult};
+use kerberos_infra::server::{
+    AsyncReceiver, ExchangeError, KrbCache, KrbDatabase, KrbInfraSvrResult,
+};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct SimpleASReceiver;
 
 #[async_trait]
 impl AsyncReceiver for SimpleASReceiver {
-    async fn receive(&self, bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
+    async fn receive(
+        &self,
+        bytes: &[u8],
+        _database: KrbDatabase,
+        _cache: KrbCache,
+    ) -> KrbInfraSvrResult<Vec<u8>> {
         Ok(bytes.to_vec())
     }
 
@@ -29,7 +34,12 @@ pub struct SimpleTgtReceiver;
 
 #[async_trait]
 impl AsyncReceiver for SimpleTgtReceiver {
-    async fn receive(&self, bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
+    async fn receive(
+        &self,
+        bytes: &[u8],
+        _database: KrbDatabase,
+        _cache: KrbCache,
+    ) -> KrbInfraSvrResult<Vec<u8>> {
         Ok(bytes.to_vec())
     }
 

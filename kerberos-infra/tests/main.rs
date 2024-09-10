@@ -1,7 +1,7 @@
 use der::Encode;
 use kerberos_infra::{
     client::{Sendable, TcpClient},
-    server::{Runnable, ServerBuilder},
+    server::Server,
 };
 use mocks::{Mapper, SimpleASReceiver, SimpleTgtReceiver};
 
@@ -10,15 +10,16 @@ async fn tcp_client_should_be_able_to_communicate_with_tcp_server() {
     let (url, as_port, tgt_port) = ("127.0.0.1", 8080, 8081);
 
     // Step 1: Create a server
-    let mut server = ServerBuilder::local()
-        .as_entry(as_port, SimpleASReceiver)
-        .tgt_entry(tgt_port, SimpleTgtReceiver)
+    let mut server = Server::load_from_dir()
+        .unwrap()
+        .set_as_receiver(SimpleASReceiver)
+        .set_tgs_receiver(SimpleTgtReceiver)
         .build_tcp()
         .expect("TcpServer failed to build");
 
     // Step 2: Run the server in the background
     let handle = tokio::spawn(async move {
-        server.run().await;
+        server.prepare_and_run().await.unwrap();
     });
 
     // Wait for the server to start
@@ -32,7 +33,10 @@ async fn tcp_client_should_be_able_to_communicate_with_tcp_server() {
         let mut client = TcpClient::new(format!("{}:{}", url, port).parse().unwrap());
 
         // Step 4: Send the request to the server
-        let encoded = der::asn1::OctetString::new(request).unwrap().to_der().unwrap();
+        let encoded = der::asn1::OctetString::new(request)
+            .unwrap()
+            .to_der()
+            .unwrap();
         let response = client.send(&encoded).await;
 
         // Step 5: Assert that the server received the request

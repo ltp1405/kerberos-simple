@@ -1,6 +1,6 @@
 use std::io;
 
-pub enum KrbInfraSvrErr {
+pub enum HostError {
     Actionable {
         reply: Vec<u8>,
     },
@@ -10,56 +10,56 @@ pub enum KrbInfraSvrErr {
     Ignorable,
 }
 
-impl From<&str> for KrbInfraSvrErr {
+impl From<&str> for HostError {
     fn from(err: &str) -> Self {
-        KrbInfraSvrErr::Actionable {
+        HostError::Actionable {
             reply: err.as_bytes().to_vec(),
         }
     }
 }
 
-impl From<io::Error> for KrbInfraSvrErr {
+impl From<io::Error> for HostError {
     fn from(err: io::Error) -> Self {
-        KrbInfraSvrErr::Aborted {
+        HostError::Aborted {
             cause: Some(Box::new(err)),
         }
     }
 }
 
-impl From<std::net::AddrParseError> for KrbInfraSvrErr {
+impl From<std::net::AddrParseError> for HostError {
     fn from(err: std::net::AddrParseError) -> Self {
-        KrbInfraSvrErr::Aborted {
+        HostError::Aborted {
             cause: Some(Box::new(err)),
         }
     }
 }
 
-impl From<Box<dyn std::error::Error>> for KrbInfraSvrErr {
+impl From<Box<dyn std::error::Error>> for HostError {
     fn from(err: Box<dyn std::error::Error>) -> Self {
-        KrbInfraSvrErr::Aborted { cause: Some(err) }
+        HostError::Aborted { cause: Some(err) }
     }
 }
 
-impl std::fmt::Debug for KrbInfraSvrErr {
+impl std::fmt::Debug for HostError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            KrbInfraSvrErr::Actionable { reply } => {
+            HostError::Actionable { reply } => {
                 write!(
                     f,
                     "Actionable error: {:?}",
                     String::from_utf8(reply.clone()).unwrap()
                 )
             }
-            KrbInfraSvrErr::Aborted { cause: err } => {
+            HostError::Aborted { cause: err } => {
                 write!(f, "Aborted error: {:?}", err)
             }
-            KrbInfraSvrErr::Ignorable => {
+            HostError::Ignorable => {
                 write!(f, "Ignorable error")
             }
         }
     }
 }
 
-unsafe impl Send for KrbInfraSvrErr {}
+unsafe impl Send for HostError {}
 
-pub type KrbInfraSvrResult<T> = Result<T, KrbInfraSvrErr>;
+pub type KrbInfraSvrResult<T> = Result<T, HostError>;

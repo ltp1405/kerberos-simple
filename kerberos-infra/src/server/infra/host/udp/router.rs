@@ -2,27 +2,32 @@ use std::{net::SocketAddr, sync::Arc};
 
 use tokio::{net::UdpSocket, sync::mpsc};
 
-use crate::server::{
-    entry::Entry, errors::KrbInfraSvrResult, receiver::AsyncReceiver, utils::handle_result_at_router,
+use crate::server::infra::{
+    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, KrbInfraSvrResult},
+    DataBox, KrbCache, KrbDatabase,
 };
 
 use super::entry::UdpEntry;
 
-pub struct UdpRouter<A: AsyncReceiver> {
+pub struct UdpRouter {
     addr: SocketAddr,
-    receiver: A,
+    receiver: DataBox<dyn AsyncReceiver>,
 }
 
-impl<A: AsyncReceiver> From<(SocketAddr, A)> for UdpRouter<A> {
-    fn from((addr, receiver): (SocketAddr, A)) -> Self {
+impl UdpRouter {
+    pub fn new((addr, receiver): (SocketAddr, DataBox<dyn AsyncReceiver>)) -> Self {
         Self { addr, receiver }
     }
 }
 
-unsafe impl<A> Send for UdpRouter<A> where A: AsyncReceiver {}
+unsafe impl Send for UdpRouter {}
 
-impl<A: AsyncReceiver + 'static> UdpRouter<A> {
-    pub async fn listen(&self) -> KrbInfraSvrResult<()> {
+impl UdpRouter {
+    pub async fn listen(
+        &self,
+        database: KrbDatabase,
+        cache: KrbCache,
+    ) -> KrbInfraSvrResult<()> {
         let socket = UdpSocket::bind(&self.addr).await?;
 
         let listener = Arc::new(socket);
@@ -31,14 +36,12 @@ impl<A: AsyncReceiver + 'static> UdpRouter<A> {
 
         tokio::spawn({
             let listener = listener.clone();
-
-            let receiver = self.receiver;
-
+            let receiver = self.receiver.clone();
             async move {
                 while let Some((bytes, addr)) = rx.recv().await {
-                    let mut entry = UdpEntry::new(listener.clone(), bytes, addr, receiver);
+                    let mut entry = UdpEntry::new(listener.clone(), bytes, addr, receiver.clone());
 
-                    let result = entry.handle().await;
+                    let result = entry.handle(database.clone(), cache.clone()).await;
 
                     handle_result_at_router(addr, result)
                 }

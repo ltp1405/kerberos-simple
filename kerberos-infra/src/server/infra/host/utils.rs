@@ -2,13 +2,13 @@ use std::net::SocketAddr;
 
 use tokio::{io::AsyncReadExt, net::TcpStream};
 
-use super::KrbInfraSvrErr;
+use super::HostError;
 
-pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), KrbInfraSvrErr>) {
+pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), HostError>) {
     match result {
         Ok(_) => {}
         Err(err) => {
-            if let KrbInfraSvrErr::Aborted { cause } = err {
+            if let HostError::Aborted { cause } = err {
                 match cause {
                     Some(inner) => {
                         eprintln!("Connection from {} aborted: {}", addr, inner)
@@ -23,12 +23,12 @@ pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), KrbInfraSvrE
 }
 
 pub fn extract_bytes_or_delegate_to_router(
-    result: Result<Vec<u8>, KrbInfraSvrErr>,
-) -> Result<Vec<u8>, KrbInfraSvrErr> {
+    result: Result<Vec<u8>, HostError>,
+) -> Result<Vec<u8>, HostError> {
     match result {
         Ok(bytes) => Ok(bytes),
         Err(err) => match err {
-            KrbInfraSvrErr::Actionable { reply } => Ok(reply),
+            HostError::Actionable { reply } => Ok(reply),
             _ => Err(err),
         },
     }
@@ -43,7 +43,7 @@ impl<'a> TagLengthStreamReader<'a> {
     // Try to read from the stream, records the bytes read
     // and handle the logic of long and short messages
     // Returns the buffer for the incoming message and the so-far read bytes
-    pub async fn try_into(mut self) -> Result<(Vec<u8>, Vec<u8>), KrbInfraSvrErr> {
+    pub async fn try_into(mut self) -> Result<(Vec<u8>, Vec<u8>), HostError> {
         // Read the tag and length bytes
         self.read_next(2).await?;
 
@@ -62,7 +62,7 @@ impl<'a> TagLengthStreamReader<'a> {
         Ok((vec![0u8; expected_buffer_len], self.inner_buffer))
     }
 
-    async fn read_next(&mut self, len: usize) -> Result<(), KrbInfraSvrErr> {
+    async fn read_next(&mut self, len: usize) -> Result<(), HostError> {
         let mut buffer = vec![0u8; len];
         self.stream.read_exact(&mut buffer).await?;
         self.inner_buffer.extend_from_slice(&buffer);

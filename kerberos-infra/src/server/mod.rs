@@ -1,23 +1,46 @@
-mod builder;
-mod entry;
-mod errors;
-mod receiver;
-mod runnable;
-#[cfg(feature = "server-tcp")]
-mod tcp;
-#[cfg(test)]
-mod tests;
-#[cfg(feature = "server-udp")]
-mod udp;
-mod utils;
-
+// Public APIs
 pub use builder::ServerBuilder;
-pub use errors::{KrbInfraSvrErr, KrbInfraSvrResult};
-pub use receiver::{AsyncReceiver, ExchangeError};
-pub use runnable::Runnable;
 
-#[cfg(feature = "server-tcp")]
-pub use tcp::TcpServer;
+pub use infra::{
+    cache::{cacheable::Cacheable, error::CacheResult},
+    database::{Database, DatabaseError, Migration, Queryable},
+    host::{AsyncReceiver, ExchangeError, KrbInfraSvrResult},
+    KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
+};
 
-#[cfg(feature = "server-udp")]
-pub use udp::UdpServer;
+pub struct Server {
+    host: KrbHost,
+    cache: KrbCache,
+    database: KrbDatabase,
+}
+
+impl Server {
+    pub fn load_from_dir() -> ServerResult<ServerBuilder> {
+        let config = Configuration::load().map_err(|_| "Fail to load configuration")?;
+
+        Ok(ServerBuilder::new(config))
+    }
+
+    pub async fn prepare_and_run(&mut self) -> ServerResult {
+        let lock = self.database.write().await;
+
+        lock.migrate()
+            .await
+            .map_err(|_| "Fail to initialize database")?;
+
+        let mut host = self.host.write().await;
+
+        host.run(self.database.clone(), self.cache.clone()).await;
+
+        Ok(())
+    }
+}
+
+// Private APIs
+use config::Configuration;
+type ServerResult<T = ()> = Result<T, &'static str>;
+
+// Modules
+mod builder;
+mod config;
+mod infra;

@@ -1,6 +1,10 @@
+use crate::server::infra::{
+    cache::{cacheable::Cacheable, error::CacheResult},
+    database::{Database, DatabaseResult, Migration, Queryable},
+    host::{AsyncReceiver, ExchangeError, KrbInfraSvrResult},
+    DataBox,
+};
 use async_trait::async_trait;
-
-use crate::server::{AsyncReceiver, ExchangeError, KrbInfraSvrResult};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MockASReceiver;
@@ -14,7 +18,12 @@ impl MockASReceiver {
 
 #[async_trait]
 impl AsyncReceiver for MockASReceiver {
-    async fn receive(&self, _bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
+    async fn receive(
+        &self,
+        _bytes: &[u8],
+        _pool: DataBox<dyn Database>,
+        _cache: DataBox<dyn Cacheable<String, String>>,
+    ) -> KrbInfraSvrResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
@@ -33,9 +42,9 @@ impl AsyncReceiver for MockASReceiver {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct MockTgtReceiver;
+pub struct MockTgsReceiver;
 
-impl MockTgtReceiver {
+impl MockTgsReceiver {
     pub const MOCK_MESSAGE: &'static str = "Hello, I am the ticket-granting service";
     pub const MOCK_INVALID_LENGTH_PREFIX: u32 = 0xdeadbeef;
     pub const MOCK_INVALID_LENGTH_PREFIX_RESPONSE: &'static str = "Invalid length prefix";
@@ -43,8 +52,13 @@ impl MockTgtReceiver {
 }
 
 #[async_trait]
-impl AsyncReceiver for MockTgtReceiver {
-    async fn receive(&self, _bytes: &[u8]) -> KrbInfraSvrResult<Vec<u8>> {
+impl AsyncReceiver for MockTgsReceiver {
+    async fn receive(
+        &self,
+        _bytes: &[u8],
+        _pool: DataBox<dyn Database>,
+        _cache: DataBox<dyn Cacheable<String, String>>,
+    ) -> KrbInfraSvrResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
@@ -59,5 +73,33 @@ impl AsyncReceiver for MockTgtReceiver {
         };
 
         Ok(message.as_bytes().to_vec())
+    }
+}
+
+pub struct MockPool;
+
+#[async_trait]
+impl Migration for MockPool {
+    async fn migrate(&self) -> DatabaseResult {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Queryable for MockPool {}
+
+#[async_trait]
+impl Database for MockPool {}
+
+pub struct MockCache;
+
+#[async_trait]
+impl Cacheable<String, String> for MockCache {
+    async fn get(&mut self, key: &String) -> CacheResult<String> {
+        Ok(key.clone())
+    }
+
+    async fn put(&mut self, _key: String, _value: String) -> CacheResult<()> {
+        Ok(())
     }
 }

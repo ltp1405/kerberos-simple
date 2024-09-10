@@ -1,14 +1,21 @@
 use tokio::net::UdpSocket;
+use tokio::sync::RwLock;
 
-use super::mocks::{MockASReceiver, MockTgtReceiver};
+use super::mocks::{MockASReceiver, MockTgsReceiver};
 
-use crate::server::{Runnable, ServerBuilder, UdpServer};
+use crate::server::infra::{
+    host::{
+        tests::mocks::{MockCache, MockPool},
+        HostBuilder, Runnable,
+    },
+    DataBox, KrbCache, KrbDatabase,
+};
 
 #[tokio::test]
 async fn server_builder_should_be_ok_when_given_all_entry_points() {
-    let server = ServerBuilder::new("127.0.0.1")
-        .as_entry(88, MockASReceiver)
-        .tgt_entry(89, MockTgtReceiver)
+    let server = HostBuilder::local()
+        .as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
+        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
         .build_udp();
 
     assert!(server.is_ok(), "UdpServer failed to build");
@@ -25,22 +32,12 @@ async fn server_builder_should_be_ok_when_given_all_entry_points() {
         89,
         "TGT port mismatch for UDP server"
     );
-    assert_eq!(
-        udp_server.as_entry().1,
-        MockASReceiver,
-        "AS receiver mismatch for UDP server"
-    );
-    assert_eq!(
-        udp_server.tgt_entry().1,
-        MockTgtReceiver,
-        "TGT receiver mismatch for UDP server"
-    );
 }
 
 #[tokio::test]
 async fn server_builder_should_fail_when_missing_as_entry() {
-    let server = ServerBuilder::<MockASReceiver, MockTgtReceiver>::new("127.0.0.1")
-        .tgt_entry(89, MockTgtReceiver)
+    let server = HostBuilder::local()
+        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
         .build_udp();
 
     assert!(
@@ -51,14 +48,21 @@ async fn server_builder_should_fail_when_missing_as_entry() {
 
 #[tokio::test]
 async fn server_should_be_able_to_handle_request() {
-    let mut server = UdpServer::local(MockASReceiver, MockTgtReceiver);
+    let mut server = HostBuilder::local()
+        .as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
+        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .build_udp()
+        .unwrap();
 
     let (as_entry_addr, tgt_entry_addr) = (server.as_entry().0, server.tgt_entry().0);
+
+    let cache: KrbCache = DataBox::new(RwLock::new(Box::new(MockCache)));
+    let pool: KrbDatabase = DataBox::new(RwLock::new(Box::new(MockPool)));
 
     // Run the server in the background
     let handle = tokio::spawn({
         async move {
-            server.run().await;
+            server.run(pool, cache).await;
         }
     });
 
@@ -67,7 +71,7 @@ async fn server_should_be_able_to_handle_request() {
 
     let testcases = vec![
         (as_entry_addr, MockASReceiver::MOCK_MESSAGE),
-        (tgt_entry_addr, MockTgtReceiver::MOCK_MESSAGE),
+        (tgt_entry_addr, MockTgsReceiver::MOCK_MESSAGE),
     ];
 
     for (addr, expected_response) in testcases {
