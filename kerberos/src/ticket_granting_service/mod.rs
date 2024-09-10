@@ -1,6 +1,6 @@
+use std::cell::Cell;
 use crate::cryptography::Cryptography;
-use crate::service_traits::PrincipalDatabaseRecord;
-use crate::ticket_granting_service::ServerError::ProtocolError;
+use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use chrono::{Local, SubsecRound};
 use messages::basic_types::{
     AuthorizationData, Checksum, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
@@ -8,12 +8,10 @@ use messages::basic_types::{
 };
 use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{
-    ApReq, Authenticator, Decode, Ecode, EncKdcRepPart, EncKdcRepPartBuilder, EncTgsRepPart,
-    EncTicketPart, Encode, KrbErrorMsg, KrbErrorMsgBuilder, KrbErrorMsgBuilderError, LastReq,
-    TgsRep, TgsReq, Ticket, TicketFlags,
+    ApReq, Authenticator, Decode, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
+    KrbErrorMsgBuilder, LastReq, TgsRep, TgsReq, Ticket, TicketFlags,
 };
 use std::cmp::min;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -23,11 +21,17 @@ pub enum ServerError {
 
 type TGSResult<T> = Result<T, ServerError>;
 
-pub struct TicketGrantingService {
+pub struct TicketGrantingService<'a, T>
+where
+    T: PrincipalDatabase,
+{
     supported_crypto: Vec<Box<dyn Cryptography>>,
+    principal_db: &'a T,
+    name: PrincipalName,
+    realm: Realm,
 }
 
-impl TicketGrantingService {
+impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
         let time = now.round_subsecs(0).to_utc().timestamp();
@@ -35,14 +39,14 @@ impl TicketGrantingService {
         KrbErrorMsgBuilder::default()
             .stime(KerberosTime::now())
             .susec(usec as i32)
-            // .sname(self.sname.clone())
-            // .realm(self.realm.clone())
+            .sname(self.name.clone())
+            .realm(self.realm.clone())
             .to_owned()
     }
 
     fn is_tgt_local_realm(&self, ticket: &Ticket) -> bool {
-        // ticket.srealm() == self.realm
-        todo!()
+        // TODO: Implement this
+        true
     }
 
     fn verify_padata(&self, tgs_req: &TgsReq) -> Result<ApReq, Ecode> {
@@ -58,7 +62,7 @@ impl TicketGrantingService {
     }
 
     fn get_tgt_realm(&self, enc_ticket_part: &EncTicketPart) -> Realm {
-        todo!()
+        enc_ticket_part.crealm().clone()
     }
 
     fn decrypt_authenticator(&self, ap_req: &ApReq) -> TGSResult<Authenticator> {
@@ -86,10 +90,6 @@ impl TicketGrantingService {
         todo!()
     }
 
-    fn get_supported_crypto<'a>(&self, etype: Int32) -> &[Box<&'a dyn Cryptography>] {
-        todo!()
-    }
-
     fn decrypt_ticket(&self, ticket: &Ticket) -> TGSResult<EncTicketPart> {
         todo!()
     }
@@ -111,19 +111,28 @@ impl TicketGrantingService {
     }
 
     pub fn handle_tgs_req(&self, tgs_req: &TgsReq) -> TGSResult<TgsRep> {
+        let find_crypto_for_etype = |etype: Int32| {
+            self.supported_crypto
+                .iter()
+                .find(|crypto| crypto.get_etype() == etype)
+        };
+
         let mut error = self.default_error_builder();
+
+        /// Helper function to build a protocol error, supplied with an error code
+        let mut build_protocol_error =
+            |e: Ecode| ServerError::ProtocolError(error.error_code(e).build().unwrap());
+
         let ap_req = self
             .verify_padata(tgs_req)
-            .map_err(|e| ServerError::ProtocolError(error.error_code(e).build().unwrap()))?;
+            .map_err(&mut build_protocol_error)?;
 
         let kdc_options = tgs_req.req_body().kdc_options();
         let auth_header = ap_req;
         let tgt = auth_header.ticket();
 
         if !self.is_tgt_local_realm(tgt) && tgs_req.req_body().sname() != tgt.sname().into() {
-            return Err(ServerError::ProtocolError(
-                error.error_code(Ecode::KRB_AP_ERR_NOT_US).build().unwrap(),
-            ));
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_NOT_US));
         }
 
         let tgt = self
@@ -134,33 +143,18 @@ impl TicketGrantingService {
 
         let authenticator = self.decrypt_authenticator(&auth_header)?;
 
-        let auth_checksum = authenticator
+        authenticator
             .cksum()
-            .ok_or(ServerError::ProtocolError(
-                error
-                    .error_code(Ecode::KRB_AP_ERR_INAPP_CKSUM)
-                    .build()
-                    .unwrap(),
-            ))
+            .ok_or(build_protocol_error(Ecode::KRB_AP_ERR_INAPP_CKSUM))
             .and_then(|t| {
                 if !self.is_checksum_supported(&t) {
-                    return Err(ServerError::ProtocolError(
-                        error
-                            .error_code(Ecode::KDC_ERR_SUMTYPE_NOSUPP)
-                            .build()
-                            .unwrap(),
-                    ));
+                    return Err(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP));
                 }
                 Ok(t)
             })
             .and_then(|t| {
                 if self.is_checksum_keyed(&t) && self.is_checksum_collision_proof(&t) {
-                    return Err(ServerError::ProtocolError(
-                        error
-                            .error_code(Ecode::KDC_ERR_SUMTYPE_NOSUPP)
-                            .build()
-                            .unwrap(),
-                    ));
+                    return Err(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP));
                 }
                 Ok(t)
             })
@@ -170,24 +164,14 @@ impl TicketGrantingService {
                     *c.cksumtype(),
                 );
                 if checksum != c.checksum().as_bytes() {
-                    return Err(ServerError::ProtocolError(
-                        error
-                            .error_code(Ecode::KRB_AP_ERR_MODIFIED)
-                            .build()
-                            .unwrap(),
-                    ));
+                    return Err(build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED));
                 }
                 Ok(c)
             })?;
 
         let server = self.get_server(tgs_req.req_body().sname(), &realm).ok_or(
             // does not support outside realm, so we return a protocol error
-            ServerError::ProtocolError(
-                error
-                    .error_code(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)
-                    .build()
-                    .unwrap(),
-            ),
+            build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN),
         )?;
 
         let session_key = self.generate_random_session_key();
@@ -196,18 +180,9 @@ impl TicketGrantingService {
             .req_body()
             .etype()
             .iter()
-            .find_map(|etype| {
-                self.get_supported_crypto(*etype)
-                    .iter()
-                    .find(|crypto| crypto.get_etype() == *etype)
-            })
+            .find_map(|etype| find_crypto_for_etype(*etype))
             .map(|crypto| crypto.get_etype())
-            .ok_or(ServerError::ProtocolError(
-                error
-                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
-                    .build()
-                    .unwrap(),
-            ))?;
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?;
 
         let mut tgt_rep = EncKdcRepPartBuilder::default();
 
@@ -221,9 +196,7 @@ impl TicketGrantingService {
         /// Check if the flag is set in the tgs request, if not return a protocol error
         let mut check_tgs_req_flag = |flag: KdcOptionsFlag, err: Ecode| {
             if !tgs_req.req_body().kdc_options().is_set(flag as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(err).build().unwrap(),
-                ));
+                return Err(build_protocol_error(err));
             }
             Ok(())
         };
@@ -265,14 +238,10 @@ impl TicketGrantingService {
         if kdc_options.is_set(KdcOptionsFlag::VALIDATE as usize) {
             check_tgs_req_flag(KdcOptionsFlag::INVALID, Ecode::KDC_ERR_POLICY)?;
             if tgt.starttime().expect("starttime should be present in tgt") > KerberosTime::now() {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KRB_AP_ERR_TKT_NYV).build().unwrap(),
-                ));
+                return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_NYV));
             }
             if self.replay_detected(&tgt) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KRB_AP_ERR_REPEAT).build().unwrap(),
-                ));
+                return Err(build_protocol_error(Ecode::KRB_AP_ERR_REPEAT));
             }
             new_ticket_flags.set(TicketFlag::INVALID as usize);
         }
@@ -289,17 +258,10 @@ impl TicketGrantingService {
 
         if kdc_options.is_set(KdcOptionsFlag::RENEW as usize) {
             if !tgt.flags().is_set(TicketFlag::RENEWABLE as usize) {
-                return Err(ServerError::ProtocolError(
-                    error.error_code(Ecode::KDC_ERR_BADOPTION).build().unwrap(),
-                ));
+                return Err(build_protocol_error(Ecode::KDC_ERR_BADOPTION));
             }
             if tgt.renew_till().unwrap_or(KerberosTime::zero()) >= kdc_time {
-                return Err(ServerError::ProtocolError(
-                    error
-                        .error_code(Ecode::KRB_AP_ERR_TKT_EXPIRED)
-                        .build()
-                        .unwrap(),
-                ));
+                return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_EXPIRED));
             }
             new_ticket_enc_part.starttime(kdc_time);
             let old_life = tgt.endtime() - tgt.starttime().unwrap_or(tgt.authtime());
@@ -372,15 +334,8 @@ impl TicketGrantingService {
                 let key = authenticator
                     .subkey()
                     .expect("enc_authorization_data must be decrypted with subkey");
-                self.supported_crypto
-                    .iter()
-                    .find(|crypto| crypto.get_etype() == *key.keytype())
-                    .ok_or(ServerError::ProtocolError(
-                        error
-                            .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
-                            .build()
-                            .unwrap(),
-                    ))
+                find_crypto_for_etype(*key.keytype())
+                    .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))
                     .and_then(|crypto| {
                         crypto
                             .decrypt(auth_data.cipher().as_bytes(), key.keyvalue().as_bytes())
@@ -422,12 +377,7 @@ impl TicketGrantingService {
             .supported_crypto
             .iter()
             .find(|crypto| crypto.get_etype() == *server.key.keytype())
-            .ok_or(ServerError::ProtocolError(
-                error
-                    .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
-                    .build()
-                    .unwrap(),
-            ))?
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
             .encrypt(
                 &ticket.to_der().expect("ticket should be encoded"),
                 server.key.keyvalue().as_bytes(),
@@ -474,12 +424,7 @@ impl TicketGrantingService {
             self.supported_crypto
                 .iter()
                 .find(|crypto| crypto.get_etype() == use_etype)
-                .ok_or(ServerError::ProtocolError(
-                    error
-                        .error_code(Ecode::KDC_ERR_ETYPE_NOSUPP)
-                        .build()
-                        .unwrap(),
-                ))?
+                .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
                 .encrypt(&tgt_rep.to_der().unwrap(), key)
                 .map_err(|_| ServerError::Internal)
         };
