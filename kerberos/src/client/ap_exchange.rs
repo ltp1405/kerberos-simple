@@ -52,7 +52,7 @@ pub fn prepare_ap_request(
     )?;
     let enc_authenticator = EncryptedData::new(
         *ticket.enc_part().etype(),
-        ticket.enc_part().kvno().map(|kvno| *kvno),
+        ticket.enc_part().kvno().copied(),
         OctetString::new(encrypted_authenticator).or(Err(ClientError::EncodeError))?,
     );
     let ap_req = ApReq::new(options, ticket.clone(), enc_authenticator);
@@ -87,7 +87,7 @@ pub fn receive_ap_reply(
         client_env.save_subkey(ap_rep_part.subkey().unwrap().clone())?;
     }
     if ap_rep_part.seq_number().is_some() {
-        client_env.save_seq_number(ap_rep_part.seq_number().unwrap().clone())?;
+        client_env.save_seq_number(*ap_rep_part.seq_number().unwrap())?;
     }
     Ok(())
 }

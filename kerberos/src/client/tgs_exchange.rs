@@ -2,15 +2,13 @@ use crate::client::ap_exchange::prepare_ap_request;
 use crate::client::client_env::ClientEnv;
 use crate::client::client_env_error::ClientEnvError;
 use crate::client::client_error::ClientError;
+use crate::client::kdc_exchange::receive_kdc_rep;
 use crate::client::util::generate_nonce;
 use messages::basic_types::PaDataTypes::PaTgsReq;
 use messages::basic_types::{
     EncryptionKey, KerberosTime, NameTypes, OctetString, PaData, PrincipalName,
 };
-use messages::{
-    ApReq, Authenticator, Decode, EncTgsRepPart, Encode, KdcReqBodyBuilder, TgsRep, TgsReq,
-};
-use std::ops::Sub;
+use messages::{ApReq, Authenticator, Decode, Encode, KdcReqBodyBuilder, TgsRep, TgsReq};
 use std::time::Duration;
 
 pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientError> {
@@ -27,7 +25,7 @@ pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientE
     let till = KerberosTime::from_unix_duration(current_time + duration)
         .or(Err(ClientError::DecodeError))?;
     let etypes = client_env.get_supported_etypes()?;
-    if etypes.len() < 1 {
+    if etypes.is_empty() {
         return Err(ClientError::ClientEnvError(ClientEnvError {
             message: "no encryption type supported".to_string(),
         }));
@@ -62,35 +60,11 @@ pub fn receive_tgs_response(
     tgs_rep: &TgsRep,
     client_env: &impl ClientEnv,
 ) -> Result<(), ClientError> {
-    let rep_cname = tgs_rep.cname();
-    let rep_crealm = tgs_rep.crealm();
-    let req_cname = tgs_req.req_body().cname();
-    match req_cname {
-        Some(cname) => {
-            if cname != rep_cname {
-                return Err(ClientError::ResponseDoesNotMatch(
-                    "TGS Response's cname does not match that of TGS Request".to_string(),
-                ));
-            }
-        }
-        None => {
-            return Err(ClientError::InvalidKdcReq(
-                "TGS Request does not contain cname".to_string(),
-            ))
-        }
-    }
-    let req_crealm = tgs_req.req_body().realm();
-    if req_crealm != rep_crealm {
-        return Err(ClientError::ResponseDoesNotMatch(
-            "TGS Response's realm does not match that of TGS Request".to_string(),
-        ));
-    }
-
     let crypto = client_env.get_crypto(*client_env.get_tgs_reply_enc_part()?.key().keytype())?;
     let binding = client_env.get_tgs_reply_enc_part()?;
     let decrypt_key = tgs_rep
         .padata()
-        .map(|padata| {
+        .and_then(|padata| {
             padata
                 .iter()
                 .find(|x| *x.padata_type() == PaTgsReq as i32)
@@ -113,56 +87,9 @@ pub fn receive_tgs_response(
                     }
                 })
         })
-        .flatten()
         .unwrap_or(Ok(binding.key().clone()))?;
 
-    let decrypted_data = crypto.decrypt(
-        tgs_rep.enc_part().cipher().as_bytes(),
-        decrypt_key.keyvalue().as_ref(),
-    )?;
-    let tgs_rep_part =
-        EncTgsRepPart::from_der(&decrypted_data).or(Err(ClientError::DecodeError))?;
-    let rep_nonce = tgs_rep_part.nonce();
-    let req_nonce = tgs_req.req_body().nonce();
-    if rep_nonce != req_nonce {
-        return Err(ClientError::ResponseDoesNotMatch(
-            "TGS Response's nonce does not match that of TGS Request".to_string(),
-        ));
-    }
-
-    let auth_time = tgs_rep_part.authtime().to_unix_duration();
-    let client_time = client_env.get_current_time()?;
-    let is_client_earlier = client_time.le(&auth_time);
-    let clock_diff = if is_client_earlier {
-        auth_time.sub(client_time)
-    } else {
-        client_time.sub(auth_time)
-    };
-    client_env.set_clock_diff(clock_diff, is_client_earlier)?;
-
-    let rep_sname = tgs_rep_part.sname();
-    let rep_srealm = tgs_rep_part.srealm();
-    let req_sname = tgs_req.req_body().sname();
-    let req_srealm = tgs_req.req_body().realm();
-    match req_sname {
-        Some(sname) => {
-            if sname != rep_sname {
-                return Err(ClientError::ResponseDoesNotMatch(
-                    "TGS Response's sname does not match that of TGS Request".to_string(),
-                ));
-            }
-        }
-        None => {
-            return Err(ClientError::InvalidKdcReq(
-                "TGS Request does not contain sname".to_string(),
-            ))
-        }
-    }
-    if req_srealm != rep_srealm {
-        return Err(ClientError::ResponseDoesNotMatch(
-            "TGS Response's realm does not match that of TGS Request".to_string(),
-        ));
-    }
+    receive_kdc_rep(client_env, crypto, decrypt_key, tgs_req, tgs_rep)?;
 
     client_env.save_tgs_reply(tgs_rep)?;
     Ok(())
