@@ -1,6 +1,7 @@
-use std::cell::Cell;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
+use crate::service_traits::{
+    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
+};
 use chrono::{Local, SubsecRound};
 use messages::basic_types::{
     AuthorizationData, Checksum, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
@@ -11,7 +12,9 @@ use messages::{
     ApReq, Authenticator, Decode, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
     KrbErrorMsgBuilder, LastReq, TgsRep, TgsReq, Ticket, TicketFlags,
 };
+use std::cell::Cell;
 use std::cmp::min;
+use std::ffi::c_long;
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -21,17 +24,19 @@ pub enum ServerError {
 
 type TGSResult<T> = Result<T, ServerError>;
 
-pub struct TicketGrantingService<'a, T>
+pub struct TicketGrantingService<'a, T, C>
 where
     T: PrincipalDatabase,
+    C: ReplayCache,
 {
     supported_crypto: Vec<Box<dyn Cryptography>>,
     principal_db: &'a T,
     name: PrincipalName,
     realm: Realm,
+    replay_cache: &'a C,
 }
 
-impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
+impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
         let time = now.round_subsecs(0).to_utc().timestamp();
@@ -78,36 +83,37 @@ impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
         todo!()
     }
 
-    fn get_server(
-        &self,
-        principal_name: Option<&PrincipalName>,
-        realm: &Realm,
-    ) -> Option<PrincipalDatabaseRecord> {
-        todo!()
-    }
-
-    fn generate_random_session_key(&self) -> EncryptionKey {
-        todo!()
-    }
-
-    fn decrypt_ticket(&self, ticket: &Ticket) -> TGSResult<EncTicketPart> {
-        todo!()
+    fn generate_random_session_key(&self) -> Result<EncryptionKey, ServerError> {
+        let crypto = self
+            .supported_crypto
+            .first()
+            .expect("There should be at least one supported crypto");
+        let key = crypto.generate_key().map_err(|_| ServerError::Internal)?;
+        Ok(EncryptionKey::new(
+            crypto.get_etype(),
+            OctetString::new(key).unwrap(),
+        ))
     }
 
     fn replay_detected(&self, ticket: &EncTicketPart) -> bool {
-        todo!()
+        // TODO: Implement request replay detection, https://www.rfc-editor.org/rfc/rfc4120#section-3.3.3.1
+        // This is a dummy implementation
+        false
     }
 
     fn is_checksum_supported(&self, checksum: &Checksum) -> bool {
-        todo!()
+        // TODO: Implement this
+        true
     }
 
     fn is_checksum_keyed(&self, checksum: &Checksum) -> bool {
-        todo!()
+        // TODO: Implement this
+        true
     }
 
     fn is_checksum_collision_proof(&self, checksum: &Checksum) -> bool {
-        todo!()
+        // TODO: Implement this
+        true
     }
 
     pub fn handle_tgs_req(&self, tgs_req: &TgsReq) -> TGSResult<TgsRep> {
@@ -127,6 +133,22 @@ impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
             .verify_padata(tgs_req)
             .map_err(&mut build_protocol_error)?;
 
+        let server = self
+            .principal_db
+            .get_principal(
+                tgs_req
+                    .req_body()
+                    .sname()
+                    .expect("sname should be present in tgs_req"),
+                tgs_req.req_body().realm(),
+            )
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
+
+        let client = self
+            .principal_db
+            .get_principal(ap_req.ticket().sname(), ap_req.ticket().realm())
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN))?;
+
         let kdc_options = tgs_req.req_body().kdc_options();
         let auth_header = ap_req;
         let tgt = auth_header.ticket();
@@ -135,13 +157,29 @@ impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_NOT_US));
         }
 
-        let tgt = self
-            .decrypt_ticket(tgt)
-            .map_err(|_| ServerError::Internal)?;
+        let tgt = find_crypto_for_etype(*tgt.enc_part().etype())
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
+            .decrypt(
+                tgt.enc_part().cipher().as_bytes(),
+                server.key.keyvalue().as_bytes(),
+            )
+            .map_err(|_| ServerError::Internal)
+            .and_then(|data| {
+                EncTicketPart::from_der(data.as_slice()).map_err(|_| ServerError::Internal)
+            })?;
 
         let realm = self.get_tgt_realm(&tgt);
 
-        let authenticator = self.decrypt_authenticator(&auth_header)?;
+        let authenticator = find_crypto_for_etype(*server.key.keytype())
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
+            .decrypt(
+                auth_header.authenticator().cipher().as_bytes(),
+                client.key.keyvalue().as_bytes(),
+            )
+            .map_err(|_| ServerError::Internal)
+            .and_then(|data| {
+                Authenticator::from_der(data.as_slice()).map_err(|_| ServerError::Internal)
+            })?;
 
         authenticator
             .cksum()
@@ -169,12 +207,7 @@ impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
                 Ok(c)
             })?;
 
-        let server = self.get_server(tgs_req.req_body().sname(), &realm).ok_or(
-            // does not support outside realm, so we return a protocol error
-            build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN),
-        )?;
-
-        let session_key = self.generate_random_session_key();
+        let session_key = self.generate_random_session_key()?;
 
         let use_etype = tgs_req
             .req_body()
@@ -237,7 +270,7 @@ impl<'a, T: PrincipalDatabase> TicketGrantingService<'a, T> {
 
         if kdc_options.is_set(KdcOptionsFlag::VALIDATE as usize) {
             check_tgs_req_flag(KdcOptionsFlag::INVALID, Ecode::KDC_ERR_POLICY)?;
-            if tgt.starttime().expect("starttime should be present in tgt") > KerberosTime::now() {
+            if tgt.starttime().unwrap_or(KerberosTime::zero()) > KerberosTime::now() {
                 return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_NYV));
             }
             if self.replay_detected(&tgt) {

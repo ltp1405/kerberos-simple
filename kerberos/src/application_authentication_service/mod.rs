@@ -2,21 +2,21 @@
 mod tests;
 mod traits;
 
-use crate::application_authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
+use crate::application_authentication_service::traits::KeyFinder;
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
 use chrono::{Local, SubsecRound};
 use derive_builder::Builder;
 use messages::basic_types::{
     EncryptedData, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName, Realm,
-    SequenceOf,
 };
 use messages::flags::TicketFlag;
 use messages::{
-    ApRep, ApReq, AsRep, AsReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode,
+    ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode,
 };
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
 use std::time::Duration;
+use crate::service_traits::{ReplayCache, ReplayCacheEntry};
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
