@@ -8,7 +8,7 @@ use crate::server::infra::{
     host::{
         entry::Entry,
         utils::{extract_bytes_or_delegate_to_router, TagLengthStreamReader},
-        AsyncReceiver, KrbInfraSvrResult,
+        AsyncReceiver, HostResult,
     },
     DataBox, KrbCache, KrbDatabase,
 };
@@ -30,7 +30,7 @@ impl Entry for TcpEntry {
         &mut self,
         database: KrbDatabase,
         cache: KrbCache,
-    ) -> KrbInfraSvrResult<()> {
+    ) -> HostResult<()> {
         let bytes = {
             let (mut incoming_buffer, mut buffer) = TagLengthStreamReader::from(&mut self.stream)
                 .try_into()

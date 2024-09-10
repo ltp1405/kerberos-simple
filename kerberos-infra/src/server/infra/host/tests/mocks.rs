@@ -1,7 +1,7 @@
 use crate::server::infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
     database::{Database, DatabaseResult, Migration, Queryable},
-    host::{AsyncReceiver, ExchangeError, KrbInfraSvrResult},
+    host::{AsyncReceiver, ExchangeError, HostResult},
     DataBox,
 };
 use async_trait::async_trait;
@@ -10,8 +10,7 @@ use async_trait::async_trait;
 pub struct MockASReceiver;
 
 impl MockASReceiver {
-    pub const MOCK_MESSAGE: &'static str = "Hello, I am the authentication service";
-    pub const MOCK_INVALID_LENGTH_PREFIX: u32 = 0xdeadbeef;
+    pub const MOCK_MESSAGE: &'static str = "Hello, I am the authentication service"; 
     pub const MOCK_INVALID_LENGTH_PREFIX_RESPONSE: &'static str = "Invalid length prefix";
     pub const MOCK_UDP_PACKET_OVERSIZE_RESPONSE: &'static str = "UDP packet oversize";
 }
@@ -23,12 +22,12 @@ impl AsyncReceiver for MockASReceiver {
         _bytes: &[u8],
         _pool: DataBox<dyn Database>,
         _cache: DataBox<dyn Cacheable<String, String>>,
-    ) -> KrbInfraSvrResult<Vec<u8>> {
+    ) -> HostResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => Self::MOCK_INVALID_LENGTH_PREFIX_RESPONSE,
             ExchangeError::UdpPacketOversize {
@@ -46,7 +45,6 @@ pub struct MockTgsReceiver;
 
 impl MockTgsReceiver {
     pub const MOCK_MESSAGE: &'static str = "Hello, I am the ticket-granting service";
-    pub const MOCK_INVALID_LENGTH_PREFIX: u32 = 0xdeadbeef;
     pub const MOCK_INVALID_LENGTH_PREFIX_RESPONSE: &'static str = "Invalid length prefix";
     pub const MOCK_UDP_PACKET_OVERSIZE_RESPONSE: &'static str = "UDP packet oversize";
 }
@@ -58,12 +56,12 @@ impl AsyncReceiver for MockTgsReceiver {
         _bytes: &[u8],
         _pool: DataBox<dyn Database>,
         _cache: DataBox<dyn Cacheable<String, String>>,
-    ) -> KrbInfraSvrResult<Vec<u8>> {
+    ) -> HostResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => Self::MOCK_INVALID_LENGTH_PREFIX_RESPONSE,
             ExchangeError::UdpPacketOversize {

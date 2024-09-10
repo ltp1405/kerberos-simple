@@ -6,7 +6,7 @@ use tokio::net::UdpSocket;
 use crate::server::infra::{
     host::{
         entry::Entry, utils::extract_bytes_or_delegate_to_router, AsyncReceiver, ExchangeError,
-        KrbInfraSvrResult,
+        HostResult,
     },
     DataBox, KrbCache, KrbDatabase,
 };
@@ -42,7 +42,7 @@ impl Entry for UdpEntry {
         &mut self,
         database: KrbDatabase,
         cache: KrbCache,
-    ) -> KrbInfraSvrResult<()> {
+    ) -> HostResult<()> {
         let receiver = self.receiver.read().await;
 
         let result = receiver.receive(&self.bytes, database, cache).await;

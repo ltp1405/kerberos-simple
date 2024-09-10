@@ -29,7 +29,7 @@ impl HostBuilder {
         self
     }
 
-    fn validate(self) -> KrbInfraSvrResult<(EntryPoint, EntryPoint)> {
+    fn validate(self) -> HostResult<(EntryPoint, EntryPoint)> {
         match (self.as_receiver, self.tgs_receiver) {
             (None, None) => Err("Both entry points have not been set for the server".into()),
             (None, Some(_)) => Err("AS entry point has not been set for the server".into()),
@@ -69,11 +69,11 @@ use crate::server::{config::ServerSettings, infra::DataBox};
 
 #[cfg(feature = "server-tcp")]
 use super::TcpHost;
-use super::{receiver::AsyncReceiver, KrbInfraSvrResult};
+use super::{receiver::AsyncReceiver, HostResult};
 
 #[cfg(feature = "server-tcp")]
 impl HostBuilder {
-    pub fn build_tcp(self) -> KrbInfraSvrResult<TcpHost> {
+    pub fn build_tcp(self) -> HostResult<TcpHost> {
         let (as_addr, tgt_addr) = self.validate()?;
         Ok(TcpHost::new(as_addr, tgt_addr))
     }
@@ -84,7 +84,7 @@ use super::UdpHost;
 
 #[cfg(feature = "server-udp")]
 impl HostBuilder {
-    pub fn build_udp(self) -> KrbInfraSvrResult<UdpHost> {
+    pub fn build_udp(self) -> HostResult<UdpHost> {
         let (as_addr, tgt_addr) = self.validate()?;
         Ok(UdpHost::new(as_addr, tgt_addr))
     }

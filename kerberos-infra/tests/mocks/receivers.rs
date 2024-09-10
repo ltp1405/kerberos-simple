@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use kerberos_infra::server::{
-    AsyncReceiver, ExchangeError, KrbCache, KrbDatabase, KrbInfraSvrResult,
+    AsyncReceiver, ExchangeError, KrbCache, KrbDatabase, HostResult,
 };
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct SimpleASReceiver;
@@ -12,11 +12,11 @@ impl AsyncReceiver for SimpleASReceiver {
         bytes: &[u8],
         _database: KrbDatabase,
         _cache: KrbCache,
-    ) -> KrbInfraSvrResult<Vec<u8>> {
+    ) -> HostResult<Vec<u8>> {
         Ok(bytes.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => "Invalid length prefix",
             ExchangeError::UdpPacketOversize {
@@ -39,11 +39,11 @@ impl AsyncReceiver for SimpleTgtReceiver {
         bytes: &[u8],
         _database: KrbDatabase,
         _cache: KrbCache,
-    ) -> KrbInfraSvrResult<Vec<u8>> {
+    ) -> HostResult<Vec<u8>> {
         Ok(bytes.to_vec())
     }
 
-    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>> {
+    fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>> {
         let message = match err {
             ExchangeError::LengthPrefix { value: _ } => "Invalid length prefix",
             ExchangeError::UdpPacketOversize {

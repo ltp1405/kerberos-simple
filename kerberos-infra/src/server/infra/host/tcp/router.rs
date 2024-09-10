@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 use crate::server::infra::{
-    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, KrbInfraSvrResult},
+    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, HostResult},
     DataBox, KrbCache, KrbDatabase,
 };
 
@@ -27,7 +27,7 @@ impl TcpRouter {
         &self,
         database: KrbDatabase,
         cache: KrbCache,
-    ) -> KrbInfraSvrResult<()> {
+    ) -> HostResult<()> {
         let listener = TcpListener::bind(&self.addr).await?;
 
         loop {

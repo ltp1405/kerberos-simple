@@ -1,6 +1,6 @@
 // Public API
 pub use builder::HostBuilder;
-pub use error::{HostError, KrbInfraSvrResult};
+pub use error::{HostError, HostResult};
 pub use receiver::{AsyncReceiver, ExchangeError};
 pub use runnable::Runnable;
 

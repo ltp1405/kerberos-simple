@@ -3,7 +3,7 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::{net::UdpSocket, sync::mpsc};
 
 use crate::server::infra::{
-    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, KrbInfraSvrResult},
+    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, HostResult},
     DataBox, KrbCache, KrbDatabase,
 };
 
@@ -27,7 +27,7 @@ impl UdpRouter {
         &self,
         database: KrbDatabase,
         cache: KrbCache,
-    ) -> KrbInfraSvrResult<()> {
+    ) -> HostResult<()> {
         let socket = UdpSocket::bind(&self.addr).await?;
 
         let listener = Arc::new(socket);

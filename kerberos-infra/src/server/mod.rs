@@ -4,7 +4,7 @@ pub use builder::ServerBuilder;
 pub use infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
     database::{Database, DatabaseError, Migration, Queryable},
-    host::{AsyncReceiver, ExchangeError, KrbInfraSvrResult},
+    host::{AsyncReceiver, ExchangeError, HostError, HostResult},
     KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
 };
 

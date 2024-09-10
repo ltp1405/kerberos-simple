@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::server::infra::{KrbCache, KrbDatabase};
 
-use super::KrbInfraSvrResult;
+use super::HostResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExchangeError {
@@ -22,7 +22,7 @@ pub trait AsyncReceiver: Send + Sync {
         bytes: &[u8],
         database: KrbDatabase,
         cache: KrbCache,
-    ) -> KrbInfraSvrResult<Vec<u8>>;
+    ) -> HostResult<Vec<u8>>;
 
-    fn error(&self, err: ExchangeError) -> KrbInfraSvrResult<Vec<u8>>;
+    fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>>;
 }

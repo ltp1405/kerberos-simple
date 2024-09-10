@@ -62,4 +62,4 @@ impl std::fmt::Debug for HostError {
 
 unsafe impl Send for HostError {}
 
-pub type KrbInfraSvrResult<T> = Result<T, HostError>;
+pub type HostResult<T> = Result<T, HostError>;
