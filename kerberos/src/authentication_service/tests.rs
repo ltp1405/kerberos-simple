@@ -1,4 +1,3 @@
-use crate::authentication_service::traits::PrincipalDatabase;
 use crate::authentication_service::AuthenticationServiceBuilder;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
@@ -9,6 +8,7 @@ use messages::basic_types::{
 use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBody, KdcReqBodyBuilder};
 use std::time::Duration;
+use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 
 struct MockedCrypto;
 
@@ -42,9 +42,9 @@ impl PrincipalDatabase for MockedPrincipalDb {
         &self,
         principal_name: &PrincipalName,
         realm: &Realm,
-    ) -> Option<crate::authentication_service::traits::PrincipalDatabaseRecord> {
+    ) -> Option<PrincipalDatabaseRecord> {
         Some(
-            crate::authentication_service::traits::PrincipalDatabaseRecord {
+            PrincipalDatabaseRecord {
                 key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
                 p_kvno: Some(1),
                 max_renewable_life: Duration::from_secs(5 * 60),

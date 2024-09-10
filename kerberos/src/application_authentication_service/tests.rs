@@ -1,7 +1,10 @@
-use crate::application_authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
 use crate::application_authentication_service::ApplicationAuthenticationServiceBuilder;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
+use crate::service_traits::{
+    ApReplayCache, ApReplayEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
+    ReplayCacheEntry,
+};
 use chrono::{DateTime, Local};
 use messages::basic_types::{
     EncryptedData, EncryptionKey, KerberosString, KerberosTime, NameTypes, OctetString,
@@ -15,23 +18,27 @@ use std::time::{Duration, SystemTime};
 
 struct MockedReplayCached;
 
-impl ReplayCache for MockedReplayCached {
-    type ReplayCacheError = &'static str;
+impl ApReplayCache for MockedReplayCached {
+    type ApReplayCacheError = ();
 
-    fn store(&self, entry: ReplayCacheEntry) -> Result<(), ReplayCacheEntry> {
-        Ok(())
+    fn store(&self, authenticator: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
+        todo!()
     }
 
-    fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, ReplayCacheEntry> {
-        Ok(true)
+    fn contain(&self, authenticator: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError> {
+        todo!()
     }
 }
 
 struct MockedKeyStorage;
 
-impl KeyFinder for MockedKeyStorage {
-    fn get_key_for_srealm(&self, srealm: &Realm) -> Option<Vec<u8>> {
-        vec![1; 16].into()
+impl PrincipalDatabase for MockedKeyStorage {
+    fn get_principal(
+        &self,
+        principal_name: &PrincipalName,
+        realm: &Realm,
+    ) -> Option<PrincipalDatabaseRecord> {
+        todo!()
     }
 }
 
@@ -61,17 +68,6 @@ fn test_handle_ap_req() {
     let key_storage = MockedKeyStorage;
     let crypto = MockedCrypto;
     let key = crypto.generate_key().unwrap();
-    let auth_service = ApplicationAuthenticationServiceBuilder::default()
-        .realm("me".try_into().unwrap())
-        .sname(PrincipalName::new(NameTypes::NtPrincipal, vec!["me".try_into().unwrap()]).unwrap())
-        .accept_empty_address_ticket(true)
-        .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
-        .replay_cache(&cache)
-        .key_finder(&key_storage)
-        .crypto(&crypto)
-        .build()
-        .unwrap();
-
     let transited_encoding = TransitedEncoding::new(
         1,
         OctetString::new("EDU,MIT.,ATHENA.,WASHINGTON.EDU,CS.".to_string().as_bytes()).unwrap(),
@@ -140,6 +136,17 @@ fn test_handle_ap_req() {
         EncryptedData::new(0, 0, OctetString::new(encrypted_authenticator).unwrap());
 
     let ap_req = ApReq::new(APOptions::new(false, false), ticket, authenticator);
+
+    let auth_service = ApplicationAuthenticationServiceBuilder::default()
+        .realm("me".try_into().unwrap())
+        .sname(PrincipalName::new(NameTypes::NtPrincipal, vec!["me".try_into().unwrap()]).unwrap())
+        .accept_empty_address_ticket(true)
+        .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
+        .replay_cache(&cache)
+        .principal_db(&key_storage)
+        .crypto(vec![Box::new(crypto)])
+        .build()
+        .unwrap();
 
     assert!(auth_service
         .handle_krb_ap_req(ap_req)
