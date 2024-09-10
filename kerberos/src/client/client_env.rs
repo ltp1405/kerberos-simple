@@ -1,4 +1,4 @@
-use messages::basic_types::{EncryptionKey, KerberosString, KerberosTime, OctetString};
+use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString};
 use std::time::Duration;
 use messages::{AsRep, EncAsRepPart, TgsRep};
 use crate::client::client_env_error::ClientEnvError;
@@ -14,6 +14,8 @@ pub trait ClientEnv {
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError>;
 
     fn get_client_address(&self) -> Result<OctetString, ClientEnvError>;
+
+    fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError>;
 
     fn get_current_time(&self) -> Result<Duration, ClientEnvError> {
         Ok(KerberosTime::now().to_unix_duration())

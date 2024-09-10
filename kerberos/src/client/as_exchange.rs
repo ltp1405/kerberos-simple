@@ -1,12 +1,17 @@
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::client::util::generate_nonce;
-use messages::basic_types::{KerberosTime, NameTypes, PrincipalName};
+use messages::basic_types::{KerberosFlags, KerberosTime, NameTypes, PrincipalName};
+use messages::flags::KdcOptionsFlag::{POSTDATED, RENEWABLE};
 use messages::{AsRep, AsReq, Decode, EncAsRepPart, KdcReqBodyBuilder, KrbErrorMsg};
 use std::ops::Sub;
 use std::time::Duration;
 
-pub fn prepare_as_request(client_env: &impl ClientEnv) -> Result<AsReq, ClientError> {
+pub fn prepare_as_request(
+    client_env: &impl ClientEnv,
+    starttime: Option<KerberosTime>,
+    renewal_time: Option<KerberosTime>,
+) -> Result<AsReq, ClientError> {
     let client_name = client_env.get_client_name()?;
     let cname = PrincipalName::new(NameTypes::NtPrincipal, vec![client_name])
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
@@ -20,6 +25,7 @@ pub fn prepare_as_request(client_env: &impl ClientEnv) -> Result<AsReq, ClientEr
     let till = KerberosTime::from_unix_duration(current_time + duration)
         .or(Err(ClientError::DecodeError))?;
     let etypes = client_env.get_supported_etypes()?;
+    let kdc_options = client_env.get_kdc_options()?;
     let pa_data = Vec::new();
 
     let req_body = KdcReqBodyBuilder::default()
@@ -29,7 +35,33 @@ pub fn prepare_as_request(client_env: &impl ClientEnv) -> Result<AsReq, ClientEr
         .nonce(nonce)
         .till(till)
         .etype(etypes)
-        .build()?;
+        .kdc_options(kdc_options);
+    if kdc_options.is_set(POSTDATED as usize) {
+        match starttime {
+            None => {
+                return Err(ClientError::PrepareRequestError(
+                    "POSTDATED flag is set but no starttime is provided".to_string(),
+                ))
+            }
+            Some(starttime) => {
+                req_body.from(starttime);
+            }
+        }
+    }
+
+    if kdc_options.is_set(RENEWABLE as usize) {
+        match renewal_time {
+            None => {
+                return Err(ClientError::PrepareRequestError(
+                    "RENEWABLE flag is set but no renewal time is provided".to_string(),
+                ))
+            }
+            Some(renewal_time) => {
+                req_body.rtime(renewal_time);
+            }
+        }
+    }
+    req_body.build()?;
     let as_req = AsReq::new(pa_data, req_body);
     Ok(as_req)
 }
