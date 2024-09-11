@@ -6,6 +6,7 @@ use der::{
 };
 use std::ops::Deref;
 
+#[derive(Clone)]
 pub struct EncTgsRepPart(pub EncKdcRepPart);
 
 impl EncTgsRepPart {
