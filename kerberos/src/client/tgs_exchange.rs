@@ -2,7 +2,7 @@ use crate::client::ap_exchange::prepare_ap_request;
 use crate::client::client_env::ClientEnv;
 use crate::client::client_env_error::ClientEnvError;
 use crate::client::client_error::ClientError;
-use crate::client::kdc_exchange::receive_kdc_rep;
+use crate::client::kdc_exchange::{receive_kdc_rep, KdcExchangeType};
 use crate::client::util::generate_nonce;
 use messages::basic_types::PaDataTypes::PaTgsReq;
 use messages::basic_types::{
@@ -89,7 +89,14 @@ pub fn receive_tgs_response(
         })
         .unwrap_or(Ok(binding.key().clone()))?;
 
-    receive_kdc_rep(client_env, crypto, decrypt_key, tgs_req, tgs_rep)?;
+    receive_kdc_rep(
+        client_env,
+        crypto,
+        decrypt_key,
+        tgs_req,
+        tgs_rep,
+        KdcExchangeType::Tgs,
+    )?;
 
     client_env.save_tgs_reply(tgs_rep)?;
     Ok(())

@@ -1,6 +1,6 @@
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
-use crate::client::kdc_exchange::receive_kdc_rep;
+use crate::client::kdc_exchange::{receive_kdc_rep, KdcExchangeType};
 use crate::client::util::generate_nonce;
 use messages::basic_types::{KerberosTime, NameTypes, PrincipalName};
 use messages::flags::KdcOptionsFlag::{POSTDATED, RENEWABLE};
@@ -74,7 +74,14 @@ pub fn receive_as_response(
 ) -> Result<(), ClientError> {
     let cryptosystem = client_env.get_crypto(*as_rep.enc_part().etype())?;
     let key = client_env.get_client_key(*as_rep.enc_part().etype())?;
-    receive_kdc_rep(client_env, cryptosystem, key, &as_req.clone(), &as_rep.clone())?;
+    receive_kdc_rep(
+        client_env,
+        cryptosystem,
+        key,
+        &as_req.clone(),
+        &as_rep.clone(),
+        KdcExchangeType::As,
+    )?;
 
     client_env.save_as_reply(as_rep)?;
     Ok(())

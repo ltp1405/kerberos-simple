@@ -5,8 +5,13 @@ use crate::client::util::{is_within_clock_skew, is_zero_time};
 use crate::cryptography::Cryptography;
 use messages::basic_types::{EncryptionKey, KerberosTime};
 use messages::flags::KdcOptionsFlag::{RENEWABLE, RENEWABLE_OK};
-use messages::{Decode, EncKdcRepPart, KdcRep, KdcReq};
+use messages::{Decode, EncAsRepPart, EncKdcRepPart, EncTgsRepPart, KdcRep, KdcReq};
 use std::time::Duration;
+
+pub(crate) enum KdcExchangeType {
+    As,
+    Tgs,
+}
 
 pub fn receive_kdc_rep(
     client_env: &impl ClientEnv,
@@ -14,13 +19,25 @@ pub fn receive_kdc_rep(
     encryption_key: EncryptionKey,
     kdc_req: &KdcReq,
     kdc_rep: &KdcRep,
+    exchange_type: KdcExchangeType,
 ) -> Result<(), ClientError> {
     let decrypted_kdc_rep_part = cryptography.decrypt(
         kdc_rep.enc_part().cipher().as_ref(),
         encryption_key.keyvalue().as_ref(),
     )?;
-    let kdc_rep_part = EncKdcRepPart::from_der(decrypted_kdc_rep_part.as_slice())
-        .or(Err(ClientError::DecodeError))?;
+
+    let kdc_rep_part: EncKdcRepPart = match exchange_type {
+        KdcExchangeType::As => {
+            EncAsRepPart::from_der(decrypted_kdc_rep_part.as_slice())
+                .or(Err(ClientError::DecodeError))?
+                .0
+        }
+        KdcExchangeType::Tgs => {
+            EncTgsRepPart::from_der(decrypted_kdc_rep_part.as_slice())
+                .or(Err(ClientError::DecodeError))?
+                .0
+        }
+    };
     let req_cname = kdc_req
         .req_body()
         .cname()
