@@ -22,6 +22,7 @@ pub trait PrincipalDatabase {
     ) -> Option<PrincipalDatabaseRecord>;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReplayCacheEntry {
     pub server_name: PrincipalName,
     pub client_name: PrincipalName,
@@ -32,8 +33,8 @@ pub struct ReplayCacheEntry {
 #[async_trait]
 pub trait ReplayCache {
     type ReplayCacheError;
-    async fn store(&self, entry: ReplayCacheEntry) -> Result<(), Self::ReplayCacheError>;
-    async fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError>;
+    async fn store(&self, entry: &ReplayCacheEntry) -> Result<(), Self::ReplayCacheError>;
+    async fn contain(&self, entry: &ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError>;
 }
 
 #[async_trait]
@@ -64,9 +65,9 @@ pub trait ClientAddressStorage {
 }
 
 pub struct LastReqEntry {
-    last_req: LastReq,
-    realm: Realm,
-    name: PrincipalName,
+    pub last_req: LastReq,
+    pub realm: Realm,
+    pub name: PrincipalName,
 }
 
 #[async_trait]
