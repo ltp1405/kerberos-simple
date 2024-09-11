@@ -6,7 +6,8 @@ use der::{
 };
 use std::ops::Deref;
 
-pub struct EncAsRepPart(EncKdcRepPart);
+#[derive(Clone)]
+pub struct EncAsRepPart(pub EncKdcRepPart);
 impl EncAsRepPart {
     pub fn new(inner: impl Into<EncKdcRepPart>) -> Self {
         Self(inner.into())

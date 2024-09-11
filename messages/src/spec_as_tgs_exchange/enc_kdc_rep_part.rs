@@ -7,7 +7,7 @@ use crate::{
     tickets::TicketFlags,
 };
 
-#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug, Clone)]
 #[builder(setter(into, strip_option))]
 pub struct EncKdcRepPart {
     #[asn1(context_specific = "0")]
