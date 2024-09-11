@@ -3,10 +3,8 @@ mod tests;
 
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{
-    ApReplayCache, ApReplayEntry, PrincipalDatabase, ReplayCache, ReplayCacheEntry,
-};
-use chrono::{Local, SubsecRound};
+use crate::service_traits::{ApReplayCache, ApReplayEntry};
+use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
     EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName,
@@ -34,10 +32,9 @@ where
 }
 
 #[derive(Debug)]
-enum ServerError {
-    ProtocolError(KrbErrorMsg),
+pub enum ServerError {
+    ProtocolError(Box<KrbErrorMsg>),
     Internal,
-    CannotDecode,
 }
 
 impl<'a, C> ApplicationAuthenticationService<'a, C>
@@ -50,7 +47,7 @@ where
             _ => Err(Ecode::KRB_AP_ERR_MSG_TYPE),
         }
     }
-    fn verify_key(&self, key_version: &Int32) -> Result<(), Ecode> {
+    fn verify_key(&self, _key_version: &Int32) -> Result<(), Ecode> {
         // TODO: correctly implement this
         Ok(())
     }
@@ -61,7 +58,6 @@ where
 
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
-        let time = now.round_subsecs(0).to_utc().timestamp();
         let usec = now.timestamp_subsec_micros();
         KrbErrorMsgBuilder::default()
             .stime(KerberosTime::now())
@@ -86,23 +82,26 @@ where
     pub fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
         let crypto = &self.crypto;
-        let mut error_msg = RefCell::new(self.default_error_builder());
+        let error_msg = RefCell::new(self.default_error_builder());
 
-        let mut build_protocol_error =
-            |e| ProtocolError(error_msg.borrow_mut().error_code(e).build().unwrap());
+        let build_protocol_error = |e| {
+            ProtocolError(Box::new(
+                error_msg.borrow_mut().error_code(e).build().unwrap(),
+            ))
+        };
 
         self.verify_msg_type(ap_req.msg_type())
             .and(self.verify_key(ap_req.ticket().tkt_vno()))
-            .map_err(&mut build_protocol_error)?;
+            .map_err(build_protocol_error)?;
 
         let key = self
             .get_key_for_decrypt(
                 ap_req.ticket().sname(),
                 ap_req.ticket().realm(),
                 *ap_req.ticket().enc_part().etype(),
-                ap_req.ticket().enc_part().kvno().map(|v| *v),
+                ap_req.ticket().enc_part().kvno().copied(),
             )
-            .map_err(&mut build_protocol_error)?;
+            .map_err(build_protocol_error)?;
 
         let decrypted_ticket = crypto
             .iter()
@@ -110,7 +109,7 @@ where
             .expect("This should be check when searching for key")
             .decrypt(
                 ap_req.ticket().enc_part().cipher().as_bytes(),
-                &key.keyvalue().as_bytes(),
+                key.keyvalue().as_bytes(),
             )
             .map_err(|_| ServerError::Internal)
             .and_then(|d| EncTicketPart::from_der(&d).map_err(|_| ServerError::Internal))?;
@@ -196,7 +195,7 @@ where
 
         Ok(ApRep::new(EncryptedData::new(
             *ap_req.ticket().enc_part().etype(),
-            ap_req.ticket().enc_part().kvno().map(|v| *v),
+            ap_req.ticket().enc_part().kvno().copied(),
             OctetString::new(encrypted).map_err(|_| ServerError::Internal)?,
         )))
     }

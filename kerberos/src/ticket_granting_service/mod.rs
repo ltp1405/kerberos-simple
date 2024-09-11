@@ -12,13 +12,11 @@ use messages::{
     ApReq, Authenticator, Decode, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
     KrbErrorMsgBuilder, LastReq, TgsRep, TgsReq, Ticket, TicketFlags,
 };
-use std::cell::Cell;
 use std::cmp::min;
-use std::ffi::c_long;
 
 #[derive(Debug)]
 pub enum ServerError {
-    ProtocolError(KrbErrorMsg),
+    ProtocolError(Box<KrbErrorMsg>),
     Internal,
 }
 
@@ -39,7 +37,6 @@ where
 impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
-        let time = now.round_subsecs(0).to_utc().timestamp();
         let usec = now.timestamp_subsec_micros();
         KrbErrorMsgBuilder::default()
             .stime(KerberosTime::now())
@@ -127,7 +124,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
 
         // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =
-            |e: Ecode| ServerError::ProtocolError(error.error_code(e).build().unwrap());
+            |e: Ecode| ServerError::ProtocolError(Box::new(error.error_code(e).build().unwrap()));
 
         let ap_req = self
             .verify_padata(tgs_req)
@@ -226,7 +223,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
 
         let mut new_ticket_flags = TicketFlags::builder();
 
-        /// Check if the flag is set in the tgs request, if not return a protocol error
+        // Check if the flag is set in the tgs request, if not return a protocol error
         let mut check_tgs_req_flag = |flag: KdcOptionsFlag, err: Ecode| {
             if !tgs_req.req_body().kdc_options().is_set(flag as usize) {
                 return Err(build_protocol_error(err));
@@ -453,7 +450,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
 
         let tgt_rep = tgt_rep.build().expect("tgt_rep should be built");
 
-        /// Encrypt data using `use_etype` encryption type
+        // Encrypt data using `use_etype` encryption type
         let mut encrypt_data = |key: &[u8]| {
             self.supported_crypto
                 .iter()
