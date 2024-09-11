@@ -1,8 +1,7 @@
+use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{
-    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
-};
-use chrono::{Local, SubsecRound};
+use crate::service_traits::{LastReqDatabase, PrincipalDatabase, ReplayCache};
+use chrono::Local;
 use messages::basic_types::{
     AuthorizationData, Checksum, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
     PrincipalName, Realm,
@@ -27,11 +26,13 @@ where
     T: PrincipalDatabase,
     C: ReplayCache,
 {
+    supported_checksum: Vec<Box<dyn CryptographicHash>>,
     supported_crypto: Vec<Box<dyn Cryptography>>,
     principal_db: &'a T,
     name: PrincipalName,
     realm: Realm,
     replay_cache: &'a C,
+    last_req_db: &'a dyn LastReqDatabase,
 }
 
 impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
@@ -67,17 +68,11 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         enc_ticket_part.crealm().clone()
     }
 
-    fn decrypt_authenticator(&self, ap_req: &ApReq) -> TGSResult<Authenticator> {
-        todo!()
-    }
-
-    fn get_supported_checksums(&self) -> Vec<i32> {
-        // TODO: Implement this
-        vec![0]
-    }
-
-    fn compute_checksum(&self, data: &[u8], checksum_type: Int32) -> Vec<u8> {
-        todo!()
+    fn compute_checksum(&self, data: &[u8], checksum_type: Int32) -> Option<Vec<u8>> {
+        self.supported_checksum
+            .iter()
+            .find(|c| c.get_checksum_type() == checksum_type)
+            .map(|c| c.digest(data))
     }
 
     fn generate_random_session_key(&self) -> Result<EncryptionKey, ServerError> {
@@ -182,22 +177,24 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             .cksum()
             .ok_or(build_protocol_error(Ecode::KRB_AP_ERR_INAPP_CKSUM))
             .and_then(|t| {
-                if !self.is_checksum_supported(&t) {
+                if !self.is_checksum_supported(t) {
                     return Err(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP));
                 }
                 Ok(t)
             })
             .and_then(|t| {
-                if self.is_checksum_keyed(&t) && self.is_checksum_collision_proof(&t) {
+                if self.is_checksum_keyed(t) && self.is_checksum_collision_proof(t) {
                     return Err(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP));
                 }
                 Ok(t)
             })
             .and_then(|c| {
-                let checksum = self.compute_checksum(
-                    tgs_req.req_body().to_der().unwrap().as_slice(),
-                    *c.cksumtype(),
-                );
+                let checksum = self
+                    .compute_checksum(
+                        tgs_req.req_body().to_der().unwrap().as_slice(),
+                        *c.cksumtype(),
+                    )
+                    .ok_or(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP))?;
                 if checksum != c.checksum().as_bytes() {
                     return Err(build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED));
                 }
@@ -278,13 +275,11 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
 
         // TODO: more flag verification
 
-        new_ticket_enc_part.authtime(tgt.authtime().clone());
-
-        let mut req_rtime = KerberosTime::zero();
+        new_ticket_enc_part.authtime(tgt.authtime());
 
         let kdc_time = KerberosTime::now();
 
-        let mut req_renewable = false;
+        let mut rtime = None;
 
         if kdc_options.is_set(KdcOptionsFlag::RENEW as usize) {
             if !tgt.flags().is_set(TicketFlag::RENEWABLE as usize) {
@@ -295,7 +290,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             }
             new_ticket_enc_part.starttime(kdc_time);
             let old_life = tgt.endtime() - tgt.starttime().unwrap_or(tgt.authtime());
-            new_ticket_enc_part.endtime(std::cmp::min(
+            new_ticket_enc_part.endtime(min(
                 kdc_time + old_life,
                 tgt.renew_till().unwrap_or(KerberosTime::max()),
             ));
@@ -305,10 +300,10 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             let till = if tgs_req.req_body().till() == &KerberosTime::zero() {
                 KerberosTime::max()
             } else {
-                tgs_req.req_body().till().clone()
+                *tgs_req.req_body().till()
             };
 
-            let new_tkt_endtime = [
+            let new_tkt_endtime = *[
                 till,
                 tgt.endtime(),
                 // KerberosTime::now() + todo!("max life of client"),
@@ -317,8 +312,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             ]
             .iter()
             .min()
-            .unwrap()
-            .clone();
+            .unwrap();
 
             new_ticket_enc_part.endtime(new_tkt_endtime);
 
@@ -329,22 +323,22 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 && &new_tkt_endtime < tgs_req.req_body().till()
                 && tgt.flags().is_set(TicketFlag::RENEWABLE as usize)
             {
-                req_renewable = true;
-                req_rtime = min(till, tgt.renew_till().unwrap_or(KerberosTime::max()));
+                rtime = Some(min(
+                    till,
+                    tgt.renew_till()
+                        .expect("Renewable ticket should have this field set"),
+                ));
             }
-            req_rtime = min(till, tgt.renew_till().unwrap());
         }
 
-        let rtime = if req_rtime == KerberosTime::zero() {
-            KerberosTime::max()
-        } else {
-            req_rtime
-        };
+        let rtime = rtime
+            .filter(|&t| t != KerberosTime::zero())
+            .unwrap_or(KerberosTime::infinity());
 
         if kdc_options.is_set(KdcOptionsFlag::RENEWABLE as usize) {
             new_ticket_flags.set(TicketFlag::RENEWABLE as usize);
             new_ticket_enc_part.renew_till(
-                [
+                *[
                     rtime,
                     // todo!("max renewable life of client"),
                     // todo!("max renewable life of server"),
@@ -352,8 +346,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 ]
                 .iter()
                 .min()
-                .unwrap()
-                .clone(),
+                .unwrap(),
             );
         }
 
@@ -371,9 +364,8 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                             .decrypt(auth_data.cipher().as_bytes(), key.keyvalue().as_bytes())
                             .map_err(|_| ServerError::Internal)
                             .and_then(|data| {
-                                Ok(AuthorizationData::from_der(data.as_slice()).map_err(|_| {
-                                    build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED)
-                                })?)
+                                AuthorizationData::from_der(data.as_slice())
+                                    .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED))
                             })
                     })
             });
@@ -383,8 +375,8 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 .authorization_data()
                 .expect("authorization data should be present in authenticator")
                 .iter()
-                .map(|x| x.clone())
-                .chain(decrypted_auth?.into_iter())
+                .cloned()
+                .chain(decrypted_auth?)
                 .collect::<AuthorizationData>();
             Ok(auth_data)
         });
@@ -429,14 +421,17 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         );
 
         tgt_rep.key(session_key.clone());
-        tgt_rep.last_req(self.fetch_last_request_info());
-        tgt_rep.nonce(tgs_req.req_body().nonce().clone());
-        tgt_rep.flags(new_ticket_flags.build().unwrap());
-        tgt_rep.authtime(tgt.authtime().clone());
-        if let Some(starttime) = tgt.starttime() {
-            tgt_rep.starttime(starttime.clone());
+        let last_req = self.fetch_last_request_info(tgt.cname(), tgt.crealm());
+        if let Some(last_req) = last_req {
+            tgt_rep.last_req(last_req);
         }
-        tgt_rep.endtime(ticket.endtime().clone());
+        tgt_rep.nonce(*tgs_req.req_body().nonce());
+        tgt_rep.flags(new_ticket_flags.build().unwrap());
+        tgt_rep.authtime(tgt.authtime());
+        if let Some(starttime) = tgt.starttime() {
+            tgt_rep.starttime(starttime);
+        }
+        tgt_rep.endtime(ticket.endtime());
 
         if let Some(sname) = tgs_req.req_body().sname() {
             tgt_rep.sname(sname.clone());
@@ -444,7 +439,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         tgt_rep.srealm(realm.clone());
         if ticket.flags().is_set(TicketFlag::RENEWABLE as usize) {
             if let Some(renew_till) = ticket.renew_till() {
-                tgt_rep.renew_till(renew_till.clone());
+                tgt_rep.renew_till(renew_till);
             }
         }
 
@@ -485,7 +480,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         ))
     }
 
-    fn fetch_last_request_info(&self) -> LastReq {
-        todo!()
+    fn fetch_last_request_info(&self, cname: &PrincipalName, crealm: &Realm) -> Option<LastReq> {
+        self.last_req_db.get_last_req(crealm, cname)
     }
 }

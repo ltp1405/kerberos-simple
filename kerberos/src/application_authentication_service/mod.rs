@@ -3,7 +3,7 @@ mod tests;
 
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{ApReplayCache, ApReplayEntry};
+use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
@@ -27,6 +27,7 @@ where
     service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
+    address_storage: &'a dyn ClientAddressStorage,
     replay_cache: &'a C,
     crypto: Vec<Box<dyn Cryptography>>,
 }
@@ -52,8 +53,10 @@ where
         Ok(())
     }
 
-    fn search_for_addresses(&self, host_addresses: &HostAddresses) -> bool {
-        unimplemented!()
+    fn search_for_addresses(&self, ap_req: &ApReq, host_addresses: &HostAddresses) -> bool {
+        host_addresses
+            .iter()
+            .any(|a| a == &self.address_storage.get_sender_of_packet(ap_req))
     }
 
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
@@ -119,7 +122,7 @@ where
             .iter()
             .find(|crypto| crypto.get_etype() == *key.keytype())
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
-            .decrypt(ap_req.authenticator().cipher().as_bytes(), &ss_key)
+            .decrypt(ap_req.authenticator().cipher().as_bytes(), ss_key)
             .map_err(|_| ServerError::Internal)
             .and_then(|d| {
                 Authenticator::from_der(&d)
@@ -141,13 +144,12 @@ where
                 .cname(authenticator.cname().to_owned());
         }
 
-        self.accept_empty_address_ticket
-            .then_some(())
-            .or(decrypted_ticket
+        if !self.accept_empty_address_ticket {
+            decrypted_ticket
                 .caddr()
-                .filter(|t| self.search_for_addresses(t))
-                .and(Some(())))
-            .ok_or(build_protocol_error(Ecode::KRB_AP_ERR_BADADDR))?;
+                .filter(|t| self.search_for_addresses(&ap_req, t))
+                .ok_or(build_protocol_error(Ecode::KRB_AP_ERR_BADADDR))?;
+        }
 
         let ticket_time = decrypted_ticket
             .starttime()

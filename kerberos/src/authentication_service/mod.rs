@@ -47,7 +47,6 @@ where
 {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
-        let time = now.round_subsecs(0).to_utc().timestamp();
         let usec = now.timestamp_subsec_micros();
         KrbErrorMsgBuilder::default()
             .stime(KerberosTime::now())

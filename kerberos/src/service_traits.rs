@@ -1,13 +1,14 @@
 use messages::basic_types::{
-    EncryptionKey, Int32, KerberosTime, Microseconds, PrincipalName, Realm, UInt32,
+    EncryptionKey, HostAddress, Int32, KerberosTime, Microseconds, PrincipalName, Realm, UInt32,
 };
+use messages::{ApReq, LastReq};
 use std::time::Duration;
 
 pub struct PrincipalDatabaseRecord {
-    pub key: EncryptionKey,
-    pub p_kvno: Option<UInt32>,
     pub max_renewable_life: Duration,
     pub max_lifetime: Duration,
+    pub key: EncryptionKey,
+    pub p_kvno: Option<UInt32>,
     pub supported_encryption_types: Vec<Int32>,
 }
 
@@ -50,4 +51,19 @@ pub trait ApReplayCache {
     type ApReplayCacheError;
     fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;
     fn contain(&self, entry: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError>;
+}
+
+pub trait ClientAddressStorage {
+    fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
+}
+
+pub struct LastReqEntry {
+    last_req: LastReq,
+    realm: Realm,
+    name: PrincipalName,
+}
+
+pub trait LastReqDatabase {
+    fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
+    fn store_last_req(&self, last_req_entry: LastReqEntry);
 }
