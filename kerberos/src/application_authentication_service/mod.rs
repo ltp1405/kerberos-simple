@@ -20,14 +20,13 @@ use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-pub struct ApplicationAuthenticationService<'a, C, P>
+pub struct ApplicationAuthenticationService<'a, C>
 where
     C: ApReplayCache,
-    P: PrincipalDatabase,
 {
     realm: Realm,
     sname: PrincipalName,
-    principal_db: &'a P,
+    service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
     replay_cache: &'a C,
@@ -41,10 +40,9 @@ enum ServerError {
     CannotDecode,
 }
 
-impl<'a, C, K> ApplicationAuthenticationService<'a, C, K>
+impl<'a, C> ApplicationAuthenticationService<'a, C>
 where
     C: ApReplayCache,
-    K: PrincipalDatabase,
 {
     fn verify_msg_type(&self, msg_type: &u8) -> Result<(), Ecode> {
         match msg_type {
@@ -81,14 +79,7 @@ where
         knvo: Option<UInt32>,
     ) -> Result<EncryptionKey, Ecode> {
         // TODO: Check for key in session key cache first
-        let principal_db = self.principal_db;
-        let key = principal_db
-            .get_principal(sname, realm)
-            .ok_or(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN)?;
-        let key = key
-            .key
-            .keyvalue()
-            .as_bytes();
+        let key = self.service_key.keyvalue().as_bytes();
         Ok(EncryptionKey::new(etype, OctetString::new(key).unwrap()))
     }
 
@@ -103,11 +94,6 @@ where
         self.verify_msg_type(ap_req.msg_type())
             .and(self.verify_key(ap_req.ticket().tkt_vno()))
             .map_err(&mut build_protocol_error)?;
-
-        let server = self
-            .principal_db
-            .get_principal(ap_req.ticket().sname(), ap_req.ticket().realm())
-            .ok_or_else(|| build_protocol_error(Ecode::KRB_AP_ERR_BADKEYVER))?;
 
         let key = self
             .get_key_for_decrypt(
@@ -213,8 +199,5 @@ where
             ap_req.ticket().enc_part().kvno().map(|v| *v),
             OctetString::new(encrypted).map_err(|_| ServerError::Internal)?,
         )))
-
-        // NOTE: Sequence number in authenticator is not handled because we do not
-        // implement KRB_PRIV or KRB_SAFE
     }
 }

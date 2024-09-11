@@ -1,13 +1,13 @@
-use crate::cryptography_error::CryptographyError;
 use messages::basic_types::{
     EncryptionKey, Int32, KerberosTime, Microseconds, PrincipalName, Realm, UInt32,
 };
 use std::time::Duration;
 
-pub(crate) struct PrincipalDatabaseRecord {
+pub struct PrincipalDatabaseRecord {
     pub key: EncryptionKey,
     pub p_kvno: Option<UInt32>,
     pub max_renewable_life: Duration,
+    pub max_lifetime: Duration,
     pub supported_encryption_types: Vec<Int32>,
 }
 
@@ -38,12 +38,14 @@ pub trait TicketHotList {
     fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
+#[derive(Debug, Clone)]
 pub struct ApReplayEntry {
     pub ctime: KerberosTime,
     pub cusec: Microseconds,
     pub cname: PrincipalName,
     pub crealm: Realm,
 }
+
 pub trait ApReplayCache {
     type ApReplayCacheError;
     fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;

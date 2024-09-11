@@ -125,7 +125,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
 
         let mut error = self.default_error_builder();
 
-        /// Helper function to build a protocol error, supplied with an error code
+        // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =
             |e: Ecode| ServerError::ProtocolError(error.error_code(e).build().unwrap());
 
@@ -139,7 +139,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 tgs_req
                     .req_body()
                     .sname()
-                    .expect("sname should be present in tgs_req"),
+                    .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?,
                 tgs_req.req_body().realm(),
             )
             .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
@@ -373,9 +373,10 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                         crypto
                             .decrypt(auth_data.cipher().as_bytes(), key.keyvalue().as_bytes())
                             .map_err(|_| ServerError::Internal)
-                            .map(|data| {
-                                AuthorizationData::from_der(data.as_slice())
-                                    .expect("authorization data should be decoded")
+                            .and_then(|data| {
+                                Ok(AuthorizationData::from_der(data.as_slice()).map_err(|_| {
+                                    build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED)
+                                })?)
                             })
                     })
             });

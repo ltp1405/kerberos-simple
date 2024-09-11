@@ -45,6 +45,7 @@ impl PrincipalDatabase for MockedPrincipalDb {
     ) -> Option<PrincipalDatabaseRecord> {
         Some(
             PrincipalDatabaseRecord {
+                max_lifetime: Duration::from_secs(5 * 60),
                 key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
                 p_kvno: Some(1),
                 max_renewable_life: Duration::from_secs(5 * 60),

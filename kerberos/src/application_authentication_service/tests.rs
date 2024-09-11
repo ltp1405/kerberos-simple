@@ -143,7 +143,6 @@ fn test_handle_ap_req() {
         .accept_empty_address_ticket(true)
         .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
         .replay_cache(&cache)
-        .principal_db(&key_storage)
         .crypto(vec![Box::new(crypto)])
         .build()
         .unwrap();
