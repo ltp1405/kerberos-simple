@@ -12,7 +12,7 @@ use messages::{
     AsRep, AsReq, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
     KrbErrorMsgBuilder, Ticket, TicketFlags, TransitedEncoding,
 };
-use std::ops::{RangeBounds, RangeInclusive};
+use std::ops::RangeInclusive;
 use std::time::Duration;
 
 #[cfg(test)]
@@ -156,8 +156,6 @@ where
         let selected_client_key = client_key;
         let kdc_options = as_req.req_body().kdc_options();
 
-        let ticket_expire_time = self.calculate_ticket_expire_time(as_req.req_body().till());
-
         let mut ticket_flags = self.generate_ticket_flags(as_req).unwrap();
 
         let mut ticket = EncTicketPart::builder();
@@ -171,7 +169,7 @@ where
         let till = if as_req.req_body().till() == &KerberosTime::zero() {
             KerberosTime::infinity()
         } else {
-            as_req.req_body().till().clone()
+            *as_req.req_body().till()
         };
 
         let mut starttime = None;
@@ -217,7 +215,6 @@ where
                     starttime.unwrap_or(kdc_time) + client.max_renewable_life,
                     starttime.unwrap_or(kdc_time) + server.max_renewable_life,
                     // starttime.unwrap_or(kdc_time) + max_rtime_for_realm
-
                 ]
                 .iter()
                 .min()
@@ -261,7 +258,7 @@ where
         );
 
         let mut enc_part = EncKdcRepPartBuilder::default();
-        
+
         let enc_part = enc_part
             .sname(sname)
             .srealm(srealm)
@@ -341,13 +338,6 @@ where
         } else {
             Ok(())
         }
-    }
-
-    fn calculate_ticket_expire_time(&self, requested_endtime: &KerberosTime) -> KerberosTime {
-        Some(requested_endtime)
-            .filter(|x| x.to_unix_duration() == Duration::from_secs(0))
-            .map(|x| *x)
-            .unwrap_or(self.get_maximum_endtime_allowed())
     }
 
     // TODO: implement this correctly
