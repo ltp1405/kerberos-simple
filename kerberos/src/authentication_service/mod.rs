@@ -165,10 +165,6 @@ where
         if let Some(addr) = as_req.req_body().addresses() {
             ticket.caddr(addr.clone());
         }
-        let session_key = EncryptionKey::new(
-            0,
-            OctetString::new(session_key.keyvalue().as_bytes()).unwrap(),
-        );
         let till = if as_req.req_body().till() == &KerberosTime::zero() {
             KerberosTime::infinity()
         } else {
@@ -243,22 +239,22 @@ where
             .build()
             .unwrap();
 
-        let enc_ticket = self
+        let ticket = self
             .get_supported_crypto_systems()
             .iter()
             .find(|crypto| crypto.get_etype() == *server_key.keytype())
-            .unwrap()
-            .encrypt(&ticket.to_der().unwrap(), server_key.keyvalue().as_bytes())
+            .map(|crypto| {
+                let enc = crypto
+                    .encrypt(&ticket.to_der().unwrap(), server_key.keyvalue().as_bytes())
+                    .unwrap();
+                EncryptedData::new(crypto.get_etype(), None, OctetString::new(enc).unwrap())
+            })
             .unwrap();
 
         let sname = as_req.req_body().sname().unwrap().clone();
         let srealm = as_req.req_body().realm().clone();
 
-        let ticket = Ticket::new(
-            srealm.clone(),
-            sname.clone(),
-            EncryptedData::new(0, 0, OctetString::new(enc_ticket).unwrap()),
-        );
+        let ticket = Ticket::new(srealm.clone(), sname.clone(), ticket);
 
         let mut enc_part = EncKdcRepPartBuilder::default();
 

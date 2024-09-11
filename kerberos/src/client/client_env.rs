@@ -1,4 +1,5 @@
 use crate::client::client_env_error::ClientEnvError;
+use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
 use messages::basic_types::{
     EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
@@ -26,6 +27,11 @@ pub trait ClientEnv {
     fn get_supported_etypes(&self) -> Result<Vec<i32>, ClientEnvError>;
 
     fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError>;
+    fn get_checksum_hash(
+        &self,
+        checksum_type: i32,
+    ) -> Result<Box<dyn CryptographicHash>, ClientEnvError>;
+    fn get_supported_checksums(&self) -> Result<Vec<i32>, ClientEnvError>;
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError>;
 

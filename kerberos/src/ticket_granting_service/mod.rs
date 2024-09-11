@@ -2,14 +2,15 @@ use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
 use crate::service_traits::{LastReqDatabase, PrincipalDatabase, ReplayCache};
 use chrono::Local;
+use derive_builder::Builder;
 use messages::basic_types::{
     AuthorizationData, Checksum, EncryptedData, EncryptionKey, Int32, KerberosTime, OctetString,
     PrincipalName, Realm,
 };
 use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{
-    ApReq, Authenticator, Decode, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
-    KrbErrorMsgBuilder, LastReq, TgsRep, TgsReq, Ticket, TicketFlags,
+    ApReq, Authenticator, Decode, Ecode, EncKdcRepPartBuilder, EncTgsRepPart, EncTicketPart,
+    Encode, KrbErrorMsg, KrbErrorMsgBuilder, LastReq, TgsRep, TgsReq, Ticket, TicketFlags,
 };
 use std::cmp::min;
 
@@ -21,6 +22,8 @@ pub enum ServerError {
 
 type TGSResult<T> = Result<T, ServerError>;
 
+#[derive(Builder)]
+#[builder(pattern = "owned", setter(strip_option))]
 pub struct TicketGrantingService<'a, T, C>
 where
     T: PrincipalDatabase,
@@ -133,14 +136,9 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                     .sname()
                     .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?,
                 tgs_req.req_body().realm(),
-            ).await
-            .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
-
-        let client = self
-            .principal_db
-            .get_principal(ap_req.ticket().sname(), ap_req.ticket().realm())
+            )
             .await
-            .ok_or(build_protocol_error(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN))?;
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
 
         let kdc_options = tgs_req.req_body().kdc_options();
         let auth_header = ap_req;
@@ -158,20 +156,24 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             )
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
-                EncTicketPart::from_der(data.as_slice()).map_err(|_| ServerError::Internal)
+                EncTicketPart::from_der(data.as_slice())
+                    .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
         let realm = self.get_tgt_realm(&tgt);
 
-        let authenticator = find_crypto_for_etype(*server.key.keytype())
+        let authenticator = find_crypto_for_etype(*tgt.key().keytype())
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
             .decrypt(
                 auth_header.authenticator().cipher().as_bytes(),
-                client.key.keyvalue().as_bytes(),
+                tgt.key().keyvalue().as_bytes(),
             )
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
-                Authenticator::from_der(data.as_slice()).map_err(|_| ServerError::Internal)
+                println!("{:?}", data);
+                Authenticator::from_der(data.as_slice())
+                    .inspect_err(|e| println!("{:?}", e))
+                    .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
         authenticator
@@ -388,6 +390,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         new_ticket_enc_part.key(session_key.clone());
         new_ticket_enc_part.crealm(tgt.crealm().clone());
         new_ticket_enc_part.cname(authenticator.cname().clone());
+        new_ticket_enc_part.flags(new_ticket_flags.build().unwrap());
 
         if self.get_tgt_realm(&tgt) == realm {
             new_ticket_enc_part.transited(tgt.transited().clone());
@@ -409,7 +412,8 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             .map(|data| {
                 EncryptedData::new(*server.key.keytype(), None, OctetString::new(data).unwrap())
             })
-            .map_err(|_| ServerError::Internal)?;
+            .map_err(|_| ServerError::Internal)
+            .unwrap();
 
         let new_ticket = Ticket::new(
             realm.clone(),
@@ -422,7 +426,9 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         );
 
         tgt_rep.key(session_key.clone());
-        let last_req = self.fetch_last_request_info(tgt.cname(), tgt.crealm()).await;
+        let last_req = self
+            .fetch_last_request_info(tgt.cname(), tgt.crealm())
+            .await;
         if let Some(last_req) = last_req {
             tgt_rep.last_req(last_req);
         }
@@ -443,8 +449,14 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 tgt_rep.renew_till(renew_till);
             }
         }
+        tgt_rep.last_req(
+            self.fetch_last_request_info(tgt.cname(), tgt.crealm())
+                .await
+                .unwrap_or(vec![]),
+        );
 
         let tgt_rep = tgt_rep.build().expect("tgt_rep should be built");
+        let tgt_rep = EncTgsRepPart(tgt_rep);
 
         // Encrypt data using `use_etype` encryption type
         let mut encrypt_data = |key: &[u8]| {
@@ -452,7 +464,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 .iter()
                 .find(|crypto| crypto.get_etype() == use_etype)
                 .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
-                .encrypt(&tgt_rep.to_der().unwrap(), key)
+                .encrypt(&(tgt_rep.to_der().unwrap()), key)
                 .map_err(|_| ServerError::Internal)
         };
 
@@ -481,7 +493,11 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         ))
     }
 
-    async fn fetch_last_request_info(&self, cname: &PrincipalName, crealm: &Realm) -> Option<LastReq> {
+    async fn fetch_last_request_info(
+        &self,
+        cname: &PrincipalName,
+        crealm: &Realm,
+    ) -> Option<LastReq> {
         self.last_req_db.get_last_req(crealm, cname).await
     }
 }
