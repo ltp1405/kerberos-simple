@@ -64,16 +64,5 @@ impl Runnable for TcpHost {
     }
 }
 
-#[cfg(test)]
-impl TcpHost {
-    pub fn as_entry(&self) -> (SocketAddr, DataBox<dyn AsyncReceiver>) {
-        self.as_entry.clone()
-    }
-
-    pub fn tgt_entry(&self) -> (SocketAddr, DataBox<dyn AsyncReceiver>) {
-        self.tgs_entry.clone()
-    }
-}
-
 mod entry;
 mod router;

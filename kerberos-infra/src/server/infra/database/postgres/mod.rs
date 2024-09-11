@@ -119,10 +119,7 @@ impl Queryable for PostgresDb {
                         )
                         AS tp ON p.realm = tp.realm;
             "#, schema, principal_name, realm).as_str()
-        ).await.map_err(|e| {
-            println!("{:?}", e);
-            e
-        })?.map(|row| PrincipalComplexView {
+        ).await?.map(|row| PrincipalComplexView {
             principal_name: row.get(0),
             realm: row.get(1),
             key: Secret::new(row.get(2)),
