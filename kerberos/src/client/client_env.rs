@@ -3,7 +3,7 @@ use crate::cryptography::Cryptography;
 use messages::basic_types::{
     EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
 };
-use messages::{AsRep, EncAsRepPart, TgsRep};
+use messages::{AsRep, EncAsRepPart, EncTgsRepPart, TgsRep};
 use std::time::Duration;
 
 pub trait ClientEnv {
@@ -42,11 +42,11 @@ pub trait ClientEnv {
 
     fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError>;
 
-    fn save_tgs_reply_enc_part(&self, data: &EncAsRepPart) -> Result<(), ClientEnvError>;
+    fn save_tgs_reply_enc_part(&self, data: &EncTgsRepPart) -> Result<(), ClientEnvError>;
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 
-    fn get_tgs_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
+    fn get_tgs_reply_enc_part(&self) -> Result<EncTgsRepPart, ClientEnvError>;
 
     fn save_subkey(&self, key: EncryptionKey) -> Result<(), ClientEnvError>;
 
