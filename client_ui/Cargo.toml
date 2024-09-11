@@ -1,0 +1,8 @@
+[package]
+name = "client_ui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.17", features = ["derive"] }
+humantime = "2.1.0"
