@@ -1,10 +1,13 @@
+use config::Config;
 use secrecy::{ExposeSecret, Secret};
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
+use crate::server::infra::database::DbSettings;
+
 #[derive(Deserialize, Clone)]
-pub struct DatabaseSettings {
+pub struct PgDbSettings {
     pub username: String,
     pub host: String,
     pub password: Secret<String>,
@@ -14,7 +17,7 @@ pub struct DatabaseSettings {
     pub require_ssl: bool,
 }
 
-impl DatabaseSettings {
+impl PgDbSettings {
     pub fn without_db(&self) -> PgConnectOptions {
         let mode = if self.require_ssl {
             PgSslMode::Require
@@ -31,5 +34,16 @@ impl DatabaseSettings {
     pub fn with_db(&self) -> PgConnectOptions {
         let options = self.without_db();
         options.database(self.name.expose_secret())
+    }
+}
+
+impl DbSettings for PgDbSettings {}
+
+impl From<Config> for PgDbSettings {
+    fn from(config: Config) -> Self {
+        let settings = config
+            .get::<Self>("postgres")
+            .expect("Failed to load postgres configuration");
+        settings
     }
 }

@@ -3,7 +3,10 @@ pub use builder::ServerBuilder;
 
 pub use infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
-    database::{Database, DatabaseError, Migration, Queryable},
+    database::{
+        postgres::PgDbSettings, sqlite::SqliteDbSettings, Database, DatabaseError, DbSettings,
+        Migration, Queryable,
+    },
     host::{AsyncReceiver, ExchangeError, HostError, HostResult},
     KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
 };
@@ -16,21 +19,32 @@ pub struct Server {
 
 impl Server {
     pub fn load_from_dir() -> ServerResult<ServerBuilder> {
-        let config = Configuration::load().map_err(|_| "Fail to load configuration")?;
+        let config = Configuration::load(None).map_err(|_| "Fail to load configuration")?;
+
+        Ok(ServerBuilder::new(config))
+    }
+
+    pub fn load(dir: &str) -> ServerResult<ServerBuilder> {
+        let config = Configuration::load(Some(dir)).map_err(|_| "Fail to load configuration")?;
 
         Ok(ServerBuilder::new(config))
     }
 
     pub async fn prepare_and_run(&mut self) -> ServerResult {
-        let lock = self.database.write().await;
+        let db_lock = self.database.write().await;
 
-        lock.migrate()
+        db_lock
+            .migrate()
             .await
             .map_err(|_| "Fail to initialize database")?;
 
-        let mut host = self.host.write().await;
+        let database = self.database.clone();
 
-        host.run(self.database.clone(), self.cache.clone()).await;
+        let cache = self.cache.clone();
+
+        let mut host_lock = self.host.write().await;
+
+        host_lock.run(database, cache).await;
 
         Ok(())
     }
@@ -38,9 +52,10 @@ impl Server {
 
 // Private APIs
 use config::Configuration;
-type ServerResult<T = ()> = Result<T, &'static str>;
+type ServerResult<T = ()> = Result<T, String>;
 
 // Modules
 mod builder;
 mod config;
 mod infra;
+mod utils;

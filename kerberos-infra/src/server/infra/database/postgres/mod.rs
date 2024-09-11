@@ -2,17 +2,19 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use schemas::Schemas;
+pub use settings::PgDbSettings;
 use sqlx::{postgres::PgPoolOptions, Executor, PgPool};
-
-use crate::server::config::DatabaseSettings;
 
 use super::{Database, DatabaseError, DatabaseResult, Migration, Queryable};
 
-impl From<DatabaseSettings> for PgPool {
-    fn from(settings: DatabaseSettings) -> Self {
-        PgPoolOptions::new()
-            .acquire_timeout(Duration::from_secs(2))
-            .connect_lazy_with(settings.with_db())
+impl From<PgDbSettings> for Box<dyn Database> {
+    fn from(settings: PgDbSettings) -> Self {
+        Box::new(
+            PgPoolOptions::new()
+                .acquire_timeout(Duration::from_secs(2))
+                .connect_lazy_with(settings.with_db()),
+        )
+        .boxed()
     }
 }
 
@@ -29,7 +31,11 @@ impl Migration for PgPool {
 impl Queryable for PgPool {}
 
 #[async_trait]
-impl Database for PgPool {}
+impl Database for PgPool {
+    fn boxed(self: Box<Self>) -> Box<dyn Database> {
+        self
+    }
+}
 
 impl From<sqlx::Error> for DatabaseError {
     fn from(error: sqlx::Error) -> Self {
@@ -53,3 +59,5 @@ impl From<sqlx::Error> for DatabaseError {
 }
 
 mod schemas;
+
+mod settings;

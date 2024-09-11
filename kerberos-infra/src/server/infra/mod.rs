@@ -7,11 +7,13 @@ pub mod database;
 pub mod host;
 
 mod types {
+    use tokio::sync::RwLock;
+
     use super::cache::cacheable::Cacheable;
     use super::database::Database;
     use super::host::{AsyncReceiver, Runnable};
 
-    pub type DataBox<T> = std::sync::Arc<tokio::sync::RwLock<Box<T>>>;
+    pub type DataBox<T> = std::sync::Arc<RwLock<Box<T>>>;
 
     pub type KrbAsyncReceiver = DataBox<dyn AsyncReceiver>;
 

@@ -5,7 +5,7 @@ use tokio::signal;
 
 use crate::server::infra::{DataBox, KrbCache, KrbDatabase};
 
-use super::{receiver::AsyncReceiver, runnable::Runnable};
+use super::{receiver::AsyncReceiver, runnable::{Address, Runnable}};
 
 pub struct TcpHost {
     as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
@@ -28,6 +28,16 @@ impl TcpHost {
             TcpRouter::new(self.as_entry.0, self.as_entry.1.clone()),
             TcpRouter::new(self.tgs_entry.0, self.tgs_entry.1.clone()),
         )
+    }
+}
+
+impl Address for TcpHost {
+    fn get_as_addr(&self) -> SocketAddr {
+        self.as_entry.0
+    }
+
+    fn get_tgs_addr(&self) -> SocketAddr {
+        self.tgs_entry.0
     }
 }
 

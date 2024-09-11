@@ -20,10 +20,6 @@ impl Mapper {
         Mapper { rule }
     }
 
-    pub fn map(&self, key: &str) -> &str {
-        self.rule.get(key).as_ref().unwrap()
-    }
-
     pub fn random(&self) -> &str {
         let keys = self.rule.keys().collect::<Vec<&String>>();
         let mut rng = rand::thread_rng();

@@ -19,12 +19,22 @@ pub struct Cache<K, V> {
     ttl: Duration,
 }
 
-impl<K, V> From<CacheSettings> for Cache<K, V>
+impl<K, V> Cache<K, V>
+where
+    K: Eq + Hash + Send + Sync + Clone + 'static,
+    V: Clone + Send + Sync + 'static,
+{
+    pub fn boxed(settings: &CacheSettings) -> Box<dyn Cacheable<K, V>> {
+        Box::new(Self::from(settings))
+    }
+}
+
+impl<K, V> From<&CacheSettings> for Cache<K, V>
 where
     K: Eq + Hash + Send + Sync,
     V: Clone + Send + Sync,
 {
-    fn from(settings: CacheSettings) -> Self {
+    fn from(settings: &CacheSettings) -> Self {
         Self {
             storage: Arc::new(RwLock::new(LruCache::new(settings.capacity))),
             ttl: Duration::from_secs(settings.ttl),
@@ -72,9 +82,9 @@ mod tests {
     use std::{num::NonZeroUsize, time::Duration};
 
     fn mock_cache<'a>() -> Cache<&'a str, &'a str> {
-        Cache::from(CacheSettings {
+        Cache::from(&CacheSettings {
             capacity: NonZeroUsize::new(2).unwrap(),
-            ttl: 1000,
+            ttl: 2,
         })
     }
 

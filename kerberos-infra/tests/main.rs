@@ -1,7 +1,7 @@
 use der::Encode;
 use kerberos_infra::{
     client::{Sendable, TcpClient},
-    server::Server,
+    server::{DbSettings, PgDbSettings, Server},
 };
 use mocks::{Mapper, SimpleASReceiver, SimpleTgtReceiver};
 
@@ -10,10 +10,13 @@ async fn tcp_client_should_be_able_to_communicate_with_tcp_server() {
     let (url, as_port, tgt_port) = ("127.0.0.1", 8080, 8081);
 
     // Step 1: Create a server
+    let settings = PgDbSettings::load_from_dir();
+
     let mut server = Server::load_from_dir()
         .unwrap()
         .set_as_receiver(SimpleASReceiver)
         .set_tgs_receiver(SimpleTgtReceiver)
+        .use_postgres(settings)
         .build_tcp()
         .expect("TcpServer failed to build");
 

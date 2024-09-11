@@ -5,11 +5,11 @@ use tokio::signal;
 
 use crate::server::infra::{DataBox, KrbCache, KrbDatabase};
 
-use super::{receiver::AsyncReceiver, runnable::Runnable};
+use super::{receiver::AsyncReceiver, runnable::{Address, Runnable}};
 
 pub struct UdpHost {
     as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
-    tgt_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
+    tgs_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
 }
 
 impl UdpHost {
@@ -19,15 +19,25 @@ impl UdpHost {
     ) -> Self {
         Self {
             as_entry,
-            tgt_entry,
+            tgs_entry: tgt_entry,
         }
     }
 
     fn splits(&self) -> (UdpRouter, UdpRouter) {
         (
             UdpRouter::new(self.as_entry.clone()),
-            UdpRouter::new(self.tgt_entry.clone()),
+            UdpRouter::new(self.tgs_entry.clone()),
         )
+    }
+}
+
+impl Address for UdpHost {
+    fn get_as_addr(&self) -> SocketAddr {
+        self.as_entry.0
+    }
+
+    fn get_tgs_addr(&self) -> SocketAddr {
+        self.tgs_entry.0
     }
 }
 
@@ -61,7 +71,7 @@ impl UdpHost {
     }
 
     pub fn tgt_entry(&self) -> (SocketAddr, DataBox<dyn AsyncReceiver>) {
-        self.tgt_entry.clone()
+        self.tgs_entry.clone()
     }
 }
 

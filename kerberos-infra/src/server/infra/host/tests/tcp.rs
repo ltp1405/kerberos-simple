@@ -1,14 +1,13 @@
-use tokio::sync::RwLock;
-
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
+    sync::RwLock,
 };
 
 use crate::server::infra::{
     host::{
+        builder::HostBuilder,
         tests::mocks::{MockCache, MockPool},
-        HostBuilder, Runnable,
     },
     DataBox,
 };
@@ -19,31 +18,31 @@ use super::mocks::{MockASReceiver, MockTgsReceiver};
 #[tokio::test]
 async fn server_builder_should_be_ok_when_given_all_entry_points() {
     let server = HostBuilder::local()
-        .as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
-        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
-        .build_tcp();
+        .set_as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
+        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .boxed_tcp();
 
     assert!(server.is_ok(), "TcpServer failed to build");
 
     let tcp_server = server.unwrap();
 
     assert_eq!(
-        tcp_server.as_entry().0.port(),
+        tcp_server.get_as_addr().port(),
         88,
         "AS port mismatch for TCP server"
     );
     assert_eq!(
-        tcp_server.tgt_entry().0.port(),
+        tcp_server.get_tgs_addr().port(),
         89,
-        "TGT port mismatch for TCP server"
+        "TGS port mismatch for TCP server"
     );
 }
 
 #[tokio::test]
 async fn server_builder_should_fail_when_missing_as_entry() {
     let server = HostBuilder::local()
-        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
-        .build_tcp();
+        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .boxed_tcp();
 
     assert!(
         server.is_err(),
@@ -54,16 +53,16 @@ async fn server_builder_should_fail_when_missing_as_entry() {
 #[tokio::test]
 async fn server_should_be_able_to_handle_request() {
     let mut server = HostBuilder::local()
-        .as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
-        .tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
-        .build_tcp()
+        .set_as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
+        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .boxed_tcp()
         .unwrap();
 
-    let (as_entry_addr, tgt_entry_addr) = (server.as_entry().0, server.tgt_entry().0);
+    let (as_entry_addr, tgt_entry_addr) = (server.get_as_addr(), server.get_tgs_addr());
 
     let cache: KrbCache = DataBox::new(RwLock::new(Box::new(MockCache)));
     let pool: KrbDatabase = DataBox::new(RwLock::new(Box::new(MockPool)));
-
+    
     // Run the server in the background
     let handle = tokio::spawn({
         async move {

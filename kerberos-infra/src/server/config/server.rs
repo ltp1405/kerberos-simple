@@ -6,7 +6,7 @@ use serde_aux::field_attributes::deserialize_number_from_string;
 use super::protocol::Protocol;
 
 #[derive(Deserialize, Clone)]
-pub struct ServerSettings {
+pub struct HostSettings {
     pub protocol: Protocol,
     pub host: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
@@ -15,7 +15,7 @@ pub struct ServerSettings {
     pub as_port: u16,
 }
 
-impl ServerSettings {
+impl HostSettings {
     pub fn tgs_addr(&self) -> SocketAddr {
         SocketAddr::new(
             self.host.parse().expect("Malformed IP Address"),

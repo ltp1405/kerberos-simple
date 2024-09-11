@@ -87,7 +87,11 @@ impl Migration for MockPool {
 impl Queryable for MockPool {}
 
 #[async_trait]
-impl Database for MockPool {}
+impl Database for MockPool {
+    fn boxed(self: Box<Self>) -> Box<dyn Database> {
+        self
+    }
+}
 
 pub struct MockCache;
 
