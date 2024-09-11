@@ -10,9 +10,8 @@ impl DbSettings for SqliteDbSettings {}
 
 impl From<Config> for SqliteDbSettings {
     fn from(config: Config) -> Self {
-        let settings = config
+        config
             .get::<Self>("sqlite")
-            .expect("Failed to load sqlite configuration");
-        settings
+            .expect("Failed to load sqlite configuration")
     }
 }

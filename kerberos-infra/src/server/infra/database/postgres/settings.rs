@@ -41,9 +41,8 @@ impl DbSettings for PgDbSettings {}
 
 impl From<Config> for PgDbSettings {
     fn from(config: Config) -> Self {
-        let settings = config
+        config
             .get::<Self>("postgres")
-            .expect("Failed to load postgres configuration");
-        settings
+            .expect("Failed to load postgres configuration")
     }
 }

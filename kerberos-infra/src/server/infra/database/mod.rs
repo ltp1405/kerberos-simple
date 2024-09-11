@@ -1,7 +1,18 @@
 use async_trait::async_trait;
 use config::Config;
+use view::PrincipalComplexView;
 
 use crate::server::utils::Environment;
+
+pub use postgres::Krb5DbSchemaV1;
+
+pub trait Schema {
+    fn schema_name(&self) -> String;
+
+    fn get_schema(&self) -> String;
+
+    fn seed_data(&self) -> String;
+}
 
 pub trait DbSettings: From<Config> {
     fn load_from_dir() -> Self {
@@ -36,23 +47,28 @@ fn prepare(dir: &str) -> config::ConfigBuilder<config::builder::DefaultState> {
         .add_source(config::File::from(config.join(env.as_str())))
 }
 
-pub trait Database: Migration + Queryable + Send + Sync {
-    fn boxed(self: Box<Self>) -> Box<dyn Database>;
-}
+pub trait Database: Migration + Queryable + Send + Sync {}
 
 pub type DatabaseResult<T = ()> = Result<T, DatabaseError>;
 
 #[async_trait]
 pub trait Migration {
-    async fn migrate(&self) -> DatabaseResult;
+    async fn migrate_then_seed(&mut self) -> DatabaseResult;
 }
 
 #[async_trait]
-pub trait Queryable {}
+pub trait Queryable {
+    async fn get_principal(
+        &self,
+        _principal_name: &str,
+        _realm: &str,
+    ) -> DatabaseResult<Option<PrincipalComplexView>> {
+        Err(DatabaseError::InternalError)
+    }
+}
 
 #[derive(Debug)]
 pub enum DatabaseError {
-    NotFound,           // Entity not found in the database
     InvalidRequest,     // Validation or encoding/decoding errors
     ConnectionError,    // Issues with connectivity, such as pool timeouts or IO errors
     ConfigurationError, // Configuration-related issues
@@ -64,4 +80,7 @@ pub mod postgres;
 
 pub mod sqlite;
 
-pub mod domain;
+pub mod view;
+
+#[cfg(test)]
+mod tests;

@@ -10,7 +10,7 @@ use async_trait::async_trait;
 pub struct MockASReceiver;
 
 impl MockASReceiver {
-    pub const MOCK_MESSAGE: &'static str = "Hello, I am the authentication service"; 
+    pub const MOCK_MESSAGE: &'static str = "Hello, I am the authentication service";
     pub const MOCK_INVALID_LENGTH_PREFIX_RESPONSE: &'static str = "Invalid length prefix";
     pub const MOCK_UDP_PACKET_OVERSIZE_RESPONSE: &'static str = "UDP packet oversize";
 }
@@ -78,7 +78,7 @@ pub struct MockPool;
 
 #[async_trait]
 impl Migration for MockPool {
-    async fn migrate(&self) -> DatabaseResult {
+    async fn migrate_then_seed(&mut self) -> DatabaseResult {
         Ok(())
     }
 }
@@ -87,11 +87,7 @@ impl Migration for MockPool {
 impl Queryable for MockPool {}
 
 #[async_trait]
-impl Database for MockPool {
-    fn boxed(self: Box<Self>) -> Box<dyn Database> {
-        self
-    }
-}
+impl Database for MockPool {}
 
 pub struct MockCache;
 

@@ -3,8 +3,9 @@ use tokio::sync::RwLock;
 
 use super::config::Configuration;
 use super::infra::cache::Cache;
-use super::infra::database::postgres::PgDbSettings;
-use super::infra::database::sqlite::SqliteDbSettings;
+use super::infra::database::postgres::{PgDbSettings, PostgresDb};
+use super::infra::database::sqlite::{SqliteDbSettings, SqlitePool};
+use super::infra::database::Schema;
 use super::infra::host::HostBuilder;
 use super::infra::{KrbCache, KrbDatabase, KrbHost};
 use super::{AsyncReceiver, KrbAsyncReceiver, Server, ServerResult};
@@ -19,6 +20,7 @@ pub struct ServerBuilder {
     config: Configuration,
     host: HostBuilder,
     database: DatabaseOption,
+    schema: Option<Box<dyn Schema>>,
 }
 
 impl ServerBuilder {
@@ -27,14 +29,17 @@ impl ServerBuilder {
     }
 
     fn build_database(&mut self) -> Option<KrbDatabase> {
+        let schema = self.schema.take()?;
+
         let db_choice = mem::replace(&mut self.database, DatabaseOption::None);
+
         match db_choice {
-            DatabaseOption::Postgres(settings) => {
-                Some(KrbDatabase::new(RwLock::new(settings.into())))
-            }
-            DatabaseOption::Sqlite(settings) => {
-                Some(KrbDatabase::new(RwLock::new(settings.into())))
-            }
+            DatabaseOption::Postgres(settings) => Some(KrbDatabase::new(RwLock::new(
+                PostgresDb::boxed(settings, schema),
+            ))),
+            DatabaseOption::Sqlite(settings) => Some(KrbDatabase::new(RwLock::new(
+                SqlitePool::boxed(settings, schema),
+            ))),
             DatabaseOption::None => None,
         }
     }
@@ -47,6 +52,7 @@ impl ServerBuilder {
             config,
             host,
             database: DatabaseOption::None,
+            schema: None,
         }
     }
 
@@ -61,6 +67,11 @@ impl ServerBuilder {
         self.host = self
             .host
             .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(receiver.boxed())));
+        self
+    }
+
+    pub fn with_schema(mut self, schema: Box<dyn Schema>) -> Self {
+        self.schema = Some(schema);
         self
     }
 
@@ -80,7 +91,9 @@ impl ServerBuilder {
     pub fn build_tcp(mut self) -> ServerResult<Server> {
         let cache = self.build_cache();
 
-        let database = self.build_database().ok_or("Database not set".to_owned())?;
+        let database = self
+            .build_database()
+            .ok_or("Something went wrong when setting up database".to_owned())?;
 
         let host = KrbHost::new(RwLock::new(
             self.host

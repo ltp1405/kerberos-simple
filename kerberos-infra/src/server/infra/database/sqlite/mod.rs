@@ -1,26 +1,27 @@
 use async_trait::async_trait;
 pub use settings::SqliteDbSettings;
 
-use super::{Database, DatabaseResult, Migration, Queryable};
+use super::{Database, DatabaseResult, Migration, Queryable, Schema};
 
-pub struct SqlitePool;
+pub struct SqlitePool {
+    schema: Box<dyn Schema>,
+}
 
-impl From<SqliteDbSettings> for Box<dyn Database> {
-    fn from(_: SqliteDbSettings) -> Self {
-        Box::new(SqlitePool).boxed()
+impl SqlitePool {
+    pub fn boxed(_: SqliteDbSettings, schema: Box<dyn Schema>) -> Box<dyn Database> {
+        Box::new(SqlitePool { schema })
     }
 }
+
+unsafe impl Send for SqlitePool {}
+unsafe impl Sync for SqlitePool {}
 
 #[async_trait]
-impl Database for SqlitePool {
-    fn boxed(self: Box<Self>) -> Box<dyn Database> {
-        self
-    }
-}
+impl Database for SqlitePool {}
 
 #[async_trait]
 impl Migration for SqlitePool {
-    async fn migrate(&self) -> DatabaseResult {
+    async fn migrate_then_seed(&mut self) -> DatabaseResult {
         Ok(())
     }
 }

@@ -31,10 +31,10 @@ impl Server {
     }
 
     pub async fn prepare_and_run(&mut self) -> ServerResult {
-        let db_lock = self.database.write().await;
+        let mut db_lock = self.database.write().await;
 
         db_lock
-            .migrate()
+            .migrate_then_seed()
             .await
             .map_err(|_| "Fail to initialize database")?;
 
