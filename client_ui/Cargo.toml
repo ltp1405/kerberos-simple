@@ -5,4 +5,8 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive"] }
+kerberos = { path = "../kerberos", version = "0.1.0" }
+messages = { path = "../messages", version = "0.1.0" }
 humantime = "2.1.0"
+config = "0.14.0"
+serde = { version = "1.0.210", features = ["derive"] }
