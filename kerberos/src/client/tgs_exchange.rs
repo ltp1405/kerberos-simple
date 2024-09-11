@@ -11,7 +11,7 @@ use messages::basic_types::{
 use messages::{ApReq, Authenticator, Decode, Encode, KdcReqBodyBuilder, TgsRep, TgsReq};
 use std::time::Duration;
 
-pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientError> {
+pub fn prepare_tgs_request(client_env: &impl ClientEnv) -> Result<TgsReq, ClientError> {
     let client_name = client_env.get_client_name()?;
     let server_realm = client_env.get_server_realm()?;
     let server_name = client_env.get_server_name()?;
@@ -32,7 +32,7 @@ pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientE
     }
 
     // authentication header
-    let ap_req = prepare_ap_request(&client_env, false)?;
+    let ap_req = prepare_ap_request(client_env, false)?;
     let mut ap_req_buf: Vec<u8> = Vec::new();
     ap_req
         .encode_to_vec(&mut ap_req_buf)
@@ -48,6 +48,7 @@ pub fn prepare_tgs_request(client_env: impl ClientEnv) -> Result<TgsReq, ClientE
         .realm(server_realm)
         .sname(sname)
         .nonce(nonce)
+        .kdc_options(client_env.get_kdc_options()?)
         .till(till)
         .etype(etypes)
         .build()?;
