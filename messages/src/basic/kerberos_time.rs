@@ -69,6 +69,14 @@ impl KerberosTime {
             .map(KerberosTime)
     }
 
+    pub fn checked_sub_kerberos_time(self, rhs: KerberosTime) -> Option<Duration> {
+        if self < rhs {
+            None
+        } else {
+            Some(self - rhs)
+        }
+    }
+
     pub fn timestamp(&self) -> i64 {
         self.0.to_unix_duration().as_secs() as i64
     }
