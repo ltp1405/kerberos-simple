@@ -103,9 +103,6 @@ async fn server_should_be_able_to_handle_request() {
         let expected_length = expected_response.as_bytes().len() + 4;
         assert_eq!(buffer.len(), expected_length, "Response length mismatch");
 
-        // Remove the length prefix from the response
-        buffer.drain(0..4);
-
         let response = String::from_utf8(buffer).unwrap();
 
         assert_eq!(response, expected_response, "Response mismatch");
@@ -161,9 +158,6 @@ async fn server_rejects_request_if_highest_bit_is_set() {
 
         let expected_length = expected_response.as_bytes().len() + 4;
         assert_eq!(buffer.len(), expected_length, "Response length mismatch");
-
-        // Remove the length prefix from the response
-        buffer.drain(0..4);
 
         let message = String::from_utf8(buffer).unwrap();
         assert_eq!(message, expected_response, "Response mismatch");
