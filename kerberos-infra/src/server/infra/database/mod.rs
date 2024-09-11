@@ -4,6 +4,7 @@ use view::PrincipalComplexView;
 
 use crate::server::utils::Environment;
 
+#[allow(unused_imports)]
 pub use postgres::Krb5DbSchemaV1;
 
 pub trait Schema {

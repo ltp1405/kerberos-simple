@@ -3,6 +3,7 @@ use crate::server::infra::database::Schema;
 pub struct Krb5DbSchemaV1;
 
 impl Krb5DbSchemaV1 {
+    #[allow(dead_code)]
     pub fn boxed() -> Box<dyn Schema> {
         Box::new(Krb5DbSchemaV1)
     }

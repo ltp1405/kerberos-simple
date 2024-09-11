@@ -2,7 +2,7 @@ use config::Config;
 use error::StartupError;
 
 pub use cache::CacheSettings;
-pub use server::HostSettings;
+pub use host::HostSettings;
 
 use super::utils::Environment;
 
@@ -19,7 +19,7 @@ impl Configuration {
         let builder = {
             let base_path = std::env::current_dir().expect("Fail to read the base directory");
 
-            let config = base_path.join(dir.unwrap_or("configs"));
+            let config = base_path.join(dir.unwrap_or("server"));
 
             let env: Environment = std::env::var("ENVIRONMENT")
                 .unwrap_or("local".into())
@@ -39,7 +39,7 @@ impl TryFrom<Config> for Configuration {
     type Error = StartupError;
 
     fn try_from(config: Config) -> Result<Self, Self::Error> {
-        let server: HostSettings = config.get::<HostSettings>("server")?;
+        let server: HostSettings = config.get::<HostSettings>("host")?;
         let cache: CacheSettings = config.get::<CacheSettings>("cache")?;
         Ok(Configuration {
             host: server,
@@ -51,4 +51,4 @@ impl TryFrom<Config> for Configuration {
 mod cache;
 mod error;
 mod protocol;
-mod server;
+mod host;

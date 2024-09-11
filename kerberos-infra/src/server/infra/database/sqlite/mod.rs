@@ -4,6 +4,7 @@ pub use settings::SqliteDbSettings;
 use super::{Database, DatabaseResult, Migration, Queryable, Schema};
 
 pub struct SqlitePool {
+    #[allow(dead_code)]
     schema: Box<dyn Schema>,
 }
 
