@@ -4,12 +4,12 @@ use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use chrono::{Local, SubsecRound};
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddress, HostAddresses, Int32, KerberosFlagsBuilder,
-    KerberosTime, OctetString, PrincipalName, Realm, SequenceOf,
+    EncryptedData, EncryptionKey, Int32, KerberosFlagsBuilder, KerberosTime, OctetString,
+    PrincipalName, Realm, SequenceOf,
 };
 use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{
-    AsRep, AsReq, Ecode, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
+    AsRep, AsReq, Ecode, EncAsRepPart, EncKdcRepPartBuilder, EncTicketPart, Encode, KrbErrorMsg,
     KrbErrorMsgBuilder, Ticket, TicketFlags, TransitedEncoding,
 };
 use std::ops::RangeInclusive;
@@ -111,7 +111,7 @@ where
             .and_then(|sname| self.principal_db.get_principal(&sname, &self.realm))
     }
 
-    fn handle_krb_as_req(&self, client_addr: HostAddress, as_req: &AsReq) -> Result<AsRep> {
+    pub fn handle_krb_as_req(&self, as_req: &AsReq) -> Result<AsRep> {
         let mut error_msg = self.default_error_builder();
         // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =
@@ -258,18 +258,20 @@ where
 
         let mut enc_part = EncKdcRepPartBuilder::default();
 
-        let enc_part = enc_part
-            .sname(sname)
-            .srealm(srealm)
-            .key(session_key)
-            .last_req(vec![])
-            .flags(ticket_flags.build().unwrap())
-            .endtime(endtime)
-            .authtime(kdc_time)
-            .caddr(HostAddresses::from([client_addr]))
-            .nonce(*as_req.req_body().nonce())
-            .build()
-            .unwrap();
+        let enc_part = EncAsRepPart::new(
+            enc_part
+                .sname(sname)
+                .srealm(srealm)
+                .key(session_key)
+                .last_req(vec![])
+                .flags(ticket_flags.build().unwrap())
+                .endtime(endtime)
+                .starttime(starttime.unwrap_or(kdc_time))
+                .authtime(kdc_time)
+                .nonce(*as_req.req_body().nonce())
+                .build()
+                .unwrap(),
+        );
 
         let enc_part = use_crypto_system
             .encrypt(
