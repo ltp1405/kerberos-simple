@@ -108,7 +108,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         true
     }
 
-    pub fn handle_tgs_req(&self, tgs_req: &TgsReq) -> TGSResult<TgsRep> {
+    pub async fn handle_tgs_req(&self, tgs_req: &TgsReq) -> TGSResult<TgsRep> {
         let find_crypto_for_etype = |etype: Int32| {
             self.supported_crypto
                 .iter()
@@ -133,12 +133,13 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                     .sname()
                     .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?,
                 tgs_req.req_body().realm(),
-            )
+            ).await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
 
         let client = self
             .principal_db
             .get_principal(ap_req.ticket().sname(), ap_req.ticket().realm())
+            .await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN))?;
 
         let kdc_options = tgs_req.req_body().kdc_options();
@@ -421,7 +422,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         );
 
         tgt_rep.key(session_key.clone());
-        let last_req = self.fetch_last_request_info(tgt.cname(), tgt.crealm());
+        let last_req = self.fetch_last_request_info(tgt.cname(), tgt.crealm()).await;
         if let Some(last_req) = last_req {
             tgt_rep.last_req(last_req);
         }
@@ -480,7 +481,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
         ))
     }
 
-    fn fetch_last_request_info(&self, cname: &PrincipalName, crealm: &Realm) -> Option<LastReq> {
-        self.last_req_db.get_last_req(crealm, cname)
+    async fn fetch_last_request_info(&self, cname: &PrincipalName, crealm: &Realm) -> Option<LastReq> {
+        self.last_req_db.get_last_req(crealm, cname).await
     }
 }

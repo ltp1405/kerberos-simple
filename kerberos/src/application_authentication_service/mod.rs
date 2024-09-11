@@ -53,10 +53,9 @@ where
         Ok(())
     }
 
-    fn search_for_addresses(&self, ap_req: &ApReq, host_addresses: &HostAddresses) -> bool {
-        host_addresses
-            .iter()
-            .any(|a| a == &self.address_storage.get_sender_of_packet(ap_req))
+    async fn search_for_addresses(&self, ap_req: &ApReq, host_addresses: &HostAddresses) -> bool {
+        let sender = self.address_storage.get_sender_of_packet(ap_req).await;
+        host_addresses.iter().any(|a| a == &sender)
     }
 
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
@@ -82,7 +81,7 @@ where
         Ok(EncryptionKey::new(etype, OctetString::new(key).unwrap()))
     }
 
-    pub fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
+    pub async fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
         let crypto = &self.crypto;
         let error_msg = RefCell::new(self.default_error_builder());
@@ -145,10 +144,11 @@ where
         }
 
         if !self.accept_empty_address_ticket {
-            decrypted_ticket
-                .caddr()
-                .filter(|t| self.search_for_addresses(&ap_req, t))
-                .ok_or(build_protocol_error(Ecode::KRB_AP_ERR_BADADDR))?;
+            if let Some(addr) = decrypted_ticket.caddr() {
+                if !self.search_for_addresses(&ap_req, addr).await {
+                    return Err(build_protocol_error(Ecode::KRB_AP_ERR_BADADDR));
+                }
+            }
         }
 
         let ticket_time = decrypted_ticket
@@ -174,6 +174,7 @@ where
                 cname: authenticator.cname().to_owned(),
                 crealm: authenticator.crealm().to_owned(),
             })
+            .await
             .map_err(|_| ServerError::Internal)?;
 
         let rep_authenticator = AuthenticatorBuilder::default()

@@ -97,21 +97,23 @@ where
         }
     }
 
-    fn get_client(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
-        as_req
-            .req_body()
-            .cname()
-            .and_then(|cname| self.principal_db.get_principal(&cname, &self.realm))
+    async fn get_client(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
+        if let Some(cname) = as_req.req_body().cname() {
+            Some(self.principal_db.get_principal(&cname, &self.realm).await?)
+        } else {
+            None
+        }
     }
 
-    fn get_server(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
-        as_req
-            .req_body()
-            .sname()
-            .and_then(|sname| self.principal_db.get_principal(&sname, &self.realm))
+    async fn get_server(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
+        if let Some(sname) = as_req.req_body().sname() {
+            Some(self.principal_db.get_principal(&sname, &self.realm).await?)
+        } else {
+            None
+        }
     }
 
-    pub fn handle_krb_as_req(&self, as_req: &AsReq) -> Result<AsRep> {
+    pub async fn handle_krb_as_req(&self, as_req: &AsReq) -> Result<AsRep> {
         let mut error_msg = self.default_error_builder();
         // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =
@@ -119,9 +121,11 @@ where
         let kdc_time = KerberosTime::now();
         let client = self
             .get_client(as_req)
+            .await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_C_PRINCIPAL_UNKNOWN))?;
         let server = self
             .get_server(as_req)
+            .await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
         let client_key = client.key;
         let server_key = server.key;

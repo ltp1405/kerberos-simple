@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
 use kerberos::cryptography::Cryptography;
@@ -37,8 +38,9 @@ impl Cryptography for MockedCrypto {
 
 struct MockedPrincipalDb;
 
+#[async_trait]
 impl PrincipalDatabase for MockedPrincipalDb {
-    fn get_principal(
+    async fn get_principal(
         &self,
         _principal_name: &PrincipalName,
         _realm: &Realm,
@@ -219,9 +221,7 @@ mod tests {
     use kerberos::client::client_env::ClientEnv;
     use kerberos::service_traits::PrincipalDatabase;
     use kerberos::ticket_granting_service::TicketGrantingService;
-    use messages::basic_types::{
-        KerberosString, NameTypes, PrincipalName, Realm,
-    };
+    use messages::basic_types::{KerberosString, NameTypes, PrincipalName, Realm};
 
     fn get_auth_service<P>(db: &P, pre_auth: bool) -> AuthenticationService<P>
     where
@@ -243,13 +243,13 @@ mod tests {
             .unwrap()
     }
 
-    #[test]
-    fn test_as_exchange() {
+    #[tokio::test]
+    async fn test_as_exchange() {
         let mock_client_env = MockClientEnv::new();
         let as_req =
             prepare_as_request(&mock_client_env, None, None).expect("Failed to prepare AS request");
         let auth_service = get_auth_service(&MockedPrincipalDb, false);
-        let as_rep = auth_service.handle_krb_as_req(&as_req);
+        let as_rep = auth_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
         let as_rep = as_rep.unwrap();
         mock_client_env.save_as_reply(&as_rep).unwrap();

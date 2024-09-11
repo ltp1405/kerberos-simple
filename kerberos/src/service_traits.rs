@@ -3,6 +3,7 @@ use messages::basic_types::{
 };
 use messages::{ApReq, LastReq};
 use std::time::Duration;
+use async_trait::async_trait;
 
 pub struct PrincipalDatabaseRecord {
     pub max_renewable_life: Duration,
@@ -12,8 +13,9 @@ pub struct PrincipalDatabaseRecord {
     pub supported_encryption_types: Vec<Int32>,
 }
 
+#[async_trait]
 pub trait PrincipalDatabase {
-    fn get_principal(
+    async fn get_principal(
         &self,
         principal_name: &PrincipalName,
         realm: &Realm,
@@ -27,16 +29,18 @@ pub struct ReplayCacheEntry {
     pub microseconds: Microseconds,
 }
 
+#[async_trait]
 pub trait ReplayCache {
     type ReplayCacheError;
-    fn store(&self, entry: ReplayCacheEntry) -> Result<(), Self::ReplayCacheError>;
-    fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError>;
+    async fn store(&self, entry: ReplayCacheEntry) -> Result<(), Self::ReplayCacheError>;
+    async fn contain(&self, entry: ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError>;
 }
 
+#[async_trait]
 pub trait TicketHotList {
     type TicketHotListError;
-    fn store(&self, ticket: &[u8]) -> Result<(), Self::TicketHotListError>;
-    fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
+    async fn store(&self, ticket: &[u8]) -> Result<(), Self::TicketHotListError>;
+    async fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
 #[derive(Debug, Clone)]
@@ -47,14 +51,16 @@ pub struct ApReplayEntry {
     pub crealm: Realm,
 }
 
+#[async_trait]
 pub trait ApReplayCache {
     type ApReplayCacheError;
-    fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;
-    fn contain(&self, entry: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError>;
+    async fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;
+    async fn contain(&self, entry: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError>;
 }
 
+#[async_trait]
 pub trait ClientAddressStorage {
-    fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
+    async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
 }
 
 pub struct LastReqEntry {
@@ -63,7 +69,8 @@ pub struct LastReqEntry {
     name: PrincipalName,
 }
 
+#[async_trait]
 pub trait LastReqDatabase {
-    fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
-    fn store_last_req(&self, last_req_entry: LastReqEntry);
+    async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
+    async fn store_last_req(&self, last_req_entry: LastReqEntry);
 }
