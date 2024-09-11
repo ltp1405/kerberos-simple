@@ -34,15 +34,11 @@ pub trait ClientEnv {
 
     fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError>;
 
-    fn save_as_reply_enc_part(&self, data: &EncAsRepPart) -> Result<(), ClientEnvError>;
-
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError>;
 
     fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
 
     fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError>;
-
-    fn save_tgs_reply_enc_part(&self, data: &EncTgsRepPart) -> Result<(), ClientEnvError>;
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 

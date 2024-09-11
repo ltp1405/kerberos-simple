@@ -138,13 +138,8 @@ impl ClientEnv for MockClientEnv {
                 .unwrap(),
         )
         .unwrap();
-        self.save_as_reply_enc_part(&decrypted_enc_part)?;
+        self.enc_as_rep_part.replace(Some(decrypted_enc_part));
         self.as_rep.replace(Some(data.clone()));
-        Ok(())
-    }
-
-    fn save_as_reply_enc_part(&self, data: &EncAsRepPart) -> Result<(), ClientEnvError> {
-        self.enc_as_rep_part.replace(Some(data.clone()));
         Ok(())
     }
 
@@ -175,13 +170,8 @@ impl ClientEnv for MockClientEnv {
                 .unwrap(),
         )
         .unwrap();
-        self.save_tgs_reply_enc_part(&decrypted_enc_part)?;
+        self.enc_tgs_rep_part.replace(Some(decrypted_enc_part));
         self.tgs_rep.replace(Some(data.clone()));
-        Ok(())
-    }
-
-    fn save_tgs_reply_enc_part(&self, data: &EncTgsRepPart) -> Result<(), ClientEnvError> {
-        self.enc_tgs_rep_part.replace(Some(data.clone()));
         Ok(())
     }
 
