@@ -2,11 +2,11 @@ use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
 use kerberos::cryptography::Cryptography;
 use kerberos::cryptography_error::CryptographyError;
-use kerberos::service_traits::PrincipalDatabase;
+use kerberos::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use messages::basic_types::{
     EncryptionKey, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
 };
-use messages::{AsRep, AsReq, EncAsRepPart, TgsRep};
+use messages::{AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, TgsRep};
 use std::cell::RefCell;
 use std::time::Duration;
 
@@ -17,8 +17,8 @@ impl Cryptography for MockedCrypto {
         1
     }
     fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        let mut data = data.to_vec();
         let data = data
+            .to_vec()
             .iter()
             .zip(key.iter().cycle())
             .map(|(d, k)| *d ^ *k)
@@ -40,14 +40,15 @@ struct MockedPrincipalDb;
 impl PrincipalDatabase for MockedPrincipalDb {
     fn get_principal(
         &self,
-        principal_name: &PrincipalName,
-        realm: &Realm,
+        _principal_name: &PrincipalName,
+        _realm: &Realm,
     ) -> Option<PrincipalDatabaseRecord> {
         Some(PrincipalDatabaseRecord {
             key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
             p_kvno: Some(1),
             max_renewable_life: Duration::from_secs(5 * 60),
             supported_encryption_types: vec![1, 2, 3],
+            max_lifetime: Duration::from_secs(24 * 60 * 60),
         })
     }
 }
@@ -58,7 +59,7 @@ struct MockClientEnv {
     pub enc_as_rep_part: RefCell<Option<EncAsRepPart>>,
     pub tgs_req: RefCell<Option<AsReq>>,
     pub tgs_rep: RefCell<Option<TgsRep>>,
-    pub enc_tgs_rep_part: RefCell<Option<EncAsRepPart>>,
+    pub enc_tgs_rep_part: RefCell<Option<EncTgsRepPart>>,
     pub subkey: RefCell<Option<EncryptionKey>>,
     pub seq_number: RefCell<Option<u32>>,
 }
@@ -103,12 +104,8 @@ impl ClientEnv for MockClientEnv {
         Ok(KerberosFlags::builder().build().unwrap())
     }
 
-    fn get_current_time(&self) -> Result<Duration, ClientEnvError> {
-        Ok(Duration::new(1_000_000, 123))
-    }
-
     fn get_supported_etypes(&self) -> Result<Vec<i32>, ClientEnvError> {
-        Ok(vec![1, 2, 3])
+        Ok(vec![1])
     }
 
     fn get_crypto(&self, _etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
@@ -116,10 +113,7 @@ impl ClientEnv for MockClientEnv {
     }
 
     fn get_client_key(&self, _key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
-        Ok(EncryptionKey::new(
-            1,
-            OctetString::new(vec![0, 16]).unwrap(),
-        ))
+        Ok(EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()))
     }
 
     fn set_clock_diff(
@@ -131,6 +125,18 @@ impl ClientEnv for MockClientEnv {
     }
 
     fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError> {
+        let enc_part = data.enc_part().clone();
+        let decrypted_enc_part = EncAsRepPart::from_der(
+            &self
+                .get_crypto(*enc_part.etype())?
+                .decrypt(
+                    enc_part.cipher().as_ref(),
+                    self.get_client_key(1)?.keyvalue().as_ref(),
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        self.save_as_reply_enc_part(&decrypted_enc_part)?;
         self.as_rep.replace(Some(data.clone()));
         Ok(())
     }
@@ -159,11 +165,20 @@ impl ClientEnv for MockClientEnv {
     }
 
     fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError> {
+        let enc_part = data.enc_part().clone();
+        let decrypted_enc_part = EncTgsRepPart::from_der(
+            &self
+                .get_crypto(*enc_part.etype())?
+                .decrypt(enc_part.cipher().as_ref(), [0u8; 4].as_slice())
+                .unwrap(),
+        )
+        .unwrap();
+        self.save_tgs_reply_enc_part(&decrypted_enc_part)?;
         self.tgs_rep.replace(Some(data.clone()));
         Ok(())
     }
 
-    fn save_tgs_reply_enc_part(&self, data: &EncAsRepPart) -> Result<(), ClientEnvError> {
+    fn save_tgs_reply_enc_part(&self, data: &EncTgsRepPart) -> Result<(), ClientEnvError> {
         self.enc_tgs_rep_part.replace(Some(data.clone()));
         Ok(())
     }
@@ -177,7 +192,7 @@ impl ClientEnv for MockClientEnv {
         }
     }
 
-    fn get_tgs_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError> {
+    fn get_tgs_reply_enc_part(&self) -> Result<EncTgsRepPart, ClientEnvError> {
         match self.enc_tgs_rep_part.borrow().clone() {
             None => Err(ClientEnvError {
                 message: "No TGS reply enc part".to_string(),
@@ -198,18 +213,46 @@ impl ClientEnv for MockClientEnv {
 }
 
 mod tests {
-    use kerberos::client::as_exchange::prepare_as_request;
-    use crate::MockClientEnv;
+    use crate::{MockClientEnv, MockedCrypto, MockedPrincipalDb};
+    use kerberos::authentication_service::{AuthenticationService, AuthenticationServiceBuilder};
+    use kerberos::client::as_exchange::{prepare_as_request, receive_as_response};
+    use kerberos::client::client_env::ClientEnv;
+    use kerberos::service_traits::PrincipalDatabase;
+    use kerberos::ticket_granting_service::TicketGrantingService;
+    use messages::basic_types::{
+        KerberosString, NameTypes, PrincipalName, Realm,
+    };
+
+    fn get_auth_service<P>(db: &P, pre_auth: bool) -> AuthenticationService<P>
+    where
+        P: PrincipalDatabase,
+    {
+        AuthenticationServiceBuilder::default()
+            .principal_db(db)
+            .realm(Realm::new("realm".as_bytes()).unwrap())
+            .sname(
+                PrincipalName::new(
+                    NameTypes::NtPrincipal,
+                    [KerberosString::new("server").unwrap()],
+                )
+                .unwrap(),
+            )
+            .require_pre_authenticate(pre_auth)
+            .supported_crypto_systems(vec![Box::new(MockedCrypto)])
+            .build()
+            .unwrap()
+    }
 
     #[test]
     fn test_as_exchange() {
         let mock_client_env = MockClientEnv::new();
-        let as_req = prepare_as_request(
-            &mock_client_env,
-            None,
-            None,
-        ).expect("Failed to prepare AS request");
-        
-        
+        let as_req =
+            prepare_as_request(&mock_client_env, None, None).expect("Failed to prepare AS request");
+        let auth_service = get_auth_service(&MockedPrincipalDb, false);
+        let as_rep = auth_service.handle_krb_as_req(&as_req);
+        assert!(as_rep.is_ok());
+        let as_rep = as_rep.unwrap();
+        mock_client_env.save_as_reply(&as_rep).unwrap();
+        assert!(receive_as_response(&mock_client_env, &as_req, &as_rep).is_ok());
     }
 }
