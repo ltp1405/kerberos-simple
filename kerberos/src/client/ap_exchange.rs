@@ -31,10 +31,7 @@ pub fn prepare_ap_request(
         // TODO: add checksum
         .build()?;
 
-    let mut encoded_authenticator: Vec<u8> = Vec::new();
-    authenticator
-        .encode(&mut encoded_authenticator.as_mut_slice())
-        .or(Err(ClientError::EncodeError))?;
+    let encoded_authenticator = authenticator.to_der().or(Err(ClientError::EncodeError))?;
     let cryptography = client_env.get_crypto(*ticket.enc_part().etype())?;
     let decrypted_ticket_part = cryptography.decrypt(
         ticket.enc_part().cipher().as_ref(),
