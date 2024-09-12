@@ -9,7 +9,7 @@ use der::{
 };
 use std::ops::Deref;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct TgsRep(KdcRep);
 
 impl TgsRep {

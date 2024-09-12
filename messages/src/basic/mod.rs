@@ -348,6 +348,14 @@ impl PaData {
     pub fn for_unregistered_use(&self) -> Result<bool, &'static str> {
         self.for_registered_use().map(|b| !b)
     }
+
+    pub fn padata_type(&self) -> &Int32 {
+        &self.padata_type
+    }
+
+    pub fn padata_value(&self) -> &OctetString {
+        &self.padata_value
+    }
 }
 
 pub enum PaDataRegisteredType {
@@ -546,118 +554,6 @@ pub type ETypeInfo2 = SequenceOf<ETypeInfo2Entry>;
 
 impl CipherText for ETypeInfo2 {}
 
-// RFC4120 5.2.8
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct KerberosFlags {
-    inner: BitString,
-}
-
-impl KerberosFlags {
-    pub fn builder() -> KerberosFlagsBuilder {
-        KerberosFlagsBuilder::new()
-    }
-
-    pub fn is_set(&self, bit_pos: usize) -> bool {
-        let bit = (bit_pos % 8) as u8;
-        let shift = 7 - bit;
-        let idx = bit_pos / 8;
-        let bytes = self.inner.raw_bytes();
-        bytes
-            .get(idx)
-            .map_or(false, |byte| byte & (1 << shift) != 0)
-    }
-}
-
-impl FixedTag for KerberosFlags {
-    const TAG: der::Tag = der::Tag::BitString;
-}
-
-impl EncodeValue for KerberosFlags {
-    fn value_len(&self) -> der::Result<Length> {
-        self.inner.value_len()
-    }
-
-    fn encode_value(&self, encoder: &mut impl Writer) -> der::Result<()> {
-        self.inner.encode_value(encoder)
-    }
-}
-
-impl<'a> DecodeValue<'a> for KerberosFlags {
-    fn decode_value<R: Reader<'a>>(reader: &mut R, header: Header) -> der::Result<Self> {
-        let inner = BitString::decode_value(reader, header)?;
-        Ok(Self { inner })
-    }
-}
-
-pub struct KerberosFlagsBuilder {
-    inner: *mut [u8], // array of bytes
-    consumed: bool,
-}
-
-impl KerberosFlagsBuilder {
-    fn new() -> Self {
-        Self {
-            inner: Box::into_raw(Box::new([0; 4])),
-            consumed: false,
-        }
-    }
-
-    pub fn len(mut self, len: usize) -> Result<Self, &'static str> {
-        unsafe {
-            if len < 4 {
-                return Err("Length must be at least 4 bytes");
-            }
-            if len == self.inner.len() {
-                return Ok(self);
-            }
-            let new_inner = {
-                let (old_inner, mut new_inner) = (Box::from_raw(self.inner), vec![0; len]);
-                if old_inner.len() > len {
-                    new_inner.copy_from_slice(&old_inner[..len]);
-                } else {
-                    new_inner[..old_inner.len()].copy_from_slice(&old_inner);
-                }
-                new_inner
-            };
-            self.inner = Box::into_raw(new_inner.into_boxed_slice());
-            Ok(self)
-        }
-    }
-
-    pub fn set(&mut self, bit_pos: usize) -> &mut Self {
-        unsafe {
-            if bit_pos >= self.inner.len() * 8 {
-                return self;
-            }
-            let byte_pos = bit_pos / 8;
-            let bit_pos = bit_pos % 8;
-            let shift_bits = 7 - bit_pos;
-            (*self.inner)[byte_pos] |= 1 << shift_bits;
-            self
-        }
-    }
-
-    pub fn build(&mut self) -> Result<KerberosFlags, &'static str> {
-        self.consumed = true;
-        let bytes = unsafe { Box::from_raw(self.inner) };
-        let inner = BitString::from_bytes(&bytes).map_err(|e| {
-            eprintln!("Failed to build KerberosFlags: {}", e);
-            "Invalid bits representation {:?}"
-        })?;
-        Ok(KerberosFlags { inner })
-    }
-}
-
-impl Drop for KerberosFlagsBuilder {
-    fn drop(&mut self) {
-        if !self.consumed {
-            unsafe {
-                drop(Box::from_raw(self.inner));
-            }
-        }
-    }
-}
-
 // RFC4120 5.2.9
 #[derive(Sequence, PartialEq, Eq, Clone, Debug)]
 pub struct EncryptedData {
@@ -747,7 +643,10 @@ impl Checksum {
     }
 }
 
+mod kerberos_flags;
 mod kerberos_string;
 mod kerberos_time;
 #[cfg(test)]
 mod test;
+pub use kerberos_flags::KerberosFlags;
+pub use kerberos_flags::KerberosFlagsBuilder;

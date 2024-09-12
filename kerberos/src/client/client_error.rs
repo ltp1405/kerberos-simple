@@ -5,13 +5,14 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum ClientError {
     ClientEnvError(ClientEnvError),
     CryptographyError(CryptographyError),
     PrepareRequestError(String),
-    InvalidAsReq(String),
-    ResponseDoesNotMatch(String),
+    InvalidKdcReq(String),
+    ResponseModified,
+    ClockSkewError,
+    MutualAuthenticationFailed,
     EncodeError,
     DecodeError,
     GenericError(String),
@@ -23,8 +24,10 @@ impl Display for ClientError {
             ClientError::ClientEnvError(e) => write!(f, "ClientEnvError: {}", e),
             ClientError::CryptographyError(e) => write!(f, "ClientError: {}", e),
             ClientError::PrepareRequestError(e) => write!(f, "Prepare request error: {}", e),
-            ClientError::InvalidAsReq(e) => write!(f, "Invalid AS-REQ: {}", e),
-            ClientError::ResponseDoesNotMatch(e) => write!(f, "Response does not match: {}", e),
+            ClientError::InvalidKdcReq(e) => write!(f, "Invalid KDC-REQ: {}", e),
+            ClientError::ResponseModified => write!(f, "Response modified"),
+            ClientError::ClockSkewError => write!(f, "Clock skew error"),
+            ClientError::MutualAuthenticationFailed => write!(f, "Mutual authentication failed"),
             ClientError::EncodeError => write!(f, "Encode error"),
             ClientError::DecodeError => write!(f, "Decode error"),
             ClientError::GenericError(e) => write!(f, "Generic error: {}", e),

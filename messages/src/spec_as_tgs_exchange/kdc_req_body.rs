@@ -8,28 +8,32 @@ use crate::{
 use der::Sequence;
 use derive_builder::Builder;
 
-#[derive(Builder, Sequence, Eq, PartialEq, Debug)]
-#[builder(setter(into), public)]
+#[derive(Builder, Sequence, Eq, PartialEq, Debug, Clone)]
+#[builder(setter(into, strip_option), public)]
 pub struct KdcReqBody {
     #[asn1(context_specific = "0")]
     pub kdc_options: KdcOptions,
 
     #[asn1(context_specific = "1", optional = "true")]
+    #[builder(default)]
     pub cname: Option<PrincipalName>,
 
     #[asn1(context_specific = "2")]
     pub realm: Realm,
 
     #[asn1(context_specific = "3", optional = "true")]
+    #[builder(default)]
     pub sname: Option<PrincipalName>,
 
     #[asn1(context_specific = "4", optional = "true")]
+    #[builder(default)]
     pub from: Option<KerberosTime>,
 
     #[asn1(context_specific = "5")]
     pub till: KerberosTime,
 
     #[asn1(context_specific = "6", optional = "true")]
+    #[builder(default)]
     pub rtime: Option<KerberosTime>,
 
     #[asn1(context_specific = "7")]
@@ -39,12 +43,15 @@ pub struct KdcReqBody {
     pub etype: SequenceOf<Int32>,
 
     #[asn1(context_specific = "9", optional = "true")]
+    #[builder(default)]
     pub addresses: Option<HostAddresses>,
 
     #[asn1(context_specific = "10", optional = "true")]
+    #[builder(default)]
     pub enc_authorization_data: Option<EncryptedData>,
 
     #[asn1(context_specific = "11", optional = "true")]
+    #[builder(default)]
     pub additional_tickets: Option<SequenceOf<Ticket>>,
 }
 
@@ -115,37 +122,29 @@ pub mod tests {
                     .build()
                     .unwrap(),
             )
-            .cname(Some(
+            .cname(
                 PrincipalName::new(
                     NameTypes::NtEnterprise,
                     vec![KerberosString::try_from("host".to_string()).unwrap()],
                 )
                 .unwrap(),
-            ))
+            )
             .realm(Realm::new("EXAMPLE.COM").unwrap())
-            .sname(Some(
+            .sname(
                 PrincipalName::new(
                     NameTypes::NtPrincipal,
                     vec![KerberosString::try_from("krbtgt".to_string()).unwrap()],
                 )
                 .unwrap(),
-            ))
-            .from(Some(
-                KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap(),
-            ))
+            )
+            .from(KerberosTime::from_unix_duration(Duration::from_secs(1)).unwrap())
             .till(KerberosTime::from_unix_duration(Duration::from_secs(2)).unwrap())
-            .rtime(Some(
-                KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap(),
-            ))
+            .rtime(KerberosTime::from_unix_duration(Duration::from_secs(3)).unwrap())
             .nonce(3u32)
             .etype(SequenceOf::from(vec![1]))
-            .addresses(Some(HostAddresses::new()))
-            .enc_authorization_data(Some(EncryptedData::new(
-                1,
-                10,
-                OctetString::new(b"key").unwrap(),
-            )))
-            .additional_tickets(Some(SequenceOf::from(vec![Ticket::new(
+            .addresses(HostAddresses::new())
+            .enc_authorization_data(EncryptedData::new(1, 10, OctetString::new(b"key").unwrap()))
+            .additional_tickets(SequenceOf::from(vec![Ticket::new(
                 Realm::new("EXAMPLE.COM").unwrap(),
                 PrincipalName::new(
                     NameTypes::NtPrincipal,
@@ -153,7 +152,7 @@ pub mod tests {
                 )
                 .unwrap(),
                 EncryptedData::new(1, 10, OctetString::new(b"key").unwrap()),
-            )])))
+            )]))
             .build()
             .unwrap()
     }

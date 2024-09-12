@@ -1,8 +1,6 @@
 use der::{Decode, DecodeValue, Encode, EncodeValue, FixedTag, Sequence, TagNumber};
 
-use crate::basic::{
-    application_tags, EncryptedData, Int32, KerberosFlags, KerberosString, PrincipalName, Realm,
-};
+use crate::basic::{application_tags, EncryptedData, Int32, KerberosFlags, KerberosString, PrincipalName, Realm};
 
 mod enc_ticket_part;
 pub(crate) mod transited_encoding;

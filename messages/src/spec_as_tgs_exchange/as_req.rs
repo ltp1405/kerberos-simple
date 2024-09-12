@@ -9,7 +9,7 @@ use crate::{
     spec_as_tgs_exchange::{kdc_req::KdcReq, kdc_req_body::KdcReqBody},
 };
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct AsReq(KdcReq);
 
 impl AsReq {

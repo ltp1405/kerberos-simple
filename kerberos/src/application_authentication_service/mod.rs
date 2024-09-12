@@ -1,52 +1,46 @@
 #[cfg(test)]
 mod tests;
-mod traits;
 
-use crate::application_authentication_service::traits::{KeyFinder, ReplayCache, ReplayCacheEntry};
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use chrono::{Local, SubsecRound};
+use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
+use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName, Realm,
-    SequenceOf,
+    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName,
+    Realm, UInt32,
 };
 use messages::flags::TicketFlag;
-use messages::{
-    ApRep, ApReq, AsRep, AsReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode,
-};
+use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
+use std::cell::RefCell;
 use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-pub struct ApplicationAuthenticationService<'a, C, K, Crypto>
+pub struct ApplicationAuthenticationService<'a, C>
 where
-    C: ReplayCache,
-    K: KeyFinder,
-    Crypto: Cryptography,
+    C: ApReplayCache,
 {
     realm: Realm,
     sname: PrincipalName,
+    service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
+    address_storage: &'a dyn ClientAddressStorage,
     replay_cache: &'a C,
-    key_finder: &'a K,
-    crypto: &'a Crypto,
+    crypto: Vec<Box<dyn Cryptography>>,
 }
 
 #[derive(Debug)]
-enum ServerError {
-    ProtocolError(KrbErrorMsg),
+pub enum ServerError {
+    ProtocolError(Box<KrbErrorMsg>),
     Internal,
-    CannotDecode,
 }
 
-impl<'a, C, K, Crypto> ApplicationAuthenticationService<'a, C, K, Crypto>
+impl<'a, C> ApplicationAuthenticationService<'a, C>
 where
-    C: ReplayCache,
-    K: KeyFinder,
-    Crypto: Cryptography,
+    C: ApReplayCache,
 {
     fn verify_msg_type(&self, msg_type: &u8) -> Result<(), Ecode> {
         match msg_type {
@@ -54,22 +48,18 @@ where
             _ => Err(Ecode::KRB_AP_ERR_MSG_TYPE),
         }
     }
-    fn verify_key(&self, key_version: &Int32) -> Result<(), Ecode> {
+    fn verify_key(&self, _key_version: &Int32) -> Result<(), Ecode> {
         // TODO: correctly implement this
         Ok(())
     }
 
-    fn search_for_addresses(&self, host_addresses: &HostAddresses) -> bool {
-        unimplemented!()
-    }
-
-    fn get_key_for_decrypt(&self, srealm: &Realm) -> Option<Vec<u8>> {
-        self.key_finder.get_key_for_srealm(srealm)
+    async fn search_for_addresses(&self, ap_req: &ApReq, host_addresses: &HostAddresses) -> bool {
+        let sender = self.address_storage.get_sender_of_packet(ap_req).await;
+        host_addresses.iter().any(|a| a == &sender)
     }
 
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
-        let time = now.round_subsecs(0).to_utc().timestamp();
         let usec = now.timestamp_subsec_micros();
         KrbErrorMsgBuilder::default()
             .stime(KerberosTime::now())
@@ -79,90 +69,111 @@ where
             .to_owned()
     }
 
-    pub fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
+    fn get_key_for_decrypt(
+        &self,
+        sname: &PrincipalName,
+        realm: &Realm,
+        etype: Int32,
+        knvo: Option<UInt32>,
+    ) -> Result<EncryptionKey, Ecode> {
+        // TODO: Check for key in session key cache first
+        let key = self.service_key.keyvalue().as_bytes();
+        Ok(EncryptionKey::new(etype, OctetString::new(key).unwrap()))
+    }
+
+    pub async fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
-        let crypto = self.crypto;
-        let mut error_msg = self.default_error_builder();
+        let crypto = &self.crypto;
+        let error_msg = RefCell::new(self.default_error_builder());
+
+        let build_protocol_error = |e| {
+            ProtocolError(Box::new(
+                error_msg.borrow_mut().error_code(e).build().unwrap(),
+            ))
+        };
 
         self.verify_msg_type(ap_req.msg_type())
             .and(self.verify_key(ap_req.ticket().tkt_vno()))
-            .map_err(|error_code| {
-                ProtocolError(error_msg.error_code(error_code).build().unwrap())
-            })?;
+            .map_err(build_protocol_error)?;
 
         let key = self
-            .get_key_for_decrypt(ap_req.ticket().realm())
-            .ok_or(ProtocolError(
-                error_msg
-                    .error_code(Ecode::KRB_AP_ERR_BADKEYVER)
-                    .build()
-                    .unwrap(),
-            ))?;
+            .get_key_for_decrypt(
+                ap_req.ticket().sname(),
+                ap_req.ticket().realm(),
+                *ap_req.ticket().enc_part().etype(),
+                ap_req.ticket().enc_part().kvno().copied(),
+            )
+            .map_err(build_protocol_error)?;
 
         let decrypted_ticket = crypto
-            .decrypt(ap_req.ticket().enc_part().cipher().as_bytes(), &key)
-            .map_err(|_| ServerError::CannotDecode)
-            .and_then(|d| EncTicketPart::from_der(&d).map_err(|_| ServerError::CannotDecode))?;
-        // TODO: check for decrypted msg's integrity
+            .iter()
+            .find(|crypto| crypto.get_etype() == *key.keytype())
+            .expect("This should be check when searching for key")
+            .decrypt(
+                ap_req.ticket().enc_part().cipher().as_bytes(),
+                key.keyvalue().as_bytes(),
+            )
+            .map_err(|_| ServerError::Internal)
+            .and_then(|d| EncTicketPart::from_der(&d).map_err(|_| ServerError::Internal))?;
 
         let ss_key = decrypted_ticket.key().keyvalue().as_bytes();
         let authenticator = crypto
-            .decrypt(ap_req.authenticator().cipher().as_bytes(), &ss_key)
-            .map_err(|_| ServerError::CannotDecode)
+            .iter()
+            .find(|crypto| crypto.get_etype() == *key.keytype())
+            .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
+            .decrypt(ap_req.authenticator().cipher().as_bytes(), ss_key)
+            .map_err(|_| ServerError::Internal)
             .and_then(|d| {
                 Authenticator::from_der(&d)
-                    .inspect_err(|e| println!("{:?}", e))
-                    .map_err(|_| ServerError::CannotDecode)
+                    .map_err(|_| ServerError::Internal)
             })?;
+        if authenticator.crealm() != ap_req.ticket().realm()
+            || authenticator.cname() != ap_req.ticket().sname()
+        {
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_BADMATCH));
+        }
 
-        error_msg
-            .ctime(authenticator.ctime().to_owned())
-            .cusec(authenticator.cusec().to_owned())
-            .crealm(authenticator.crealm().to_owned())
-            .cname(authenticator.cname().to_owned());
+        {
+            error_msg
+                .borrow_mut()
+                .ctime(authenticator.ctime().to_owned())
+                .cusec(authenticator.cusec().to_owned())
+                .crealm(authenticator.crealm().to_owned())
+                .cname(authenticator.cname().to_owned());
+        }
 
-        self.accept_empty_address_ticket
-            .then_some(())
-            .or(decrypted_ticket
-                .caddr()
-                .is_some_and(|t| self.search_for_addresses(t))
-                .then_some(()))
-            .ok_or(ProtocolError(
-                error_msg
-                    .error_code(Ecode::KRB_AP_ERR_BADADDR)
-                    .build()
-                    .unwrap(),
-            ))?;
+        if !self.accept_empty_address_ticket {
+            if let Some(addr) = decrypted_ticket.caddr() {
+                if !self.search_for_addresses(&ap_req, addr).await {
+                    return Err(build_protocol_error(Ecode::KRB_AP_ERR_BADADDR));
+                }
+            }
+        }
 
         let ticket_time = decrypted_ticket
             .starttime()
             .unwrap_or(decrypted_ticket.authtime());
 
-        let local_time = KerberosTime::now();
+        if ticket_time - KerberosTime::now() > self.ticket_allowable_clock_skew
+            || decrypted_ticket
+                .flags()
+                .is_set(TicketFlag::INVALID as usize)
+        {
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_NYV));
+        }
 
-        decrypted_ticket
-            .flags()
-            .is_set(TicketFlag::INVALID as usize)
-            .then_some(ServerError::ProtocolError(
-                error_msg
-                    .error_code(Ecode::KRB_AP_ERR_TKT_NYV)
-                    .build()
-                    .unwrap(),
-            ))
-            .map(Err)
-            .unwrap_or(Ok(()))
-            .and(
-                valid_ticket_time(&ticket_time, &local_time, self.ticket_allowable_clock_skew)
-                    .map_err(|ecode| ProtocolError(error_msg.error_code(ecode).build().unwrap())),
-            )?;
+        if KerberosTime::now() - decrypted_ticket.endtime() > self.ticket_allowable_clock_skew {
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_EXPIRED));
+        }
 
         replay_cache
-            .store(ReplayCacheEntry {
-                server_name: ap_req.ticket().sname().clone(),
-                client_name: decrypted_ticket.cname().clone(),
-                time: authenticator.ctime(),
-                microseconds: authenticator.cusec(),
+            .store(&ApReplayEntry {
+                ctime: authenticator.ctime().to_owned(),
+                cusec: authenticator.cusec().to_owned(),
+                cname: authenticator.cname().to_owned(),
+                crealm: authenticator.crealm().to_owned(),
             })
+            .await
             .map_err(|_| ServerError::Internal)?;
 
         let rep_authenticator = AuthenticatorBuilder::default()
@@ -176,6 +187,8 @@ where
             .map_err(|_| ServerError::Internal)?;
 
         let encrypted = crypto
+            .first()
+            .expect("At least one crypto should be available")
             .encrypt(
                 &rep_authenticator,
                 decrypted_ticket.key().keyvalue().as_bytes(),
@@ -184,32 +197,8 @@ where
 
         Ok(ApRep::new(EncryptedData::new(
             *ap_req.ticket().enc_part().etype(),
-            ap_req.ticket().enc_part().kvno().map(|v| *v),
+            ap_req.ticket().enc_part().kvno().copied(),
             OctetString::new(encrypted).map_err(|_| ServerError::Internal)?,
         )))
-
-        // NOTE: Sequence number in authenticator is not handled because we do not
-        // implement KRB_PRIV or KRB_SAFE
     }
-}
-
-fn valid_ticket_time(
-    ticket_time: &KerberosTime,
-    local_time: &KerberosTime,
-    server_allow_clock_skew: Duration,
-) -> Result<(), Ecode> {
-    let local_time = local_time.to_unix_duration();
-    let ticket_time = ticket_time.to_unix_duration();
-    if local_time > ticket_time {
-        let skew = local_time - ticket_time;
-        if skew > server_allow_clock_skew {
-            return Err(Ecode::KRB_AP_ERR_TKT_NYV);
-        }
-    } else {
-        let skew = ticket_time - local_time;
-        if skew > server_allow_clock_skew {
-            return Err(Ecode::KRB_AP_ERR_TKT_EXPIRED);
-        }
-    };
-    Ok(())
 }

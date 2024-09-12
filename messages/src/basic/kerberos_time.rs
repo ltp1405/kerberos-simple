@@ -1,8 +1,8 @@
 use crate::basic::Microseconds;
-use chrono::{DateTime, Local, RoundingError, TimeDelta, TimeZone};
+use chrono::{DateTime, Local, TimeZone};
 use der::asn1::GeneralizedTime;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
-use std::ops::{Add, AddAssign, Deref, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::time::{Duration, SystemTime};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -69,8 +69,28 @@ impl KerberosTime {
             .map(KerberosTime)
     }
 
+    pub fn checked_sub_kerberos_time(self, rhs: KerberosTime) -> Option<Duration> {
+        if self < rhs {
+            None
+        } else {
+            Some(self - rhs)
+        }
+    }
+
     pub fn timestamp(&self) -> i64 {
         self.0.to_unix_duration().as_secs() as i64
+    }
+
+    pub fn zero() -> Self {
+        KerberosTime(GeneralizedTime::from_unix_duration(Duration::from_secs(0)).unwrap())
+    }
+
+    pub fn max() -> Self {
+        KerberosTime(GeneralizedTime::from_date_time(der::DateTime::INFINITY))
+    }
+
+    pub fn infinity() -> Self {
+        KerberosTime(GeneralizedTime::from_date_time(der::DateTime::INFINITY))
     }
 }
 
@@ -80,6 +100,14 @@ impl Add<Duration> for KerberosTime {
     fn add(self, rhs: Duration) -> Self::Output {
         let new_dur = self.0.to_unix_duration() + rhs;
         KerberosTime(GeneralizedTime::from_unix_duration(new_dur).expect("Overflow"))
+    }
+}
+
+impl Sub<KerberosTime> for KerberosTime {
+    type Output = Duration;
+
+    fn sub(self, rhs: KerberosTime) -> Self::Output {
+        self.0.to_unix_duration() - rhs.0.to_unix_duration()
     }
 }
 
