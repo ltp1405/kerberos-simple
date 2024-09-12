@@ -2,8 +2,8 @@ use secrecy::ExposeSecret;
 use uuid::Uuid;
 
 use crate::server::{
+    database::{postgres::PgDbSettings, DbSettings, KrbV5Queryable},
     infra::database::{postgres::PostgresDb, Krb5DbSchemaV1},
-    DbSettings, PgDbSettings,
 };
 
 #[tokio::test]

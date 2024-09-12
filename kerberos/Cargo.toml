@@ -4,6 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+kerberos_infra = { path = "../kerberos_infra", features = ["server-tcp"] }
+sqlx = { version = "0.8.2", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+] }
 chrono = "0.4.38"
 derive_builder = "0.20.1"
 messages = { path = "../messages" }

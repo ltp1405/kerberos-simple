@@ -60,12 +60,14 @@ fn prepare(dir: &str) -> config::ConfigBuilder<config::builder::DefaultState> {
         .add_source(config::File::from(config.join(env.as_str())))
 }
 
-pub trait Database: Migration + Queryable + Send + Sync {
+pub trait Database: Migration + Send + Sync {
     type Inner;
 
     fn inner(&self) -> &Self::Inner;
 
     fn inner_mut(&mut self) -> &mut Self::Inner;
+
+    fn get_schema(&self) -> &KrbDbSchema;
 }
 
 pub type DatabaseResult<T = ()> = Result<T, DatabaseError>;
@@ -76,7 +78,7 @@ pub trait Migration {
 }
 
 #[async_trait]
-pub trait Queryable {
+pub trait KrbV5Queryable {
     async fn get_principal(
         &self,
         _principal_name: &str,

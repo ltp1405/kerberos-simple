@@ -2,9 +2,12 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer, Responder};
 use database::AppDbSchema;
-use kerberos_infra::server::{DbSettings, Migration, PgDbSettings, PostgresDb};
+use kerberos_infra::server::database::{
+    postgres::{PgDbSettings, PostgresDb},
+    DbSettings, Migration,
+};
 
-async fn index(data: web::Data<Arc<PostgresDb>>) -> impl Responder {
+async fn index(_data: web::Data<Arc<PostgresDb>>) -> impl Responder {
     "Hello world!"
 }
 

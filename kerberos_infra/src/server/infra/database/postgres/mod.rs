@@ -8,7 +8,7 @@ use sqlx::{postgres::PgPoolOptions, Executor, PgPool, Row};
 use crate::server::infra::KrbDbSchema;
 
 use super::{
-    view::PrincipalComplexView, Database, DatabaseError, DatabaseResult, Migration, Queryable,
+    view::PrincipalComplexView, Database, DatabaseError, DatabaseResult, KrbV5Queryable, Migration,
 };
 
 pub use schemas::Krb5DbSchemaV1;
@@ -95,15 +95,32 @@ impl Migration for PostgresDb {
 }
 
 #[async_trait]
-impl Queryable for PostgresDb {
+impl Database for PostgresDb {
+    type Inner = PgPool;
+
+    fn inner(&self) -> &Self::Inner {
+        &self.pool
+    }
+
+    fn inner_mut(&mut self) -> &mut Self::Inner {
+        &mut self.pool
+    }
+
+    fn get_schema(&self) -> &KrbDbSchema {
+        &self.schema
+    }
+}
+
+#[async_trait]
+impl KrbV5Queryable for Box<dyn Database<Inner = PgPool>> {
     async fn get_principal(
         &self,
         principal_name: &str,
         realm: &str,
     ) -> DatabaseResult<Option<PrincipalComplexView>> {
-        let schema = self.schema.schema_name();
+        let schema = self.get_schema().schema_name();
 
-        let result = self.pool.fetch_optional(
+        let result = self.inner().fetch_optional(
             format!(r#"
                 SELECT
                     p.principal_name,
@@ -139,19 +156,6 @@ impl Queryable for PostgresDb {
         });
 
         Ok(result)
-    }
-}
-
-#[async_trait]
-impl Database for PostgresDb {
-    type Inner = PgPool;
-
-    fn inner(&self) -> &Self::Inner {
-        &self.pool
-    }
-
-    fn inner_mut(&mut self) -> &mut Self::Inner {
-        &mut self.pool
     }
 }
 
