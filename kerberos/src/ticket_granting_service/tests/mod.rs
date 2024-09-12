@@ -176,7 +176,7 @@ fn make_pa_data(kdc_req: &KdcReqBody) -> SequenceOf<PaData> {
 }
 
 #[tokio::test]
-async fn tests_0() {
+async fn test_no_pa_data() {
     let tgs_req = make_basic_tgs_request("service", "EXAMPLE.COM", "user", None);
     let principal_db = make_principal_db();
     let replay_cache = mocked::MockedReplayCache::new();
@@ -200,6 +200,23 @@ async fn tests_0() {
             ]
         }),
     );
+
+    let tgs_rep = tgs_service.handle_tgs_req(&tgs_req).await;
+    tgs_rep.expect_err("Should fail because of unsupported pre-authentication data");
+}
+
+#[tokio::test]
+async fn test_basic_request_processing() {
+    let tgs_req = make_basic_tgs_request("service", "EXAMPLE.COM", "user", None);
+    let principal_db = make_principal_db();
+    let replay_cache = mocked::MockedReplayCache::new();
+    let mocked_last_req_db = mocked::MockedLastReqDb::new();
+
+    let tgs_service = make_basic_tgs_service(&principal_db, &replay_cache, &mocked_last_req_db);
+    tgs_service
+        .handle_tgs_req(&tgs_req)
+        .await
+        .expect_err("Should fail because of no pre-authentication data");
 
     let tgs_rep = tgs_service.handle_tgs_req(&tgs_req).await;
     tgs_rep.expect_err("Should fail because of unsupported pre-authentication data");
