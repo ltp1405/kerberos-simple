@@ -4,7 +4,7 @@ pub use builder::ServerBuilder;
 pub use infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
     database::{
-        postgres::PgDbSettings, sqlite::SqliteDbSettings, Database, DatabaseError, DbSettings,
+        postgres::{PgDbSettings, PostgresDb}, sqlite::SqliteDbSettings, Database, DatabaseError, DbSettings,
         Krb5DbSchemaV1, Migration, Queryable, Schema,
     },
     host::{AsyncReceiver, ExchangeError, HostError, HostResult},

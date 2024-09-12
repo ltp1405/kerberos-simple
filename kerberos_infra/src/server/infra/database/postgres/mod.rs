@@ -19,14 +19,20 @@ pub struct PostgresDb {
 }
 
 impl PostgresDb {
-    pub fn boxed(settings: PgDbSettings, schema: Box<dyn Schema>) -> Box<dyn Database> {
+    pub fn new(settings: PgDbSettings, schema: Box<dyn Schema>) -> PostgresDb {
+        PostgresDb {
+            pool: Self::without_db(&settings),
+            settings,
+            schema,
+        }
+    }
+    pub fn boxed(settings: PgDbSettings, schema: Box<dyn Schema>) -> Box<dyn Database<Inner = PgPool>> {
         Box::new(PostgresDb {
             pool: Self::without_db(&settings),
             settings,
             schema,
         })
     }
-
     fn without_db(settings: &PgDbSettings) -> PgPool {
         PgPoolOptions::new()
             .acquire_timeout(Duration::from_secs(2))
@@ -134,7 +140,17 @@ impl Queryable for PostgresDb {
 }
 
 #[async_trait]
-impl Database for PostgresDb {}
+impl Database for PostgresDb {
+    type Inner = PgPool;
+
+    fn inner(&self) -> &Self::Inner {
+        &self.pool
+    }
+
+    fn inner_mut(&mut self) -> &mut Self::Inner {
+        &mut self.pool
+    }
+}
 
 impl From<sqlx::Error> for DatabaseError {
     fn from(error: sqlx::Error) -> Self {

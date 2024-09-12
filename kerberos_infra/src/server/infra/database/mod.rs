@@ -48,7 +48,13 @@ fn prepare(dir: &str) -> config::ConfigBuilder<config::builder::DefaultState> {
         .add_source(config::File::from(config.join(env.as_str())))
 }
 
-pub trait Database: Migration + Queryable + Send + Sync {}
+pub trait Database: Migration + Queryable + Send + Sync {
+    type Inner;
+
+    fn inner(&self) -> &Self::Inner;
+
+    fn inner_mut(&mut self) -> &mut Self::Inner;
+}
 
 pub type DatabaseResult<T = ()> = Result<T, DatabaseError>;
 
@@ -66,6 +72,7 @@ pub trait Queryable {
     ) -> DatabaseResult<Option<PrincipalComplexView>> {
         Err(DatabaseError::InternalError)
     }
+
 }
 
 #[derive(Debug)]
