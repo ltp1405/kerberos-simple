@@ -1,5 +1,5 @@
 [package]
-name = "kerberos-infra"
+name = "kerberos_infra"
 version = "0.1.0"
 edition = "2021"
 
