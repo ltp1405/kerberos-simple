@@ -8,6 +8,7 @@ use messages::basic_types::{
 use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBody, KdcReqBodyBuilder};
 use std::time::Duration;
+use async_trait::async_trait;
 use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 
 struct MockedCrypto;
@@ -37,8 +38,9 @@ impl Cryptography for MockedCrypto {
 
 struct MockedPrincipalDb;
 
+#[async_trait]
 impl PrincipalDatabase for MockedPrincipalDb {
-    fn get_principal(
+    async fn get_principal(
         &self,
         principal_name: &PrincipalName,
         realm: &Realm,
@@ -55,8 +57,8 @@ impl PrincipalDatabase for MockedPrincipalDb {
     }
 }
 
-#[test]
-fn dummy_test() {
+#[tokio::test]
+async fn dummy_test() {
     let kdc_req_body = KdcReqBodyBuilder::default()
         .kdc_options(
             KerberosFlags::builder()
@@ -103,12 +105,7 @@ fn dummy_test() {
         .unwrap();
     auth_service
         .handle_krb_as_req(
-            HostAddress::new(
-                AddressTypes::Ipv4,
-                OctetString::new("192.168.64.184".as_bytes()).unwrap(),
-            )
-            .unwrap(),
             &as_req,
         )
-        .unwrap();
+        .await.unwrap();
 }
