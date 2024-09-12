@@ -159,6 +159,54 @@ impl KrbV5Queryable for Box<dyn Database<Inner = PgPool>> {
     }
 }
 
+#[async_trait]
+impl KrbV5Queryable for &dyn Database<Inner = PgPool> {
+    async fn get_principal(
+        &self,
+        principal_name: &str,
+        realm: &str,
+    ) -> DatabaseResult<Option<PrincipalComplexView>> {
+        let schema = self.get_schema().schema_name();
+
+        let result = self.inner().fetch_optional(
+            format!(r#"
+                SELECT
+                    p.principal_name,
+                    p.realm,
+                    k.secret_key as key,
+                    k.knvno,
+                    k.etype,
+                    tp.maximum_ticket_lifetime as maximum_lifetime,
+                    tp.maximum_renewable_lifetime as maximum_renewable_life
+                FROM
+                    (
+                        SELECT principal_name, realm, expire
+                        FROM "{0}".Principal
+                        WHERE principal_name = '{1}' AND realm = '{2}'
+                    ) AS p
+                    JOIN
+                        "{0}".Key k ON p.principal_name = k.principal_name
+                    JOIN
+                        (
+                            SELECT realm, maximum_ticket_lifetime, maximum_renewable_lifetime, minimum_ticket_lifetime
+                            FROM "{0}".TicketPolicy
+                        )
+                        AS tp ON p.realm = tp.realm;
+            "#, schema, principal_name, realm).as_str()
+        ).await?.map(|row| PrincipalComplexView {
+            principal_name: row.get(0),
+            realm: row.get(1),
+            key: Secret::new(row.get(2)),
+            p_kvno: row.get(3),
+            supported_enctypes: vec![row.get(4)],
+            max_lifetime: row.get(5),
+            max_renewable_life: row.get(6),
+        });
+
+        Ok(result)
+    }
+}
+
 impl From<sqlx::Error> for DatabaseError {
     fn from(error: sqlx::Error) -> Self {
         match error {

@@ -19,6 +19,8 @@ pub mod database {
 
         pub use crate::server::infra::database::postgres::PostgresDb;
     }
+
+    pub use secrecy::ExposeSecret;
 }
 
 pub mod cache {

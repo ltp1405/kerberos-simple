@@ -1,9 +1,9 @@
+use async_trait::async_trait;
 use messages::basic_types::{
     EncryptionKey, HostAddress, Int32, KerberosTime, Microseconds, PrincipalName, Realm, UInt32,
 };
 use messages::{ApReq, LastReq};
 use std::time::Duration;
-use async_trait::async_trait;
 
 pub struct PrincipalDatabaseRecord {
     pub max_renewable_life: Duration,
@@ -71,7 +71,7 @@ pub struct LastReqEntry {
 }
 
 #[async_trait]
-pub trait LastReqDatabase {
+pub trait LastReqDatabase: Send + Sync {
     async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
     async fn store_last_req(&self, last_req_entry: LastReqEntry);
 }
