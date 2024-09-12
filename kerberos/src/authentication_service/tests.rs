@@ -1,64 +1,57 @@
 use crate::authentication_service::AuthenticationServiceBuilder;
-use crate::cryptography::Cryptography;
-use crate::cryptography_error::CryptographyError;
-use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
-use async_trait::async_trait;
+use crate::tests_common::mocked::{MockedCrypto, MockedPrincipalDb};
 use messages::basic_types::{
-    EncryptionKey, KerberosFlags,
-    KerberosString, KerberosTime, NameTypes, OctetString, PrincipalName, Realm,
+    EncryptionKey, KerberosFlags, KerberosString, KerberosTime, NameTypes, OctetString,
+    PrincipalName, Realm,
 };
 use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBodyBuilder};
+use std::sync::LazyLock;
 use std::time::Duration;
 
-struct MockedCrypto;
+static CLIENT_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
+    EncryptionKey::new(
+        1,
+        OctetString::new(vec![0x1; 16]).unwrap(), // Mocked key
+    )
+});
 
-impl Cryptography for MockedCrypto {
-    fn get_etype(&self) -> i32 {
-        1
-    }
-    fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        let data = data.to_vec();
-        let data = data
-            .iter()
-            .zip(key.iter().cycle())
-            .map(|(d, k)| *d ^ *k)
-            .collect();
-        Ok(data)
-    }
+static SERVER_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
+    EncryptionKey::new(
+        1,
+        OctetString::new(vec![0x2; 16]).unwrap(), // Mocked key
+    )
+});
 
-    fn decrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        self.encrypt(data, key)
-    }
+static SESSION_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
+    EncryptionKey::new(
+        1,
+        OctetString::new(vec![0x3; 16]).unwrap(), // Mocked key
+    )
+});
 
-    fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
-        Ok(vec![0xff; 8])
-    }
-}
+static SERVER_REALM: LazyLock<Realm> = LazyLock::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
 
-struct MockedPrincipalDb;
+static SERVER_NAME: LazyLock<PrincipalName> = LazyLock::new(|| {
+    PrincipalName::new(
+        NameTypes::NtPrincipal,
+        vec![KerberosString::new("SERVER".to_string().as_bytes()).unwrap()],
+    )
+    .unwrap()
+});
 
-#[async_trait]
-impl PrincipalDatabase for MockedPrincipalDb {
-    async fn get_principal(
-        &self,
-        principal_name: &PrincipalName,
-        realm: &Realm,
-    ) -> Option<PrincipalDatabaseRecord> {
-        Some(
-            PrincipalDatabaseRecord {
-                max_lifetime: Duration::from_secs(5 * 60),
-                key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
-                p_kvno: Some(1),
-                max_renewable_life: Duration::from_secs(5 * 60),
-                supported_encryption_types: vec![1, 2, 3],
-            },
-        )
-    }
-}
+static CLIENT_NAME: LazyLock<PrincipalName> = LazyLock::new(|| {
+    PrincipalName::new(
+        NameTypes::NtPrincipal,
+        vec![KerberosString::new("CLIENT".to_string().as_bytes()).unwrap()],
+    )
+    .unwrap()
+});
+
+static CLIENT_REALM: LazyLock<Realm> = LazyLock::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
 
 #[tokio::test]
-async fn dummy_test() {
+async fn test_01() {
     let kdc_req_body = KdcReqBodyBuilder::default()
         .kdc_options(
             KerberosFlags::builder()
@@ -66,28 +59,16 @@ async fn dummy_test() {
                 .build()
                 .unwrap(),
         )
-        .cname(
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                vec!["me".to_string().try_into().unwrap()],
-            )
-            .unwrap(),
-        )
-        .realm(KerberosString::try_from("me".to_string()).unwrap())
-        .sname(
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                ["me".to_string().try_into().unwrap()],
-            )
-            .unwrap(),
-        )
+        .cname(CLIENT_NAME.to_owned())
+        .realm(CLIENT_REALM.to_owned())
+        .sname(SERVER_NAME.to_owned())
         .till(KerberosTime::now() + Duration::from_secs(5 * 60))
         .etype(vec![1, 2, 3])
         .nonce(123u32)
         .build()
         .unwrap();
     let crypto = MockedCrypto;
-    let principal_db = MockedPrincipalDb;
+    let principal_db = MockedPrincipalDb::new();
     let as_req = AsReq::new(None, kdc_req_body);
     let auth_service = AuthenticationServiceBuilder::default()
         .supported_crypto_systems(vec![Box::new(crypto)])
@@ -103,9 +84,5 @@ async fn dummy_test() {
         )
         .build()
         .unwrap();
-    auth_service
-        .handle_krb_as_req(
-            &as_req,
-        )
-        .await.unwrap();
+    auth_service.handle_krb_as_req(&as_req).await.unwrap();
 }
