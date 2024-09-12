@@ -7,8 +7,8 @@ use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName,
-    Realm, UInt32,
+    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags, KerberosTime, OctetString,
+    PrincipalName, Realm, UInt32,
 };
 use messages::flags::TicketFlag;
 use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
@@ -114,20 +114,34 @@ where
                 key.keyvalue().as_bytes(),
             )
             .map_err(|_| ServerError::Internal)
-            .and_then(|d| EncTicketPart::from_der(&d).map_err(|_| ServerError::Internal))?;
+            .and_then(|d| {
+                EncTicketPart::from_der(&d)
+                    .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
+            })?;
 
-        let ss_key = decrypted_ticket.key().keyvalue().as_bytes();
+        let ss_key = decrypted_ticket.key();
         let authenticator = crypto
             .iter()
-            .find(|crypto| crypto.get_etype() == *key.keytype())
+            .find(|crypto| crypto.get_etype() == *ss_key.keytype())
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
-            .decrypt(ap_req.authenticator().cipher().as_bytes(), ss_key)
+            .decrypt(
+                ap_req.authenticator().cipher().as_bytes(),
+                ss_key.keyvalue().as_bytes(),
+            )
             .map_err(|_| ServerError::Internal)
-            .and_then(|d| Authenticator::from_der(&d).map_err(|_| ServerError::Internal))?;
+            .and_then(|d| {
+                Authenticator::from_der(&d)
+                    .inspect_err(|e| println!("ENC {:?}", e))
+                    .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
+            })?;
         if authenticator.crealm() != decrypted_ticket.crealm()
             || authenticator.cname() != decrypted_ticket.cname()
         {
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_BADMATCH));
+        }
+
+        if authenticator.ctime().abs_diff(&KerberosTime::now()) > self.ticket_allowable_clock_skew {
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_SKEW));
         }
 
         {
@@ -137,6 +151,20 @@ where
                 .cusec(authenticator.cusec().to_owned())
                 .crealm(authenticator.crealm().to_owned())
                 .cname(authenticator.cname().to_owned());
+        }
+
+        if self
+            .replay_cache
+            .contain(&ApReplayEntry {
+                ctime: authenticator.ctime().to_owned(),
+                cusec: authenticator.cusec().to_owned(),
+                cname: authenticator.cname().to_owned(),
+                crealm: authenticator.crealm().to_owned(),
+            })
+            .await
+            .map_err(|_| ServerError::Internal)?
+        {
+            return Err(build_protocol_error(Ecode::KRB_AP_ERR_REPEAT));
         }
 
         if !self.accept_empty_address_ticket {
@@ -200,7 +228,8 @@ where
         Ok(ApRep::new(EncryptedData::new(
             *ap_req.ticket().enc_part().etype(),
             ap_req.ticket().enc_part().kvno().copied(),
-            OctetString::new(encrypted).map_err(|_| ServerError::Internal)?,
+            OctetString::new(encrypted)
+                .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_MODIFIED))?,
         )))
     }
 }

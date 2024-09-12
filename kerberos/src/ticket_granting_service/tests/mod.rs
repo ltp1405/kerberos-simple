@@ -1,9 +1,7 @@
 use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
 use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache};
-use crate::ticket_granting_service::tests::mocked::{
-    MockedCrypto, MockedHasher, MockedLastReqDb, MockedPrincipalDb,
-};
+use crate::tests_common::mocked::{MockedCrypto, MockedHasher, MockedLastReqDb, MockedPrincipalDb, MockedReplayCache};
 use crate::ticket_granting_service::{TicketGrantingService, TicketGrantingServiceBuilder};
 use messages::basic_types::{
     Checksum, EncryptedData, EncryptionKey, KerberosFlags, KerberosString, KerberosTime, NameTypes,
@@ -37,8 +35,6 @@ const SESSION_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
     )
 });
 
-mod mocked;
-
 fn make_principal_name_unsafe(name: &str) -> PrincipalName {
     PrincipalName::new(
         NameTypes::NtPrincipal,
@@ -48,7 +44,7 @@ fn make_principal_name_unsafe(name: &str) -> PrincipalName {
 }
 
 fn make_principal_db() -> MockedPrincipalDb {
-    let mut principal_database = mocked::MockedPrincipalDb::new();
+    let mut principal_database = MockedPrincipalDb::new();
     principal_database.add_principal(
         make_principal_name_unsafe("host"),
         KerberosString::new("EXAMPLE.COM").unwrap(),
@@ -179,8 +175,8 @@ fn make_pa_data(kdc_req: &KdcReqBody) -> SequenceOf<PaData> {
 async fn test_no_pa_data() {
     let tgs_req = make_basic_tgs_request("service", "EXAMPLE.COM", "user", None);
     let principal_db = make_principal_db();
-    let replay_cache = mocked::MockedReplayCache::new();
-    let mocked_last_req_db = mocked::MockedLastReqDb::new();
+    let replay_cache = MockedReplayCache::new();
+    let mocked_last_req_db = MockedLastReqDb::new();
 
     let tgs_service = make_basic_tgs_service(&principal_db, &replay_cache, &mocked_last_req_db);
     tgs_service
@@ -209,8 +205,8 @@ async fn test_no_pa_data() {
 async fn test_basic_request_processing() {
     let tgs_req = make_basic_tgs_request("service", "EXAMPLE.COM", "user", None);
     let principal_db = make_principal_db();
-    let replay_cache = mocked::MockedReplayCache::new();
-    let mocked_last_req_db = mocked::MockedLastReqDb::new();
+    let replay_cache = MockedReplayCache::new();
+    let mocked_last_req_db = MockedLastReqDb::new();
 
     let tgs_service = make_basic_tgs_service(&principal_db, &replay_cache, &mocked_last_req_db);
     tgs_service
