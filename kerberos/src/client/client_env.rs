@@ -38,13 +38,13 @@ pub trait ClientEnv {
     fn set_clock_diff(&self, diff: Duration, is_client_earlier: bool)
         -> Result<(), ClientEnvError>;
 
-    fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError>;
+    fn save_as_reply(&self, data: &AsRep, data_part: &EncAsRepPart) -> Result<(), ClientEnvError>;
 
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError>;
 
     fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
 
-    fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError>;
+    fn save_tgs_reply(&self, data: &TgsRep, data_part: &EncTgsRepPart) -> Result<(), ClientEnvError>;
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 

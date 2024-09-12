@@ -4,7 +4,7 @@ use crate::client::kdc_exchange::{receive_kdc_rep, KdcExchangeType};
 use crate::client::util::generate_nonce;
 use messages::basic_types::{KerberosTime, NameTypes, PrincipalName};
 use messages::flags::KdcOptionsFlag::{POSTDATED, RENEWABLE};
-use messages::{AsRep, AsReq, KdcReqBodyBuilder, KrbErrorMsg};
+use messages::{AsRep, AsReq, Decode, EncAsRepPart, KdcReqBodyBuilder, KrbErrorMsg};
 use std::time::Duration;
 
 pub fn prepare_as_request(
@@ -74,6 +74,13 @@ pub fn receive_as_response(
 ) -> Result<(), ClientError> {
     let cryptosystem = client_env.get_crypto(*as_rep.enc_part().etype())?;
     let key = client_env.get_client_key(*as_rep.enc_part().etype())?;
+    let decrypted_kdc_rep_part = cryptosystem.decrypt(
+        as_rep.enc_part().cipher().as_ref(),
+        key.keyvalue().as_ref(),
+    )?;
+    let enc_as_rep_part = EncAsRepPart::from_der(decrypted_kdc_rep_part.as_slice())
+        .or(Err(ClientError::DecodeError))?;
+    
     receive_kdc_rep(
         client_env,
         cryptosystem,
@@ -82,8 +89,8 @@ pub fn receive_as_response(
         &as_rep.clone(),
         KdcExchangeType::As,
     )?;
-
-    client_env.save_as_reply(as_rep)?;
+    
+    client_env.save_as_reply(as_rep, &enc_as_rep_part)?;
     Ok(())
 }
 

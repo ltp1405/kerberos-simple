@@ -82,7 +82,6 @@ mod tests {
         let as_rep = auth_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
         let as_rep = as_rep.unwrap();
-        mock_client_env.save_as_reply(&as_rep).unwrap();
         assert!(receive_as_response(&mock_client_env, &as_req, &as_rep).is_ok());
     }
 
@@ -100,12 +99,12 @@ mod tests {
         let as_rep = as_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
         let as_rep = as_rep.unwrap();
-        mock_client_env.save_as_reply(&as_rep).unwrap();
+        println!("{:?}", receive_as_response(&mock_client_env, &as_req, &as_rep));
 
         let tgs_req = prepare_tgs_request(&mock_client_env).expect("Failed to prepare TGS request");
         let tgs_rep = tgs_service.handle_tgs_req(&tgs_req).await;
         let tgs_rep = tgs_rep.unwrap();
-        mock_client_env.save_tgs_reply(&tgs_rep).unwrap();
+        println!("{:?}", receive_tgs_response(&tgs_req, &tgs_rep, &mock_client_env));
         assert!(receive_tgs_response(&tgs_req, &tgs_rep, &mock_client_env).is_ok());
     }
 }

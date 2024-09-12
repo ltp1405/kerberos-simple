@@ -156,19 +156,8 @@ impl ClientEnv for MockClientEnv {
         Ok(())
     }
 
-    fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError> {
-        let enc_part = data.enc_part().clone();
-        let decrypted_enc_part = EncAsRepPart::from_der(
-            &self
-                .get_crypto(*enc_part.etype())?
-                .decrypt(
-                    enc_part.cipher().as_ref(),
-                    self.get_client_key(1)?.keyvalue().as_ref(),
-                )
-                .unwrap(),
-        )
-        .unwrap();
-        self.enc_as_rep_part.replace(Some(decrypted_enc_part));
+    fn save_as_reply(&self, data: &AsRep, data_part: &EncAsRepPart) -> Result<(), ClientEnvError> {
+        self.enc_as_rep_part.replace(Some(data_part.clone()));
         self.as_rep.replace(Some(data.clone()));
         Ok(())
     }
@@ -191,16 +180,12 @@ impl ClientEnv for MockClientEnv {
         }
     }
 
-    fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError> {
-        let enc_part = data.enc_part().clone();
-        let decrypted_enc_part = EncTgsRepPart::from_der(
-            &self
-                .get_crypto(*enc_part.etype())?
-                .decrypt(enc_part.cipher().as_ref(), [0xff; 4].as_slice())
-                .unwrap(),
-        )
-        .unwrap();
-        self.enc_tgs_rep_part.replace(Some(decrypted_enc_part));
+    fn save_tgs_reply(
+        &self,
+        data: &TgsRep,
+        data_part: &EncTgsRepPart,
+    ) -> Result<(), ClientEnvError> {
+        self.enc_tgs_rep_part.replace(Some(data_part.clone()));
         self.tgs_rep.replace(Some(data.clone()));
         Ok(())
     }

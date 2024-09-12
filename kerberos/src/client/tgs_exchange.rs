@@ -8,7 +8,9 @@ use messages::basic_types::PaDataTypes::PaTgsReq;
 use messages::basic_types::{
     EncryptionKey, KerberosTime, NameTypes, OctetString, PaData, PrincipalName,
 };
-use messages::{ApReq, Authenticator, Decode, Encode, KdcReqBodyBuilder, TgsRep, TgsReq};
+use messages::{
+    ApReq, Authenticator, Decode, EncTgsRepPart, Encode, KdcReqBodyBuilder, TgsRep, TgsReq,
+};
 use std::time::Duration;
 
 pub fn prepare_tgs_request(client_env: &impl ClientEnv) -> Result<TgsReq, ClientError> {
@@ -63,8 +65,8 @@ pub fn receive_tgs_response(
     tgs_rep: &TgsRep,
     client_env: &impl ClientEnv,
 ) -> Result<(), ClientError> {
-    let crypto = client_env.get_crypto(*client_env.get_tgs_reply_enc_part()?.key().keytype())?;
-    let binding = client_env.get_tgs_reply_enc_part()?;
+    let crypto = client_env.get_crypto(*tgs_rep.enc_part().etype())?;
+    let as_rep = client_env.get_as_reply_enc_part()?;
     let decrypt_key = tgs_rep
         .padata()
         .and_then(|padata| {
@@ -85,12 +87,18 @@ pub fn receive_tgs_response(
                     let authenticator = Authenticator::from_der(&decrypted_authenticator)
                         .or(Err(ClientError::DecodeError))?;
                     match authenticator.subkey() {
-                        None => Ok::<EncryptionKey, ClientError>(binding.key().clone()),
+                        None => Ok::<EncryptionKey, ClientError>(as_rep.key().clone()),
                         Some(key) => Ok(key.clone()),
                     }
                 })
         })
-        .unwrap_or(Ok(binding.key().clone()))?;
+        .unwrap_or(Ok(as_rep.key().clone()))?;
+    let decrypted_kdc_rep_part = crypto.decrypt(
+        tgs_rep.enc_part().cipher().as_ref(),
+        decrypt_key.keyvalue().as_ref(),
+    )?;
+    let enc_tgs_rep_part = EncTgsRepPart::from_der(decrypted_kdc_rep_part.as_slice())
+        .or(Err(ClientError::DecodeError))?;
 
     receive_kdc_rep(
         client_env,
@@ -101,6 +109,6 @@ pub fn receive_tgs_response(
         KdcExchangeType::Tgs,
     )?;
 
-    client_env.save_tgs_reply(tgs_rep)?;
+    client_env.save_tgs_reply(tgs_rep, &enc_tgs_rep_part)?;
     Ok(())
 }
