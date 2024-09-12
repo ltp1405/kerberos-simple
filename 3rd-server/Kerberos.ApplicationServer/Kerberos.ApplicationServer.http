@@ -1,6 +1,0 @@
-@Kerberos.ApplicationServer_HostAddress = http://localhost:5089
-
-GET {{Kerberos.ApplicationServer_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
