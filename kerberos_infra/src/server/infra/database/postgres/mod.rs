@@ -5,9 +5,10 @@ use secrecy::{ExposeSecret, Secret};
 pub use settings::PgDbSettings;
 use sqlx::{postgres::PgPoolOptions, Executor, PgPool, Row};
 
+use crate::server::infra::KrbDbSchema;
+
 use super::{
     view::PrincipalComplexView, Database, DatabaseError, DatabaseResult, Migration, Queryable,
-    Schema,
 };
 
 pub use schemas::Krb5DbSchemaV1;
@@ -15,24 +16,26 @@ pub use schemas::Krb5DbSchemaV1;
 pub struct PostgresDb {
     pool: PgPool,
     settings: PgDbSettings,
-    schema: Box<dyn Schema>,
+    schema: KrbDbSchema,
 }
 
 impl PostgresDb {
-    pub fn new(settings: PgDbSettings, schema: Box<dyn Schema>) -> PostgresDb {
+    pub fn new(settings: PgDbSettings, schema: KrbDbSchema) -> PostgresDb {
         PostgresDb {
             pool: Self::without_db(&settings),
             settings,
             schema,
         }
     }
-    pub fn boxed(settings: PgDbSettings, schema: Box<dyn Schema>) -> Box<dyn Database<Inner = PgPool>> {
+
+    pub fn boxed(settings: PgDbSettings, schema: KrbDbSchema) -> Box<dyn Database<Inner = PgPool>> {
         Box::new(PostgresDb {
             pool: Self::without_db(&settings),
             settings,
             schema,
         })
     }
+
     fn without_db(settings: &PgDbSettings) -> PgPool {
         PgPoolOptions::new()
             .acquire_timeout(Duration::from_secs(2))

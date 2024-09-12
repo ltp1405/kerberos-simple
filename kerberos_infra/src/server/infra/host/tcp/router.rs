@@ -2,32 +2,31 @@ use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
 
-use crate::server::infra::{
-    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, HostResult},
-    DataBox, KrbCache, KrbDatabase,
+use crate::server::{
+    infra::{
+        host::{entry::Entry, utils::handle_result_at_router, HostResult},
+        KrbCache, KrbDatabase,
+    },
+    KrbAsyncReceiver,
 };
 
 use super::entry::TcpEntry;
 
-pub struct TcpRouter {
+pub struct TcpRouter<T> {
     addr: SocketAddr,
-    receiver: DataBox<dyn AsyncReceiver>,
+    receiver: KrbAsyncReceiver<T>,
 }
 
-impl TcpRouter {
-    pub fn new(addr: SocketAddr, receiver: DataBox<dyn AsyncReceiver>) -> Self {
+impl<T> TcpRouter<T> {
+    pub fn new(addr: SocketAddr, receiver: KrbAsyncReceiver<T>) -> Self {
         Self { addr, receiver }
     }
 }
 
-unsafe impl Send for TcpRouter {}
+unsafe impl<T> Send for TcpRouter<T> {}
 
-impl TcpRouter {
-    pub async fn listen(
-        &self,
-        database: KrbDatabase,
-        cache: KrbCache,
-    ) -> HostResult<()> {
+impl<T: 'static> TcpRouter<T> {
+    pub async fn listen(&self, database: KrbDatabase<T>, cache: KrbCache) -> HostResult<()> {
         let listener = TcpListener::bind(&self.addr).await?;
 
         loop {

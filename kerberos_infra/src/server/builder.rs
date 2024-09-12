@@ -1,131 +1,110 @@
-use std::mem;
+use sqlx::PgPool;
 use tokio::sync::RwLock;
 
-use super::config::Configuration;
+use super::config::{Configuration, Protocol};
 use super::infra::cache::Cache;
 use super::infra::database::postgres::{PgDbSettings, PostgresDb};
-use super::infra::database::sqlite::{SqliteDbSettings, SqlitePool};
-use super::infra::database::Schema;
 use super::infra::host::HostBuilder;
-use super::infra::{KrbCache, KrbDatabase, KrbHost};
+use super::infra::{KrbCache, KrbDatabase, KrbDbSchema, KrbHost};
 use super::{AsyncReceiver, KrbAsyncReceiver, Server, ServerResult};
 
-enum DatabaseOption {
-    Postgres(PgDbSettings),
-    Sqlite(SqliteDbSettings),
-    None,
+pub fn load_from_dir<Db>() -> ServerResult<ServerBuilder<Db>> {
+    let config = Configuration::load(None).map_err(|_| "Fail to load configuration")?;
+
+    Ok(ServerBuilder::new(config))
 }
 
-pub struct ServerBuilder {
+pub fn load<Db>(dir: &str) -> ServerResult<ServerBuilder<Db>> {
+    let config = Configuration::load(Some(dir)).map_err(|_| "Fail to load configuration")?;
+
+    Ok(ServerBuilder::new(config))
+}
+
+pub trait Builder: Sized {
+    type Db;
+
+    fn build(self, protocol: Protocol) -> ServerResult<Server<Self::Db>>;
+}
+
+pub struct ServerBuilder<Db> {
     config: Configuration,
-    host: HostBuilder,
-    database: DatabaseOption,
-    schema: Option<Box<dyn Schema>>,
+    host: HostBuilder<Db>,
 }
 
-impl ServerBuilder {
-    fn build_cache(&self) -> KrbCache {
-        KrbCache::new(RwLock::new(Cache::boxed(&self.config.cache)))
+pub struct NpgServerBuilder {
+    state: ServerBuilder<PgPool>,
+    settings: PgDbSettings,
+    schema: KrbDbSchema,
+}
+
+impl NpgServerBuilder {
+    fn cache(&self) -> KrbCache {
+        KrbCache::new(RwLock::new(Cache::boxed(&self.state.config.cache)))
     }
 
-    fn build_database(&mut self) -> Option<KrbDatabase> {
-        let schema = self.schema.take()?;
+    fn database(&self) -> KrbDatabase<<Self as Builder>::Db> {
+        KrbDatabase::new(RwLock::new(PostgresDb::boxed(
+            self.settings.clone(),
+            self.schema.clone_box(),
+        )))
+    }
 
-        let db_choice = mem::replace(&mut self.database, DatabaseOption::None);
-
-        match db_choice {
-            DatabaseOption::Postgres(settings) => Some(KrbDatabase::new(RwLock::new(
-                PostgresDb::boxed(settings, schema),
-            ))),
-            DatabaseOption::Sqlite(settings) => Some(KrbDatabase::new(RwLock::new(
-                SqlitePool::boxed(settings, schema),
-            ))),
-            DatabaseOption::None => None,
+    fn host(self, protocol: Protocol) -> ServerResult<KrbHost<PgPool>> {
+        let host = match protocol {
+            Protocol::Udp => self.state.host.boxed_udp(),
+            Protocol::Tcp => self.state.host.boxed_tcp(),
         }
+        .map_err(|e| format!("Unable to start host. Error: {:?}", e))?;
+
+        Ok(KrbHost::new(RwLock::new(host)))
     }
 }
 
-impl ServerBuilder {
+impl Builder for NpgServerBuilder {
+    type Db = PgPool;
+
+    fn build(self, protocol: Protocol) -> ServerResult<Server<Self::Db>> {
+        let cache = self.cache();
+
+        let database = self.database();
+
+        let host = self.host(protocol)?;
+
+        Ok(Server {
+            host,
+            cache,
+            database,
+        })
+    }
+}
+
+impl<Db> ServerBuilder<Db> {
     pub fn new(config: Configuration) -> Self {
         let host = HostBuilder::new(&config.host);
-        Self {
-            config,
-            host,
-            database: DatabaseOption::None,
-            schema: None,
+        Self { config, host }
+    }
+
+    pub fn set_as_receiver(mut self, receiver: impl AsyncReceiver<Db = Db> + 'static) -> Self {
+        self.host = self
+            .host
+            .set_as_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(receiver))));
+        self
+    }
+
+    pub fn set_tgs_receiver(mut self, receiver: impl AsyncReceiver<Db = Db> + 'static) -> Self {
+        self.host = self
+            .host
+            .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(receiver))));
+        self
+    }
+}
+
+impl ServerBuilder<PgPool> {
+    pub fn use_postgres(self, settings: PgDbSettings, schema: KrbDbSchema) -> NpgServerBuilder {
+        NpgServerBuilder {
+            state: self,
+            settings,
+            schema,
         }
-    }
-
-    pub fn set_as_receiver(mut self, receiver: impl AsyncReceiver + 'static) -> Self {
-        self.host = self
-            .host
-            .set_as_receiver(KrbAsyncReceiver::new(RwLock::new(receiver.boxed())));
-        self
-    }
-
-    pub fn set_tgs_receiver(mut self, receiver: impl AsyncReceiver + 'static) -> Self {
-        self.host = self
-            .host
-            .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(receiver.boxed())));
-        self
-    }
-
-    pub fn with_schema(mut self, schema: Box<dyn Schema>) -> Self {
-        self.schema = Some(schema);
-        self
-    }
-
-    pub fn use_postgres(mut self, settings: PgDbSettings) -> Self {
-        self.database = DatabaseOption::Postgres(settings);
-        self
-    }
-
-    pub fn use_sqlite(mut self, settings: SqliteDbSettings) -> Self {
-        self.database = DatabaseOption::Sqlite(settings);
-        self
-    }
-}
-
-#[cfg(feature = "server-tcp")]
-impl ServerBuilder {
-    pub fn build_tcp(mut self) -> ServerResult<Server> {
-        let cache = self.build_cache();
-
-        let database = self
-            .build_database()
-            .ok_or("Something went wrong when setting up database".to_owned())?;
-
-        let host = KrbHost::new(RwLock::new(
-            self.host
-                .boxed_tcp()
-                .map_err(|e| format!("Unable to start host. Error: {:?}", e))?,
-        ));
-
-        Ok(Server {
-            host,
-            cache,
-            database,
-        })
-    }
-}
-
-#[cfg(feature = "server-udp")]
-impl ServerBuilder {
-    pub fn build_udp(mut self) -> ServerResult<Server> {
-        let cache = self.build_cache();
-
-        let database = self.build_database().ok_or("Database not set".to_owned())?;
-
-        let host = KrbHost::new(RwLock::new(
-            self.host
-                .boxed_udp()
-                .map_err(|e| format!("Unable to start host. Error: {:?}", e))?,
-        ));
-
-        Ok(Server {
-            host,
-            cache,
-            database,
-        })
     }
 }

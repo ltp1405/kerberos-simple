@@ -3,19 +3,22 @@ use router::UdpRouter;
 use std::net::SocketAddr;
 use tokio::signal;
 
-use crate::server::infra::{DataBox, KrbCache, KrbDatabase};
+use crate::server::{
+    infra::{KrbCache, KrbDatabase},
+    KrbAsyncReceiver,
+};
 
-use super::{receiver::AsyncReceiver, runnable::{Address, Runnable}};
+use super::runnable::{Address, Runnable};
 
-pub struct UdpHost {
-    as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
-    tgs_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
+pub struct UdpHost<T> {
+    as_entry: (SocketAddr, KrbAsyncReceiver<T>),
+    tgs_entry: (SocketAddr, KrbAsyncReceiver<T>),
 }
 
-impl UdpHost {
+impl<T> UdpHost<T> {
     pub(crate) fn new(
-        as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
-        tgt_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
+        as_entry: (SocketAddr, KrbAsyncReceiver<T>),
+        tgt_entry: (SocketAddr, KrbAsyncReceiver<T>),
     ) -> Self {
         Self {
             as_entry,
@@ -23,7 +26,7 @@ impl UdpHost {
         }
     }
 
-    fn splits(&self) -> (UdpRouter, UdpRouter) {
+    fn splits(&self) -> (UdpRouter<T>, UdpRouter<T>) {
         (
             UdpRouter::new(self.as_entry.clone()),
             UdpRouter::new(self.tgs_entry.clone()),
@@ -31,7 +34,7 @@ impl UdpHost {
     }
 }
 
-impl Address for UdpHost {
+impl<T> Address for UdpHost<T> {
     fn get_as_addr(&self) -> SocketAddr {
         self.as_entry.0
     }
@@ -42,8 +45,10 @@ impl Address for UdpHost {
 }
 
 #[async_trait]
-impl Runnable for UdpHost {
-    async fn run(&mut self, database: KrbDatabase, cache: KrbCache) {
+impl<T: 'static> Runnable for UdpHost<T> {
+    type Db = T;
+
+    async fn run(&mut self, database: KrbDatabase<T>, cache: KrbCache) {
         let (as_router, tgt_router) = self.splits();
 
         tokio::select! {

@@ -1,9 +1,10 @@
 use der::Encode;
 use kerberos_infra::{
     client::{Sendable, TcpClient},
-    server::{DbSettings, PgDbSettings, Server},
+    server::{load_server_from_dir, Builder, DbSettings, Krb5DbSchemaV1, PgDbSettings, Protocol},
 };
 use mocks::{Mapper, SimpleASReceiver, SimpleTgtReceiver};
+use sqlx::PgPool;
 
 #[tokio::test]
 async fn tcp_client_should_be_able_to_communicate_with_tcp_server() {
@@ -12,13 +13,15 @@ async fn tcp_client_should_be_able_to_communicate_with_tcp_server() {
     // Step 1: Create a server
     let settings = PgDbSettings::load_from_dir();
 
-    let mut server = Server::load_from_dir()
+    let schema = Krb5DbSchemaV1::boxed();
+
+    let mut server = load_server_from_dir::<PgPool>()
         .unwrap()
         .set_as_receiver(SimpleASReceiver)
         .set_tgs_receiver(SimpleTgtReceiver)
-        .use_postgres(settings)
-        .build_tcp()
-        .expect("TcpServer failed to build");
+        .use_postgres(settings, schema)
+        .build(Protocol::Tcp)
+        .expect("Failed to build server");
 
     // Step 2: Run the server in the background
     let handle = tokio::spawn(async move {

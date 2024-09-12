@@ -2,32 +2,31 @@ use std::{net::SocketAddr, sync::Arc};
 
 use tokio::{net::UdpSocket, sync::mpsc};
 
-use crate::server::infra::{
-    host::{entry::Entry, utils::handle_result_at_router, AsyncReceiver, HostResult},
-    DataBox, KrbCache, KrbDatabase,
+use crate::server::{
+    infra::{
+        host::{entry::Entry, utils::handle_result_at_router, HostResult},
+        KrbCache, KrbDatabase,
+    },
+    KrbAsyncReceiver,
 };
 
 use super::entry::UdpEntry;
 
-pub struct UdpRouter {
+pub struct UdpRouter<T> {
     addr: SocketAddr,
-    receiver: DataBox<dyn AsyncReceiver>,
+    receiver: KrbAsyncReceiver<T>,
 }
 
-impl UdpRouter {
-    pub fn new((addr, receiver): (SocketAddr, DataBox<dyn AsyncReceiver>)) -> Self {
+impl<T> UdpRouter<T> {
+    pub fn new((addr, receiver): (SocketAddr, KrbAsyncReceiver<T>)) -> Self {
         Self { addr, receiver }
     }
 }
 
-unsafe impl Send for UdpRouter {}
+unsafe impl<T> Send for UdpRouter<T> {}
 
-impl UdpRouter {
-    pub async fn listen(
-        &self,
-        database: KrbDatabase,
-        cache: KrbCache,
-    ) -> HostResult<()> {
+impl<T: 'static> UdpRouter<T> {
+    pub async fn listen(&self, database: KrbDatabase<T>, cache: KrbCache) -> HostResult<()> {
         let socket = UdpSocket::bind(&self.addr).await?;
 
         let listener = Arc::new(socket);

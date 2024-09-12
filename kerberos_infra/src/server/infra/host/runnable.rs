@@ -11,5 +11,7 @@ pub trait Address {
 
 #[async_trait]
 pub trait Runnable: Address + Send + Sync {
-    async fn run(&mut self, database: KrbDatabase, cache: KrbCache);
+    type Db;
+
+    async fn run(&mut self, database: KrbDatabase<Self::Db>, cache: KrbCache);
 }

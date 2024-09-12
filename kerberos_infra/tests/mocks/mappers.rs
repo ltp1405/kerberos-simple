@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rand::Rng;
+use rand::Rng; 
 
 pub struct Mapper {
     rule: HashMap<String, String>,

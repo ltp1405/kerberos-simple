@@ -1,35 +1,27 @@
 // Public APIs
-pub use builder::ServerBuilder;
+pub use builder::{
+    load as load_server, load_from_dir as load_server_from_dir, Builder, ServerBuilder,
+};
 
 pub use infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
     database::{
-        postgres::{PgDbSettings, PostgresDb}, sqlite::SqliteDbSettings, Database, DatabaseError, DbSettings,
-        Krb5DbSchemaV1, Migration, Queryable, Schema,
+        postgres::{PgDbSettings, PostgresDb},
+        Database, DatabaseError, DbSettings, Krb5DbSchemaV1, Migration, Queryable, Schema,
     },
     host::{AsyncReceiver, ExchangeError, HostError, HostResult},
     KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
 };
 
-pub struct Server {
-    host: KrbHost,
+pub use config::Protocol;
+
+pub struct Server<Db> {
+    host: KrbHost<Db>,
     cache: KrbCache,
-    database: KrbDatabase,
+    database: KrbDatabase<Db>,
 }
 
-impl Server {
-    pub fn load_from_dir() -> ServerResult<ServerBuilder> {
-        let config = Configuration::load(None).map_err(|_| "Fail to load configuration")?;
-
-        Ok(ServerBuilder::new(config))
-    }
-
-    pub fn load(dir: &str) -> ServerResult<ServerBuilder> {
-        let config = Configuration::load(Some(dir)).map_err(|_| "Fail to load configuration")?;
-
-        Ok(ServerBuilder::new(config))
-    }
-
+impl<T> Server<T> {
     pub async fn prepare_and_run(&mut self) -> ServerResult {
         let mut db_lock = self.database.write().await;
 
@@ -51,7 +43,6 @@ impl Server {
 }
 
 // Private APIs
-use config::Configuration;
 type ServerResult<T = ()> = Result<T, String>;
 
 // Modules

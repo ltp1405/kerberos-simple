@@ -1,12 +1,13 @@
 use async_trait::async_trait;
-use kerberos_infra::server::{
-    AsyncReceiver, ExchangeError, KrbCache, KrbDatabase, HostResult,
-};
+use kerberos_infra::server::{AsyncReceiver, ExchangeError, HostResult, KrbCache, KrbDatabase};
+use sqlx::PgPool;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct SimpleASReceiver;
 
 #[async_trait]
 impl AsyncReceiver for SimpleASReceiver {
+    type Db = PgPool;
+
     async fn receive(
         &self,
         bytes: &[u8],
@@ -34,6 +35,8 @@ pub struct SimpleTgtReceiver;
 
 #[async_trait]
 impl AsyncReceiver for SimpleTgtReceiver {
+    type Db = PgPool;
+
     async fn receive(
         &self,
         bytes: &[u8],

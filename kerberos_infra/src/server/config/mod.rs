@@ -6,7 +6,6 @@ pub use host::HostSettings;
 
 use super::utils::Environment;
 
-#[cfg(test)]
 pub use protocol::Protocol;
 
 pub struct Configuration {
@@ -50,5 +49,5 @@ impl TryFrom<Config> for Configuration {
 
 mod cache;
 mod error;
-mod protocol;
 mod host;
+mod protocol;

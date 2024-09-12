@@ -3,19 +3,22 @@ use router::TcpRouter;
 use std::net::SocketAddr;
 use tokio::signal;
 
-use crate::server::infra::{DataBox, KrbCache, KrbDatabase};
+use crate::server::{
+    infra::{KrbCache, KrbDatabase},
+    KrbAsyncReceiver,
+};
 
-use super::{receiver::AsyncReceiver, runnable::{Address, Runnable}};
+use super::runnable::{Address, Runnable};
 
-pub struct TcpHost {
-    as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
-    tgs_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
+pub struct TcpHost<T> {
+    as_entry: (SocketAddr, KrbAsyncReceiver<T>),
+    tgs_entry: (SocketAddr, KrbAsyncReceiver<T>),
 }
 
-impl TcpHost {
+impl<T> TcpHost<T> {
     pub(crate) fn new(
-        as_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
-        tgt_entry: (SocketAddr, DataBox<dyn AsyncReceiver>),
+        as_entry: (SocketAddr, KrbAsyncReceiver<T>),
+        tgt_entry: (SocketAddr, KrbAsyncReceiver<T>),
     ) -> Self {
         Self {
             as_entry,
@@ -23,7 +26,7 @@ impl TcpHost {
         }
     }
 
-    fn splits(&self) -> (TcpRouter, TcpRouter) {
+    fn splits(&self) -> (TcpRouter<T>, TcpRouter<T>) {
         (
             TcpRouter::new(self.as_entry.0, self.as_entry.1.clone()),
             TcpRouter::new(self.tgs_entry.0, self.tgs_entry.1.clone()),
@@ -31,7 +34,7 @@ impl TcpHost {
     }
 }
 
-impl Address for TcpHost {
+impl<T> Address for TcpHost<T> {
     fn get_as_addr(&self) -> SocketAddr {
         self.as_entry.0
     }
@@ -42,8 +45,10 @@ impl Address for TcpHost {
 }
 
 #[async_trait]
-impl Runnable for TcpHost {
-    async fn run(&mut self, database: KrbDatabase, cache: KrbCache) {
+impl<T: 'static> Runnable for TcpHost<T> {
+    type Db = T;
+
+    async fn run(&mut self, database: KrbDatabase<T>, cache: KrbCache) {
         let (as_router, tgt_router) = self.splits();
 
         tokio::select! {

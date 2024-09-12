@@ -3,29 +3,31 @@ use std::{net::SocketAddr, sync::Arc};
 use async_trait::async_trait;
 use tokio::net::UdpSocket;
 
-use crate::server::infra::{
-    host::{
-        entry::Entry, utils::extract_bytes_or_delegate_to_router, AsyncReceiver, ExchangeError,
-        HostResult,
+use crate::server::{
+    infra::{
+        host::{
+            entry::Entry, utils::extract_bytes_or_delegate_to_router, ExchangeError, HostResult,
+        },
+        KrbCache, KrbDatabase,
     },
-    DataBox, KrbCache, KrbDatabase,
+    KrbAsyncReceiver,
 };
 
-pub struct UdpEntry {
+pub struct UdpEntry<T> {
     socket: Arc<UdpSocket>,
     bytes: Vec<u8>,
     destination: SocketAddr,
-    receiver: DataBox<dyn AsyncReceiver>,
+    receiver: KrbAsyncReceiver<T>,
 }
 
-impl UdpEntry {
+impl<T> UdpEntry<T> {
     const MAX_BUFFER_SIZE: usize = 1024; // 1KB
 
     pub fn new(
         socket: Arc<UdpSocket>,
         bytes: Vec<u8>,
         destination: SocketAddr,
-        receiver: DataBox<dyn AsyncReceiver>,
+        receiver: KrbAsyncReceiver<T>,
     ) -> Self {
         Self {
             socket,
@@ -37,12 +39,10 @@ impl UdpEntry {
 }
 
 #[async_trait]
-impl Entry for UdpEntry {
-    async fn handle(
-        &mut self,
-        database: KrbDatabase,
-        cache: KrbCache,
-    ) -> HostResult<()> {
+impl<T> Entry for UdpEntry<T> {
+    type Db = T;
+
+    async fn handle(&mut self, database: KrbDatabase<T>, cache: KrbCache) -> HostResult<()> {
         let receiver = self.receiver.read().await;
 
         let result = receiver.receive(&self.bytes, database, cache).await;

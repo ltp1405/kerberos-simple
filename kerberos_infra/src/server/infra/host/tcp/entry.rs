@@ -4,33 +4,34 @@ use tokio::{
     net::TcpStream,
 };
 
-use crate::server::infra::{
-    host::{
-        entry::Entry,
-        utils::{extract_bytes_or_delegate_to_router, TagLengthStreamReader},
-        AsyncReceiver, HostResult,
+use crate::server::{
+    infra::{
+        host::{
+            entry::Entry,
+            utils::{extract_bytes_or_delegate_to_router, TagLengthStreamReader},
+            HostResult,
+        },
+        KrbCache, KrbDatabase,
     },
-    DataBox, KrbCache, KrbDatabase,
+    KrbAsyncReceiver,
 };
 
-pub struct TcpEntry {
+pub struct TcpEntry<T> {
     stream: TcpStream,
-    receiver: DataBox<dyn AsyncReceiver>,
+    receiver: KrbAsyncReceiver<T>,
 }
 
-impl TcpEntry {
-    pub fn new(stream: TcpStream, receiver: DataBox<dyn AsyncReceiver>) -> Self {
+impl<T> TcpEntry<T> {
+    pub fn new(stream: TcpStream, receiver: KrbAsyncReceiver<T>) -> Self {
         Self { stream, receiver }
     }
 }
 
 #[async_trait]
-impl Entry for TcpEntry {
-    async fn handle(
-        &mut self,
-        database: KrbDatabase,
-        cache: KrbCache,
-    ) -> HostResult<()> {
+impl<T> Entry for TcpEntry<T> {
+    type Db = T;
+
+    async fn handle(&mut self, database: KrbDatabase<T>, cache: KrbCache) -> HostResult<()> {
         let bytes = {
             let (mut incoming_buffer, mut buffer) = TagLengthStreamReader::from(&mut self.stream)
                 .try_into()

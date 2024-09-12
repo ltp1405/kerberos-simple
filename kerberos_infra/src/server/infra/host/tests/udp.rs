@@ -4,19 +4,24 @@ use tokio::net::UdpSocket;
 
 use super::mocks::{MockASReceiver, MockTgsReceiver};
 
-use crate::server::infra::{
-    host::{
-        tests::mocks::{MockCache, MockPool},
-        HostBuilder,
+use crate::server::{
+    infra::{
+        host::{
+            tests::mocks::{MockCache, MockPool},
+            HostBuilder,
+        },
+        KrbCache, KrbDatabase,
     },
-    DataBox, KrbCache, KrbDatabase,
+    KrbAsyncReceiver,
 };
 
 #[tokio::test]
 async fn server_builder_should_be_ok_when_given_all_entry_points() {
     let server = HostBuilder::local()
-        .set_as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
-        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .set_as_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(MockASReceiver))))
+        .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(
+            MockTgsReceiver,
+        ))))
         .boxed_udp();
 
     assert!(server.is_ok(), "UdpServer failed to build");
@@ -38,7 +43,9 @@ async fn server_builder_should_be_ok_when_given_all_entry_points() {
 #[tokio::test]
 async fn server_builder_should_fail_when_missing_as_entry() {
     let server = HostBuilder::local()
-        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(
+            MockTgsReceiver,
+        ))))
         .boxed_udp();
 
     assert!(
@@ -50,15 +57,17 @@ async fn server_builder_should_fail_when_missing_as_entry() {
 #[tokio::test]
 async fn server_should_be_able_to_handle_request() {
     let mut server = HostBuilder::local()
-        .set_as_receiver(DataBox::new(RwLock::new(Box::new(MockASReceiver))))
-        .set_tgs_receiver(DataBox::new(RwLock::new(Box::new(MockTgsReceiver))))
+        .set_as_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(MockASReceiver))))
+        .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(Box::new(
+            MockTgsReceiver,
+        ))))
         .boxed_udp()
         .unwrap();
 
     let (as_entry_addr, tgt_entry_addr) = (server.get_as_addr(), server.get_tgs_addr());
 
-    let cache: KrbCache = DataBox::new(RwLock::new(Box::new(MockCache)));
-    let pool: KrbDatabase = DataBox::new(RwLock::new(Box::new(MockPool)));
+    let cache: KrbCache = KrbCache::new(RwLock::new(Box::new(MockCache)));
+    let pool: KrbDatabase = KrbDatabase::new(RwLock::new(Box::new(MockPool)));
 
     // Run the server in the background
     let handle = tokio::spawn({

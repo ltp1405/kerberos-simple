@@ -7,12 +7,24 @@ use crate::server::utils::Environment;
 #[allow(unused_imports)]
 pub use postgres::Krb5DbSchemaV1;
 
+use super::KrbDbSchema;
+
 pub trait Schema {
     fn schema_name(&self) -> String;
 
     fn get_schema(&self) -> String;
 
     fn seed_data(&self) -> String;
+}
+
+pub trait ClonableSchema: Schema {
+    fn clone_box(&self) -> KrbDbSchema;
+}
+
+impl Clone for KrbDbSchema {
+    fn clone(&self) -> KrbDbSchema {
+        self.as_ref().clone_box()
+    }
 }
 
 pub trait DbSettings: From<Config> {
@@ -72,7 +84,6 @@ pub trait Queryable {
     ) -> DatabaseResult<Option<PrincipalComplexView>> {
         Err(DatabaseError::InternalError)
     }
-
 }
 
 #[derive(Debug)]
@@ -85,8 +96,6 @@ pub enum DatabaseError {
 }
 
 pub mod postgres;
-
-pub mod sqlite;
 
 pub mod view;
 

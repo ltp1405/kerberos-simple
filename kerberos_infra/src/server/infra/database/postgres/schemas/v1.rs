@@ -1,10 +1,10 @@
-use crate::server::infra::database::Schema;
+use crate::server::infra::{database::{ClonableSchema, Schema}, KrbDbSchema};
 
 pub struct Krb5DbSchemaV1;
 
 impl Krb5DbSchemaV1 {
     #[allow(dead_code)]
-    pub fn boxed() -> Box<dyn Schema> {
+    pub fn boxed() -> KrbDbSchema {
         Box::new(Krb5DbSchemaV1)
     }
 }
@@ -123,5 +123,11 @@ impl Schema for Krb5DbSchemaV1 {
         "#,
             schema
         )
+    }
+}
+
+impl ClonableSchema for Krb5DbSchemaV1 {
+    fn clone_box(&self) -> KrbDbSchema {
+        Box::new(Krb5DbSchemaV1)
     }
 }

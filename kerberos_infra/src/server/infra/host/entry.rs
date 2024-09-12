@@ -5,6 +5,8 @@ use async_trait::async_trait;
 
 #[async_trait]
 pub trait Entry {
-    async fn handle(&mut self, database: KrbDatabase, cache: KrbCache)
+    type Db;
+
+    async fn handle(&mut self, database: KrbDatabase<Self::Db>, cache: KrbCache)
         -> HostResult<()>;
 }

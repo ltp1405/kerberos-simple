@@ -1,4 +1,4 @@
-pub use types::{DataBox, KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost};
+pub use types::{KrbAsyncReceiver, KrbCache, KrbDatabase, KrbDbSchema, KrbHost};
 
 pub mod cache;
 
@@ -11,16 +11,18 @@ mod types {
     use tokio::sync::RwLock;
 
     use super::cache::cacheable::Cacheable;
-    use super::database::Database;
+    use super::database::{ClonableSchema, Database};
     use super::host::{AsyncReceiver, Runnable};
 
     pub type DataBox<T> = std::sync::Arc<RwLock<Box<T>>>;
 
-    pub type KrbAsyncReceiver = DataBox<dyn AsyncReceiver>;
+    pub type KrbAsyncReceiver<T> = DataBox<dyn AsyncReceiver<Db = T>>;
 
-    pub type KrbHost = DataBox<dyn Runnable>;
+    pub type KrbHost<T> = DataBox<dyn Runnable<Db = T>>;
 
     pub type KrbDatabase<T = PgPool> = DataBox<dyn Database<Inner = T>>;
 
     pub type KrbCache<K = String, V = String> = DataBox<dyn Cacheable<K, V>>;
+
+    pub type KrbDbSchema = Box<dyn ClonableSchema>;
 }

@@ -17,21 +17,23 @@ pub enum ExchangeError {
 
 #[async_trait]
 pub trait AsyncReceiver: Send + Sync {
+    type Db;
+
     async fn receive(
         &self,
         bytes: &[u8],
-        database: KrbDatabase,
+        database: KrbDatabase<Self::Db>,
         cache: KrbCache,
     ) -> HostResult<Vec<u8>>;
 
     fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>>;
-    
-    fn boxed(self) -> Box<dyn AsyncReceiver>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
-    }
+
+    // fn boxed(self) -> Box<dyn AsyncReceiver>
+    // where
+    //     Self: Sized + 'static,
+    // {
+    //     Box::new(self)
+    // }
 }
 
 

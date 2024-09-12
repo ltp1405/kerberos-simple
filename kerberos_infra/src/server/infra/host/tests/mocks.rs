@@ -1,10 +1,13 @@
-use crate::server::infra::{
-    cache::{cacheable::Cacheable, error::CacheResult},
-    database::{Database, DatabaseResult, Migration, Queryable},
-    host::{AsyncReceiver, ExchangeError, HostResult},
-    DataBox,
+use crate::server::{
+    infra::{
+        cache::{cacheable::Cacheable, error::CacheResult},
+        database::{Database, DatabaseResult, Migration, Queryable},
+        host::{AsyncReceiver, ExchangeError, HostResult},
+    },
+    KrbCache, KrbDatabase,
 };
 use async_trait::async_trait;
+use sqlx::PgPool;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct MockASReceiver;
@@ -17,11 +20,13 @@ impl MockASReceiver {
 
 #[async_trait]
 impl AsyncReceiver for MockASReceiver {
+    type Db = PgPool;
+
     async fn receive(
         &self,
         _bytes: &[u8],
-        _pool: DataBox<dyn Database>,
-        _cache: DataBox<dyn Cacheable<String, String>>,
+        _pool: KrbDatabase<PgPool>,
+        _cache: KrbCache,
     ) -> HostResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
@@ -51,11 +56,13 @@ impl MockTgsReceiver {
 
 #[async_trait]
 impl AsyncReceiver for MockTgsReceiver {
+    type Db = PgPool;
+
     async fn receive(
         &self,
         _bytes: &[u8],
-        _pool: DataBox<dyn Database>,
-        _cache: DataBox<dyn Cacheable<String, String>>,
+        _pool: KrbDatabase<PgPool>,
+        _cache: KrbCache,
     ) -> HostResult<Vec<u8>> {
         let messages = Self::MOCK_MESSAGE.as_bytes();
         Ok(messages.to_vec())
@@ -87,7 +94,17 @@ impl Migration for MockPool {
 impl Queryable for MockPool {}
 
 #[async_trait]
-impl Database for MockPool {}
+impl Database for MockPool {
+    type Inner = PgPool;
+
+    fn inner(&self) -> &Self::Inner {
+        unimplemented!()
+    }
+
+    fn inner_mut(&mut self) -> &mut Self::Inner {
+        unimplemented!()
+    }
+}
 
 pub struct MockCache;
 
