@@ -6,3 +6,6 @@ pub mod cryptography_error;
 pub mod authentication_service;
 pub mod service_traits;
 pub mod cryptographic_hash;
+
+#[cfg(test)]
+pub(crate) mod tests_common;
