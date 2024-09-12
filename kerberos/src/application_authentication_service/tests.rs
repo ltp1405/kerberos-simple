@@ -5,6 +5,7 @@ use crate::service_traits::{
     ApReplayCache, ApReplayEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
     ReplayCacheEntry,
 };
+use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use messages::basic_types::{
     EncryptedData, EncryptionKey, KerberosString, KerberosTime, NameTypes, OctetString,
@@ -18,22 +19,27 @@ use std::time::{Duration, SystemTime};
 
 struct MockedReplayCached;
 
+#[async_trait]
 impl ApReplayCache for MockedReplayCached {
     type ApReplayCacheError = ();
 
-    fn store(&self, authenticator: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
+    async fn store(&self, authenticator: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
         todo!()
     }
 
-    fn contain(&self, authenticator: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError> {
+    async fn contain(
+        &self,
+        authenticator: &ApReplayEntry,
+    ) -> Result<bool, Self::ApReplayCacheError> {
         todo!()
     }
 }
 
 struct MockedKeyStorage;
 
+#[async_trait]
 impl PrincipalDatabase for MockedKeyStorage {
-    fn get_principal(
+    async fn get_principal(
         &self,
         principal_name: &PrincipalName,
         realm: &Realm,
@@ -44,6 +50,7 @@ impl PrincipalDatabase for MockedKeyStorage {
 
 struct MockedCrypto;
 
+#[async_trait]
 impl Cryptography for MockedCrypto {
     fn get_etype(&self) -> i32 {
         1
@@ -62,8 +69,8 @@ impl Cryptography for MockedCrypto {
     }
 }
 
-#[test]
-fn test_handle_ap_req() {
+#[tokio::test]
+async fn test_handle_ap_req() {
     let cache = MockedReplayCached;
     let key_storage = MockedKeyStorage;
     let crypto = MockedCrypto;
@@ -149,6 +156,7 @@ fn test_handle_ap_req() {
 
     assert!(auth_service
         .handle_krb_ap_req(ap_req)
+        .await
         .inspect_err(|e| println!("{:?}", e))
         .is_ok());
 }
