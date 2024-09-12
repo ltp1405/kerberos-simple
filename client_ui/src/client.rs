@@ -1,25 +1,55 @@
-use crate::Cli;
+use crate::config::{AppConfig, TransportType};
 use config::{Config, ConfigError};
 use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
+use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
+use kerberos_infra::client::{Sendable, TcpClient, UdpClient};
 use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, OctetString};
 use messages::flags::KdcOptionsFlag;
 use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, TgsRep};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-struct Client {
+pub(crate) struct Client {
     renewable: bool,
     server_name: String,
     server_realm: String,
+    server_address: String,
     cfg: AppConfig,
+    sender: Box<dyn Sendable>,
 }
 
 impl Client {
+    pub fn new(
+        renewable: bool,
+        server_name: String,
+        server_realm: String,
+        server_address: String,
+    ) -> Result<Client, ConfigError> {
+        let cfg = AppConfig::init()?;
+        let sender: Box<dyn Sendable> = match &cfg.tranport_type {
+            TransportType::Tcp => {
+                Box::new(TcpClient::new(SocketAddr::V4(cfg.address.parse().unwrap())))
+            }
+            TransportType::Udp => Box::new(UdpClient::new(
+                SocketAddr::V4(cfg.address.parse().unwrap()),
+                SocketAddr::V4(cfg.address.parse().unwrap()),
+            )),
+        };
+        Ok(Client {
+            renewable,
+            server_name,
+            server_realm,
+            server_address,
+            cfg,
+            sender,
+        })
+    }
+
     fn open_file_and_write(&self, name: &str, data: &[u8]) -> std::io::Result<()> {
         let mut loc = self
             .cfg
@@ -95,6 +125,17 @@ impl ClientEnv for Client {
         todo!()
     }
 
+    fn get_checksum_hash(
+        &self,
+        checksum_type: i32,
+    ) -> Result<Box<dyn CryptographicHash>, ClientEnvError> {
+        todo!()
+    }
+
+    fn get_supported_checksums(&self) -> Result<Vec<i32>, ClientEnvError> {
+        todo!()
+    }
+
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
         let mut loc = self
             .cfg
@@ -118,23 +159,8 @@ impl ClientEnv for Client {
         todo!()
     }
 
-    fn save_as_reply(&self, data: &AsRep) -> Result<(), ClientEnvError> {
-        let enc_part = data.enc_part().clone();
-        let decrypted_enc_part = EncAsRepPart::from_der(
-            &self
-                .get_crypto(*enc_part.etype())?
-                .decrypt(
-                    enc_part.cipher().as_ref(),
-                    self.get_client_key(1)?.keyvalue().as_ref(),
-                )
-                .or(Err(ClientEnvError {
-                    message: "Failed to decrypt".to_string(),
-                }))?,
-        )
-        .or(Err(ClientEnvError {
-            message: "Decode error".to_string(),
-        }))?;
-        self.open_file_and_write("as_rep_enc_part", &decrypted_enc_part.to_der().unwrap())
+    fn save_as_reply(&self, data: &AsRep, data_part: &EncAsRepPart) -> Result<(), ClientEnvError> {
+        self.open_file_and_write("as_rep_enc_part", &data_part.to_der().unwrap())
             .map_err(|_| ClientEnvError {
                 message: "".to_string(),
             })?;
@@ -142,10 +168,6 @@ impl ClientEnv for Client {
             .map_err(|_| ClientEnvError {
                 message: "".to_string(),
             })
-    }
-
-    fn save_as_reply_enc_part(&self, data: &EncAsRepPart) -> Result<(), ClientEnvError> {
-        todo!()
     }
 
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError> {
@@ -164,20 +186,12 @@ impl ClientEnv for Client {
             })
     }
 
-    fn save_tgs_reply(&self, data: &TgsRep) -> Result<(), ClientEnvError> {
-        let enc_part = data.enc_part().clone();
-        let decrypted_enc_part = EncTgsRepPart::from_der(
-            &self
-                .get_crypto(*enc_part.etype())?
-                .decrypt(enc_part.cipher().as_ref(), [0u8; 4].as_slice())
-                .or(Err(ClientEnvError {
-                    message: "Failed to decrypt".to_string(),
-                }))?,
-        )
-        .or(Err(ClientEnvError {
-            message: "Decode error".to_string(),
-        }))?;
-        self.open_file_and_write("tgs_rep_enc_part", &decrypted_enc_part.to_der().unwrap())
+    fn save_tgs_reply(
+        &self,
+        data: &TgsRep,
+        data_part: &EncTgsRepPart,
+    ) -> Result<(), ClientEnvError> {
+        self.open_file_and_write("tgs_rep_enc_part", &data_part.to_der().unwrap())
             .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
             })?;
@@ -185,10 +199,6 @@ impl ClientEnv for Client {
             .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
             })
-    }
-
-    fn save_tgs_reply_enc_part(&self, data: &EncTgsRepPart) -> Result<(), ClientEnvError> {
-        todo!()
     }
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError> {
@@ -219,24 +229,5 @@ impl ClientEnv for Client {
             .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
             })
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct AppConfig {
-    name: String,
-    realm: String,
-    address: String,
-    key: String,
-    cache_location: Option<PathBuf>,
-}
-
-impl AppConfig {
-    pub fn init() -> Result<AppConfig, ConfigError> {
-        let cfg = Config::builder()
-            .add_source(config::File::with_name("./cfg"))
-            .build()?;
-
-        cfg.try_deserialize()
     }
 }

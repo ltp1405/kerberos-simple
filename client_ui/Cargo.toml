@@ -10,3 +10,4 @@ messages = { path = "../messages", version = "0.1.0" }
 humantime = "2.1.0"
 config = "0.14.0"
 serde = { version = "1.0.210", features = ["derive"] }
+kerberos-infra = { path = "../kerberos-infra", version = "0.1.0" }
