@@ -5,13 +5,14 @@ use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos::cryptography_error::CryptographyError;
 use kerberos::service_traits::{
-    LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
-    ReplayCacheEntry,
+    ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry,
+    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
 };
 use messages::basic_types::{
-    EncryptionKey, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
+    EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName,
+    Realm,
 };
-use messages::{AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
+use messages::{ApReq, AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -283,5 +284,59 @@ impl LastReqDatabase for MockedLastReqDb {
 
     async fn store_last_req(&self, last_req_entry: LastReqEntry) {
         self.entries.lock().unwrap().push(last_req_entry);
+    }
+}
+
+pub struct MockedApReplayCache {
+    entries: Arc<Mutex<Vec<ApReplayEntry>>>,
+}
+
+impl MockedApReplayCache {
+    pub(crate) fn new() -> MockedApReplayCache {
+        MockedApReplayCache {
+            entries: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl ApReplayCache for MockedApReplayCache {
+    type ApReplayCacheError = ();
+
+    async fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
+        self.entries.lock().unwrap().push(entry.to_owned());
+        Ok(())
+    }
+
+    async fn contain(&self, entry: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError> {
+        Ok(self.entries.lock().unwrap().iter().any(|e| e == entry))
+    }
+}
+
+pub(crate) struct MockedClientAddressStorage {
+    addresses: Arc<Mutex<Vec<(ApReq, HostAddress)>>>,
+}
+
+impl MockedClientAddressStorage {
+    pub(crate) fn new() -> MockedClientAddressStorage {
+        MockedClientAddressStorage {
+            addresses: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub(crate) fn add_address(&self, req: ApReq, address: HostAddress) {
+        self.addresses.lock().unwrap().push((req, address));
+    }
+}
+
+#[async_trait]
+impl ClientAddressStorage for MockedClientAddressStorage {
+    async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress {
+        self.addresses
+            .lock()
+            .unwrap()
+            .iter()
+            .find_map(|(r, a)| if r == req { Some(a.clone()) } else { None })
+            .unwrap()
     }
 }
