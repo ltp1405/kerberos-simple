@@ -44,7 +44,7 @@ pub trait TicketHotList {
     async fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApReplayEntry {
     pub ctime: KerberosTime,
     pub cusec: Microseconds,
