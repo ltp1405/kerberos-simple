@@ -1,71 +1,131 @@
-use std::net::SocketAddr;
+use std::mem;
+use tokio::sync::RwLock;
 
-use crate::server::{errors::KrbInfraSvrResult, receiver::AsyncReceiver};
+use super::config::Configuration;
+use super::infra::cache::Cache;
+use super::infra::database::postgres::{PgDbSettings, PostgresDb};
+use super::infra::database::sqlite::{SqliteDbSettings, SqlitePool};
+use super::infra::database::Schema;
+use super::infra::host::HostBuilder;
+use super::infra::{KrbCache, KrbDatabase, KrbHost};
+use super::{AsyncReceiver, KrbAsyncReceiver, Server, ServerResult};
 
-pub struct ServerBuilder<A: AsyncReceiver, T: AsyncReceiver> {
-    url: String,
-    as_entry: Option<EntryPointConfig<A>>,
-    tgt_entry: Option<EntryPointConfig<T>>,
+enum DatabaseOption {
+    Postgres(PgDbSettings),
+    Sqlite(SqliteDbSettings),
+    None,
 }
 
-type EntryPoint<Receiver> = (SocketAddr, Receiver);
-type EntryPointConfig<Receiver> = (u16, Receiver);
+pub struct ServerBuilder {
+    config: Configuration,
+    host: HostBuilder,
+    database: DatabaseOption,
+    schema: Option<Box<dyn Schema>>,
+}
 
-impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
-    pub fn new(url: &str) -> Self {
+impl ServerBuilder {
+    fn build_cache(&self) -> KrbCache {
+        KrbCache::new(RwLock::new(Cache::boxed(&self.config.cache)))
+    }
+
+    fn build_database(&mut self) -> Option<KrbDatabase> {
+        let schema = self.schema.take()?;
+
+        let db_choice = mem::replace(&mut self.database, DatabaseOption::None);
+
+        match db_choice {
+            DatabaseOption::Postgres(settings) => Some(KrbDatabase::new(RwLock::new(
+                PostgresDb::boxed(settings, schema),
+            ))),
+            DatabaseOption::Sqlite(settings) => Some(KrbDatabase::new(RwLock::new(
+                SqlitePool::boxed(settings, schema),
+            ))),
+            DatabaseOption::None => None,
+        }
+    }
+}
+
+impl ServerBuilder {
+    pub fn new(config: Configuration) -> Self {
+        let host = HostBuilder::new(&config.host);
         Self {
-            url: url.to_string(),
-            as_entry: None,
-            tgt_entry: None,
+            config,
+            host,
+            database: DatabaseOption::None,
+            schema: None,
         }
     }
 
-    pub fn local() -> Self {
-        Self::new("127.0.0.1")
-    }
-
-    pub fn as_entry(mut self, port: u16, receiver: A) -> Self {
-        self.as_entry = Some((port, receiver));
+    pub fn set_as_receiver(mut self, receiver: impl AsyncReceiver + 'static) -> Self {
+        self.host = self
+            .host
+            .set_as_receiver(KrbAsyncReceiver::new(RwLock::new(receiver.boxed())));
         self
     }
 
-    pub fn tgt_entry(mut self, port: u16, receiver: T) -> Self {
-        self.tgt_entry = Some((port, receiver));
+    pub fn set_tgs_receiver(mut self, receiver: impl AsyncReceiver + 'static) -> Self {
+        self.host = self
+            .host
+            .set_tgs_receiver(KrbAsyncReceiver::new(RwLock::new(receiver.boxed())));
         self
     }
 
-    fn validate(self) -> KrbInfraSvrResult<(EntryPoint<A>, EntryPoint<T>)> {
-        match (self.as_entry, self.tgt_entry) {
-            (None, None) => Err("Both entry points have not been set for the server".into()),
-            (None, Some(_)) => Err("AS entry point has not been set for the server".into()),
-            (Some(_), None) => Err("TGT entry point has not been set for the server".into()),
-            (Some((as_port, as_receiver)), Some((tgt_port, tgt_receiver))) => {
-                let as_addr = format!("{}:{}", self.url, as_port).parse()?;
-                let tgt_addr = format!("{}:{}", self.url, tgt_port).parse()?;
-                Ok(((as_addr, as_receiver), (tgt_addr, tgt_receiver)))
-            }
-        }
+    pub fn with_schema(mut self, schema: Box<dyn Schema>) -> Self {
+        self.schema = Some(schema);
+        self
+    }
+
+    pub fn use_postgres(mut self, settings: PgDbSettings) -> Self {
+        self.database = DatabaseOption::Postgres(settings);
+        self
+    }
+
+    pub fn use_sqlite(mut self, settings: SqliteDbSettings) -> Self {
+        self.database = DatabaseOption::Sqlite(settings);
+        self
     }
 }
 
 #[cfg(feature = "server-tcp")]
-use super::TcpServer;
+impl ServerBuilder {
+    pub fn build_tcp(mut self) -> ServerResult<Server> {
+        let cache = self.build_cache();
 
-#[cfg(feature = "server-tcp")]
-impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
-    pub fn build_tcp(self) -> KrbInfraSvrResult<TcpServer<A, T>> {
-        let (as_addr, tgt_addr) = self.validate()?;
-        Ok(TcpServer::new(as_addr, tgt_addr))
+        let database = self
+            .build_database()
+            .ok_or("Something went wrong when setting up database".to_owned())?;
+
+        let host = KrbHost::new(RwLock::new(
+            self.host
+                .boxed_tcp()
+                .map_err(|e| format!("Unable to start host. Error: {:?}", e))?,
+        ));
+
+        Ok(Server {
+            host,
+            cache,
+            database,
+        })
     }
 }
 
 #[cfg(feature = "server-udp")]
-use super::UdpServer;
+impl ServerBuilder {
+    pub fn build_udp(mut self) -> ServerResult<Server> {
+        let cache = self.build_cache();
 
-#[cfg(feature = "server-udp")]
-impl<A: AsyncReceiver, T: AsyncReceiver> ServerBuilder<A, T> {
-    pub fn build_udp(self) -> KrbInfraSvrResult<UdpServer<A, T>> {
-        let (as_addr, tgt_addr) = self.validate()?;
-        Ok(UdpServer::new(as_addr, tgt_addr))
+        let database = self.build_database().ok_or("Database not set".to_owned())?;
+
+        let host = KrbHost::new(RwLock::new(
+            self.host
+                .boxed_udp()
+                .map_err(|e| format!("Unable to start host. Error: {:?}", e))?,
+        ));
+
+        Ok(Server {
+            host,
+            cache,
+            database,
+        })
     }
 }
