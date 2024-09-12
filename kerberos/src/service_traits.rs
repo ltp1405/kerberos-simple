@@ -5,6 +5,7 @@ use messages::{ApReq, LastReq};
 use std::time::Duration;
 use async_trait::async_trait;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrincipalDatabaseRecord {
     pub max_renewable_life: Duration,
     pub max_lifetime: Duration,

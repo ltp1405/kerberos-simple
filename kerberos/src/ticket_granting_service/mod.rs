@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
 use crate::service_traits::{LastReqDatabase, PrincipalDatabase, ReplayCache};
@@ -157,11 +160,13 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
                 EncTicketPart::from_der(data.as_slice())
+                    .inspect_err(|e| println!("Tgt error {:?}", e))
                     .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
         let realm = self.get_tgt_realm(&tgt);
 
+        println!("tgt {:?}", tgt.key());
         let authenticator = find_crypto_for_etype(*tgt.key().keytype())
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
             .decrypt(
@@ -171,7 +176,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
                 Authenticator::from_der(data.as_slice())
-                    .inspect_err(|e| println!("{:?}", e))
+                    .inspect_err(|e| println!("Authenticator {:?}", e))
                     .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
@@ -304,6 +309,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             } else {
                 *tgs_req.req_body().till()
             };
+            println!("Till: {:?}", till);
 
             let new_tkt_endtime = *[
                 till,
