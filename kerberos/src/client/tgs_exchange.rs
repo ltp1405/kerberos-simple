@@ -31,8 +31,19 @@ pub fn prepare_tgs_request(client_env: &impl ClientEnv) -> Result<TgsReq, Client
         }));
     }
 
+    let req_body = KdcReqBodyBuilder::default()
+        .cname(cname)
+        .realm(server_realm)
+        .sname(sname)
+        .nonce(nonce)
+        .kdc_options(client_env.get_kdc_options()?)
+        .till(till)
+        .etype(etypes)
+        .build()?;
+
     // authentication header
-    let ap_req = prepare_ap_request(client_env, false)?;
+    let encoded_req_body = req_body.to_der().or(Err(ClientError::EncodeError))?;
+    let ap_req = prepare_ap_request(client_env, false, Some(encoded_req_body))?;
     let mut ap_req_buf: Vec<u8> = Vec::new();
     ap_req
         .encode_to_vec(&mut ap_req_buf)
@@ -43,15 +54,6 @@ pub fn prepare_tgs_request(client_env: &impl ClientEnv) -> Result<TgsReq, Client
     );
     let pa_data = vec![auth_header];
 
-    let req_body = KdcReqBodyBuilder::default()
-        .cname(cname)
-        .realm(server_realm)
-        .sname(sname)
-        .nonce(nonce)
-        .kdc_options(client_env.get_kdc_options()?)
-        .till(till)
-        .etype(etypes)
-        .build()?;
     let tgs_req = TgsReq::new(pa_data, req_body);
     Ok(tgs_req)
 }

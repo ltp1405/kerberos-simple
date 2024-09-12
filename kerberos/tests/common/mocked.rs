@@ -168,6 +168,7 @@ impl ClientEnv for MockClientEnv {
                 .unwrap(),
         )
         .unwrap();
+        self.enc_as_rep_part.replace(Some(decrypted_enc_part));
         self.as_rep.replace(Some(data.clone()));
         Ok(())
     }
@@ -199,6 +200,7 @@ impl ClientEnv for MockClientEnv {
                 .unwrap(),
         )
         .unwrap();
+        self.enc_tgs_rep_part.replace(Some(decrypted_enc_part));
         self.tgs_rep.replace(Some(data.clone()));
         Ok(())
     }
@@ -213,11 +215,11 @@ impl ClientEnv for MockClientEnv {
     }
 
     fn get_tgs_reply_enc_part(&self) -> Result<EncTgsRepPart, ClientEnvError> {
-        match self.enc_tgs_rep_part.borrow().clone() {
+        match self.enc_tgs_rep_part.borrow().as_ref() {
             None => Err(ClientEnvError {
                 message: "No TGS reply enc part".to_string(),
             }),
-            Some(data) => Ok(data),
+            Some(data) => Ok(data.to_owned()),
         }
     }
 

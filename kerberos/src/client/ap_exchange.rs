@@ -2,7 +2,7 @@ use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::cryptography::Cryptography;
 use messages::basic_types::{
-    EncryptedData, KerberosTime, Microseconds, NameTypes, OctetString, PrincipalName,
+    Checksum, EncryptedData, KerberosTime, Microseconds, NameTypes, OctetString, PrincipalName,
 };
 use messages::{
     APOptions, ApRep, ApReq, Authenticator, AuthenticatorBuilder, Decode, EncApRepPart,
@@ -12,6 +12,7 @@ use messages::{
 pub fn prepare_ap_request(
     client_env: &impl ClientEnv,
     mutual_required: bool,
+    cksum_material: Option<Vec<u8>>,
 ) -> Result<ApReq, ClientError> {
     let options = APOptions::new(true, mutual_required);
     let as_rep = client_env.get_as_reply()?;
@@ -23,13 +24,22 @@ pub fn prepare_ap_request(
     let ctime = KerberosTime::from_unix_duration(client_env.get_current_time()?)
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
     let cusec = client_env.get_current_time()?.subsec_micros();
-    let authenticator = AuthenticatorBuilder::default()
+    let crypto_hash = client_env.get_checksum_hash(1)?;
+    let mut authenticator = AuthenticatorBuilder::default();
+    authenticator
         .cname(cname)
         .crealm(crealm)
         .ctime(ctime)
-        .cusec(Microseconds::try_from(cusec).expect("Invalid microseconds"))
-        // TODO: add checksum
-        .build()?;
+        .cusec(Microseconds::try_from(cusec).expect("Invalid microseconds"));
+    if let Some(cksum_material) = cksum_material {
+        let cksum = Checksum::new(
+            1,
+            OctetString::new(crypto_hash.digest(cksum_material.as_slice()))
+                .or(Err(ClientError::EncodeError))?,
+        );
+        authenticator.cksum(cksum);
+    };
+    let authenticator = authenticator.build()?;
 
     let encoded_authenticator = authenticator.to_der().or(Err(ClientError::EncodeError))?;
     let cryptography = client_env.get_crypto(*ticket.enc_part().etype())?;

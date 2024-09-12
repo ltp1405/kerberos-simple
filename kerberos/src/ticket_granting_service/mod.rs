@@ -170,7 +170,6 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
             )
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
-                println!("{:?}", data);
                 Authenticator::from_der(data.as_slice())
                     .inspect_err(|e| println!("{:?}", e))
                     .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
@@ -186,7 +185,7 @@ impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
                 Ok(t)
             })
             .and_then(|t| {
-                if self.is_checksum_keyed(t) && self.is_checksum_collision_proof(t) {
+                if !(self.is_checksum_keyed(t) && self.is_checksum_collision_proof(t)) {
                     return Err(build_protocol_error(Ecode::KDC_ERR_SUMTYPE_NOSUPP));
                 }
                 Ok(t)

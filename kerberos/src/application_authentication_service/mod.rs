@@ -125,7 +125,6 @@ where
             .map_err(|_| ServerError::Internal)
             .and_then(|d| {
                 Authenticator::from_der(&d)
-                    .inspect_err(|e| println!("{:?}", e))
                     .map_err(|_| ServerError::Internal)
             })?;
         if authenticator.crealm() != ap_req.ticket().realm()
