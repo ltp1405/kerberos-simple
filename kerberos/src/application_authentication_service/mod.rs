@@ -123,12 +123,9 @@ where
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
             .decrypt(ap_req.authenticator().cipher().as_bytes(), ss_key)
             .map_err(|_| ServerError::Internal)
-            .and_then(|d| {
-                Authenticator::from_der(&d)
-                    .map_err(|_| ServerError::Internal)
-            })?;
-        if authenticator.crealm() != ap_req.ticket().realm()
-            || authenticator.cname() != ap_req.ticket().sname()
+            .and_then(|d| Authenticator::from_der(&d).map_err(|_| ServerError::Internal))?;
+        if authenticator.crealm() != decrypted_ticket.crealm()
+            || authenticator.cname() != decrypted_ticket.cname()
         {
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_BADMATCH));
         }
@@ -162,7 +159,12 @@ where
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_NYV));
         }
 
-        if KerberosTime::now() - decrypted_ticket.endtime() > self.ticket_allowable_clock_skew {
+        if decrypted_ticket
+            .endtime()
+            .checked_sub_kerberos_time(KerberosTime::now())
+            .filter(|t| t > &self.ticket_allowable_clock_skew)
+            .is_none()
+        {
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_TKT_EXPIRED));
         }
 
