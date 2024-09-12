@@ -8,27 +8,27 @@ use messages::basic_types::{
     OctetString, PaData, PrincipalName, SequenceOf,
 };
 use messages::{
-    APOptions, ApReq, Authenticator, AuthenticatorBuilder, Decode, EncTgsRepPart, EncTicketPart,
-    Encode, KdcReq, KdcReqBody, KdcReqBodyBuilder, TgsReq, Ticket, TransitedEncoding,
+    APOptions, ApReq, AuthenticatorBuilder, Decode, EncTicketPart,
+    Encode, KdcReqBody, KdcReqBodyBuilder, TgsReq, Ticket, TransitedEncoding,
 };
-use std::cell::LazyCell;
+use std::sync::LazyLock;
 use std::time::Duration;
 
-const CLIENT_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static CLIENT_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x1; 16]).unwrap(), // Mocked key
     )
 });
 
-const SERVER_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static SERVER_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x2; 16]).unwrap(), // Mocked key
     )
 });
 
-const SESSION_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static  SESSION_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x3; 16]).unwrap(), // Mocked key
@@ -44,7 +44,7 @@ fn make_principal_name_unsafe(name: &str) -> PrincipalName {
 }
 
 fn make_principal_db() -> MockedPrincipalDb {
-    let mut principal_database = MockedPrincipalDb::new();
+    let principal_database = MockedPrincipalDb::new();
     principal_database.add_principal(
         make_principal_name_unsafe("host"),
         KerberosString::new("EXAMPLE.COM").unwrap(),
@@ -112,7 +112,7 @@ fn make_basic_tgs_request(
         .kdc_options(kdc_options)
         .build()
         .unwrap();
-    TgsReq::new(pa_data.map(|f| f(&kdc_body)).unwrap_or(vec![]), kdc_body)
+    TgsReq::new(pa_data.map(|f| f(&kdc_body)).unwrap_or_default(), kdc_body)
 }
 
 fn make_pa_data(kdc_req: &KdcReqBody) -> SequenceOf<PaData> {
@@ -132,7 +132,7 @@ fn make_pa_data(kdc_req: &KdcReqBody) -> SequenceOf<PaData> {
     let enc_ticket = MockedCrypto
         .encrypt(
             &enc_ticket.to_der().unwrap(),
-            &SERVER_KEY.keyvalue().as_bytes(),
+            SERVER_KEY.keyvalue().as_bytes(),
         )
         .unwrap();
     let enc_ticket = EncryptedData::new(1, None, OctetString::new(enc_ticket).unwrap());
@@ -158,7 +158,7 @@ fn make_pa_data(kdc_req: &KdcReqBody) -> SequenceOf<PaData> {
     let enc_authenticator = MockedCrypto
         .encrypt(
             &authenticator.to_der().unwrap(),
-            &SESSION_KEY.keyvalue().as_bytes(),
+            SESSION_KEY.keyvalue().as_bytes(),
         )
         .unwrap();
 
@@ -225,8 +225,8 @@ async fn test_basic_request_processing() {
 
     let enc_tgs_rep_part = MockedCrypto
         .decrypt(
-            &tgs_rep.ticket().enc_part().cipher().as_ref(),
-            &SERVER_KEY.keyvalue().as_bytes(),
+            tgs_rep.ticket().enc_part().cipher().as_ref(),
+            SERVER_KEY.keyvalue().as_bytes(),
         )
         .map(|data| EncTicketPart::from_der(&data).unwrap())
         .unwrap();

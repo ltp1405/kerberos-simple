@@ -1,15 +1,15 @@
 use crate::authentication_service::AuthenticationServiceBuilder;
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
+use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
+use async_trait::async_trait;
 use messages::basic_types::{
-    AddressTypes, EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosFlagsBuilder,
+    EncryptionKey, KerberosFlags,
     KerberosString, KerberosTime, NameTypes, OctetString, PrincipalName, Realm,
 };
 use messages::flags::KdcOptionsFlag;
-use messages::{AsReq, KdcReqBody, KdcReqBodyBuilder};
+use messages::{AsReq, KdcReqBodyBuilder};
 use std::time::Duration;
-use async_trait::async_trait;
-use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 
 struct MockedCrypto;
 
@@ -18,7 +18,7 @@ impl Cryptography for MockedCrypto {
         1
     }
     fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        let mut data = data.to_vec();
+        let data = data.to_vec();
         let data = data
             .iter()
             .zip(key.iter().cycle())

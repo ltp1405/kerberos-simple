@@ -7,7 +7,7 @@ use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosFlags, KerberosTime, OctetString,
+    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString,
     PrincipalName, Realm, UInt32,
 };
 use messages::flags::TicketFlag;

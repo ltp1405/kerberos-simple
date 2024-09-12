@@ -17,7 +17,6 @@ use std::time::Duration;
 
 #[cfg(test)]
 mod tests;
-mod traits;
 
 #[derive(Debug)]
 pub enum ServerError {

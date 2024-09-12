@@ -2,14 +2,13 @@ use crate::application_authentication_service::{
     ApplicationAuthenticationService, ApplicationAuthenticationServiceBuilder,
 };
 use crate::cryptography::Cryptography;
-use crate::service_traits::{ApReplayCache, ClientAddressStorage, PrincipalDatabase, ReplayCache};
+use crate::service_traits::{ApReplayCache, ClientAddressStorage};
 use crate::tests_common::mocked::{
-    MockedApReplayCache, MockedClientAddressStorage, MockedCrypto, MockedLastReqDb,
-    MockedReplayCache,
+    MockedApReplayCache, MockedClientAddressStorage, MockedCrypto
+    ,
 };
-use chrono::Local;
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddresses, KerberosFlags, KerberosString, KerberosTime,
+    EncryptedData, EncryptionKey, HostAddresses, KerberosString, KerberosTime,
     NameTypes, OctetString, PrincipalName, Realm,
 };
 use messages::flags::TicketFlag;
@@ -17,31 +16,31 @@ use messages::{
     APOptions, ApReq, AuthenticatorBuilder, EncTicketPart, Encode, Ticket, TicketFlags,
     TransitedEncoding,
 };
-use std::cell::LazyCell;
+use std::sync::LazyLock;
 use std::time::Duration;
 
-const CLIENT_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static CLIENT_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x1; 16]).unwrap(), // Mocked key
     )
 });
 
-const SERVER_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static SERVER_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x2; 16]).unwrap(), // Mocked key
     )
 });
 
-const SESSION_KEY: LazyCell<EncryptionKey> = LazyCell::new(|| {
+static SESSION_KEY: LazyLock<EncryptionKey> = LazyLock::new(|| {
     EncryptionKey::new(
         1,
         OctetString::new(vec![0x3; 16]).unwrap(), // Mocked key
     )
 });
 
-const SERVER_NAME: LazyCell<PrincipalName> = LazyCell::new(|| {
+static SERVER_NAME: LazyLock<PrincipalName> = LazyLock::new(|| {
     PrincipalName::new(
         NameTypes::NtPrincipal,
         vec![KerberosString::new("SERVER".to_string().as_bytes()).unwrap()],
@@ -49,9 +48,9 @@ const SERVER_NAME: LazyCell<PrincipalName> = LazyCell::new(|| {
     .unwrap()
 });
 
-const SERVER_REALM: LazyCell<Realm> = LazyCell::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
+static SERVER_REALM: LazyLock<Realm> = LazyLock::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
 
-const CLIENT_NAME: LazyCell<PrincipalName> = LazyCell::new(|| {
+static CLIENT_NAME: LazyLock<PrincipalName> = LazyLock::new(|| {
     PrincipalName::new(
         NameTypes::NtPrincipal,
         vec![KerberosString::new("CLIENT".to_string().as_bytes()).unwrap()],
@@ -59,7 +58,7 @@ const CLIENT_NAME: LazyCell<PrincipalName> = LazyCell::new(|| {
     .unwrap()
 });
 
-const CLIENT_REALM: LazyCell<Realm> = LazyCell::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
+static CLIENT_REALM: LazyLock<Realm> = LazyLock::new(|| Realm::try_from("EXAMPLE.COM").unwrap());
 
 struct TicketConfig {
     authtime: KerberosTime,
@@ -126,12 +125,11 @@ fn make_ticket(config: &TicketConfig) -> Ticket {
     let enc_ticket = MockedCrypto
         .encrypt(
             &enc_ticket.to_der().unwrap(),
-            &SERVER_KEY.keyvalue().as_bytes(),
+            SERVER_KEY.keyvalue().as_bytes(),
         )
         .unwrap();
     let enc_ticket = EncryptedData::new(1, None, OctetString::new(enc_ticket).unwrap());
-    let ticket = Ticket::new(SERVER_REALM.clone(), SERVER_NAME.clone(), enc_ticket);
-    ticket
+    Ticket::new(SERVER_REALM.clone(), SERVER_NAME.clone(), enc_ticket)
 }
 
 #[tokio::test]
@@ -154,7 +152,7 @@ async fn test_handle_ap_req() {
         .to_der()
         .unwrap();
     let encrypted_authenticator = crypto
-        .encrypt(&authenticator, &SESSION_KEY.keyvalue().as_bytes())
+        .encrypt(&authenticator, SESSION_KEY.keyvalue().as_bytes())
         .unwrap();
     let authenticator = EncryptedData::new(
         *SESSION_KEY.keytype(),
@@ -200,14 +198,13 @@ async fn test_client_clock_skew() {
             .to_der()
             .unwrap();
         let encrypted_authenticator = crypto
-            .encrypt(&authenticator, &SESSION_KEY.keyvalue().as_bytes())
+            .encrypt(&authenticator, SESSION_KEY.keyvalue().as_bytes())
             .unwrap();
-        let authenticator = EncryptedData::new(
+        EncryptedData::new(
             *SESSION_KEY.keytype(),
             None,
             OctetString::new(encrypted_authenticator).unwrap(),
-        );
-        return authenticator;
+        )
     };
 
     let authenticator = make_authenticator(KerberosTime::now() + Duration::from_secs(60 * 100));
@@ -249,7 +246,7 @@ async fn test_ticket_time() {
         .to_der()
         .unwrap();
     let encrypted_authenticator = crypto
-        .encrypt(&authenticator, &SESSION_KEY.keyvalue().as_bytes())
+        .encrypt(&authenticator, SESSION_KEY.keyvalue().as_bytes())
         .unwrap();
     let authenticator = EncryptedData::new(
         *SESSION_KEY.keytype(),
