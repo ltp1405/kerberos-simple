@@ -5,7 +5,7 @@ pub use infra::{
     cache::{cacheable::Cacheable, error::CacheResult},
     database::{
         postgres::PgDbSettings, sqlite::SqliteDbSettings, Database, DatabaseError, DbSettings,
-        Migration, Queryable,
+        Krb5DbSchemaV1, Migration, Queryable, Schema,
     },
     host::{AsyncReceiver, ExchangeError, HostError, HostResult},
     KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
