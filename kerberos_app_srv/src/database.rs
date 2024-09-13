@@ -3,15 +3,12 @@ use kerberos_infra::server::database::{ClonableSchema, Schema};
 extern crate kerberos;
 extern crate kerberos_infra;
 
+use actix_web::App;
+use kerberos_infra::server::{ClonableSchema, Database, Schema};
+
 pub struct AppDbSchema;
 impl AppDbSchema {
     pub fn boxed() -> Box<dyn ClonableSchema> {
-        Box::new(AppDbSchema)
-    }
-}
-
-impl ClonableSchema for AppDbSchema {
-    fn clone_box(&self) -> Box<dyn ClonableSchema> {
         Box::new(AppDbSchema)
     }
 }
@@ -64,5 +61,11 @@ impl Schema for AppDbSchema {
         "#,
             schema
         )
+    }
+}
+
+impl ClonableSchema for AppDbSchema {
+    fn clone_box(&self) -> Box<dyn ClonableSchema> {
+        Box::new(AppDbSchema)
     }
 }

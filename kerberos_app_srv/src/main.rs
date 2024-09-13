@@ -1,31 +1,33 @@
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpServer, Responder};
+use actix_web::{web::{self, Data}, App, HttpServer, Responder};
 use database::AppDbSchema;
-use kerberos_infra::server::database::{
-    postgres::{PgDbSettings, PostgresDb},
-    DbSettings, Migration,
-};
-
-async fn index(_data: web::Data<Arc<PostgresDb>>) -> impl Responder {
-    "Hello world!"
-}
+use kerberos::application_authentication_service::ApplicationAuthenticationServiceBuilder;
+use kerberos_app_srv::{handleable::Handleable, handler::AppServerHandler};
+use kerberos_infra::server::{database::postgres::PostgresDb, DbSettings, Migration, PgDbSettings};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = PgDbSettings::load_from_dir();
     let schema = AppDbSchema::boxed();
-
     let mut postgre = PostgresDb::new(config, schema);
     postgre.migrate_then_seed().await.unwrap();
     let db = Arc::new(postgre);
+    let auth_service = ApplicationAuthenticationServiceBuilder::default().build();
+    let app_server_handler = AppServerHandler::new(db, auth_service);
     HttpServer::new(move || {
-        App::new().app_data(web::Data::new(db.clone())).service(
+        App::new().app_data(web::Data::new(app_server_handler)).service(
             // prefixes all resources and routes attached to it...
             web::scope("/app")
                 // ...so this handles requests for `GET /app/index.html`
-                .route("/index.html", web::get().to(index))
-                .route("/index.html", web::post().to(index)),
+                .route(
+                    "/index.html",
+                    web::get().to(AppServerHandler::get_user_profile),
+                )
+                .route(
+                    "/index.html",
+                    web::post().to(AppServerHandler::authenticate),
+                ),
         )
     })
     .bind(("127.0.0.1", 8080))?

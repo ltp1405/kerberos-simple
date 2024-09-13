@@ -56,7 +56,7 @@ pub struct ApReplayEntry {
 #[async_trait]
 pub trait ApReplayCache {
     type ApReplayCacheError;
-    async fn store(&self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;
+    async fn store(&mut self, entry: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError>;
     async fn contain(&self, entry: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError>;
 }
 
