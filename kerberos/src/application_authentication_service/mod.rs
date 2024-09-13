@@ -7,29 +7,29 @@ use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString,
-    PrincipalName, Realm, UInt32,
+    EncryptedData, EncryptionKey, HostAddresses, Int32, KerberosTime, OctetString, PrincipalName,
+    Realm, UInt32,
 };
 use messages::flags::TicketFlag;
 use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
-use std::cell::RefCell;
+use std::sync::Mutex;
 use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
 pub struct ApplicationAuthenticationService<'a, C>
 where
-    C: ApReplayCache,
+    C: ApReplayCache + Sync + Send,
 {
     realm: Realm,
     sname: PrincipalName,
     service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
-    address_storage: &'a dyn ClientAddressStorage,
+    address_storage: &'a (dyn ClientAddressStorage + Sync + Send),
     replay_cache: &'a C,
-    crypto: Vec<Box<dyn Cryptography>>,
+    crypto: Vec<Box<dyn Cryptography + Send + Sync>>,
 }
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ pub enum ServerError {
 
 impl<'a, C> ApplicationAuthenticationService<'a, C>
 where
-    C: ApReplayCache,
+    C: ApReplayCache + Sync + Send,
 {
     fn verify_msg_type(&self, msg_type: &u8) -> Result<(), Ecode> {
         match msg_type {
@@ -84,11 +84,11 @@ where
     pub async fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
         let crypto = &self.crypto;
-        let error_msg = RefCell::new(self.default_error_builder());
+        let mut error_msg = Mutex::new(self.default_error_builder());
 
         let build_protocol_error = |e| {
             ProtocolError(Box::new(
-                error_msg.borrow_mut().error_code(e).build().unwrap(),
+                error_msg.lock().unwrap().error_code(e).build().unwrap(),
             ))
         };
 
@@ -146,7 +146,7 @@ where
 
         {
             error_msg
-                .borrow_mut()
+                .lock().unwrap()
                 .ctime(authenticator.ctime().to_owned())
                 .cusec(authenticator.cusec().to_owned())
                 .crealm(authenticator.crealm().to_owned())

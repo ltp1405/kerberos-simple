@@ -29,19 +29,21 @@ type TGSResult<T> = Result<T, ServerError>;
 #[builder(pattern = "owned", setter(strip_option))]
 pub struct TicketGrantingService<'a, T, C>
 where
-    T: PrincipalDatabase,
-    C: ReplayCache,
+    T: PrincipalDatabase + Sync + Send,
+    C: ReplayCache + Sync + Send,
 {
-    supported_checksum: Vec<Box<dyn CryptographicHash>>,
-    supported_crypto: Vec<Box<dyn Cryptography>>,
+    supported_checksum: Vec<Box<dyn CryptographicHash + Sync + Send>>,
+    supported_crypto: Vec<Box<dyn Cryptography + Sync + Send>>,
     principal_db: &'a T,
     name: PrincipalName,
     realm: Realm,
     replay_cache: &'a C,
-    last_req_db: &'a dyn LastReqDatabase,
+    last_req_db: &'a (dyn LastReqDatabase + Sync + Send),
 }
 
-impl<'a, T: PrincipalDatabase, C: ReplayCache> TicketGrantingService<'a, T, C> {
+impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
+    TicketGrantingService<'a, T, C>
+{
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
         let usec = now.timestamp_subsec_micros();

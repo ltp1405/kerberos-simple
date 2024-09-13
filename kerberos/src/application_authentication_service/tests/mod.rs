@@ -3,13 +3,10 @@ use crate::application_authentication_service::{
 };
 use crate::cryptography::Cryptography;
 use crate::service_traits::{ApReplayCache, ClientAddressStorage};
-use crate::tests_common::mocked::{
-    MockedApReplayCache, MockedClientAddressStorage, MockedCrypto
-    ,
-};
+use crate::tests_common::mocked::{MockedApReplayCache, MockedClientAddressStorage, MockedCrypto};
 use messages::basic_types::{
-    EncryptedData, EncryptionKey, HostAddresses, KerberosString, KerberosTime,
-    NameTypes, OctetString, PrincipalName, Realm,
+    EncryptedData, EncryptionKey, HostAddresses, KerberosString, KerberosTime, NameTypes,
+    OctetString, PrincipalName, Realm,
 };
 use messages::flags::TicketFlag;
 use messages::{
@@ -90,10 +87,10 @@ impl Default for TicketConfig {
 
 fn create_ap_service<'a, C>(
     ap_replay_cache: &'a C,
-    address_storage: &'a dyn ClientAddressStorage,
+    address_storage: &'a (dyn ClientAddressStorage + Sync + Send),
 ) -> ApplicationAuthenticationService<'a, C>
 where
-    C: ApReplayCache,
+    C: ApReplayCache + Send + Sync,
 {
     ApplicationAuthenticationServiceBuilder::default()
         .realm(SERVER_REALM.clone())

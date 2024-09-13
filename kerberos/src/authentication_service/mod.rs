@@ -29,10 +29,10 @@ pub enum ServerError {
 #[builder(pattern = "owned", setter(strip_option))]
 pub struct AuthenticationService<'a, P>
 where
-    P: PrincipalDatabase,
+    P: PrincipalDatabase + Sync + Send,
 {
     require_pre_authenticate: bool,
-    supported_crypto_systems: Vec<Box<dyn Cryptography>>,
+    supported_crypto_systems: Vec<Box<dyn Cryptography + Send + Sync>>,
     principal_db: &'a P,
     realm: Realm,
     sname: PrincipalName,
@@ -42,7 +42,7 @@ pub type Result<T> = std::result::Result<T, ServerError>;
 
 impl<'a, P> AuthenticationService<'a, P>
 where
-    P: PrincipalDatabase,
+    P: PrincipalDatabase + Send + Sync,
 {
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
@@ -82,7 +82,7 @@ where
         })
     }
 
-    fn get_supported_crypto_systems(&self) -> &[Box<dyn Cryptography>] {
+    fn get_supported_crypto_systems(&self) -> &[Box<dyn Cryptography + Send + Sync>] {
         self.supported_crypto_systems.as_slice()
     }
 

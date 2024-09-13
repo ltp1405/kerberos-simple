@@ -30,7 +30,7 @@ mod tests {
 
     fn get_auth_service<P>(db: &P, pre_auth: bool) -> AuthenticationService<P>
     where
-        P: PrincipalDatabase,
+        P: PrincipalDatabase + Send + Sync,
     {
         AuthenticationServiceBuilder::default()
             .principal_db(db)
@@ -54,9 +54,9 @@ mod tests {
         mocked_last_req_db: &'a L,
     ) -> TicketGrantingService<'a, P, C>
     where
-        P: PrincipalDatabase,
-        C: ReplayCache,
-        L: LastReqDatabase,
+        P: PrincipalDatabase + Send + Sync,
+        C: ReplayCache + Send + Sync,
+        L: LastReqDatabase + Send + Sync,
     {
         TicketGrantingServiceBuilder::default()
             .principal_db(db)
@@ -81,7 +81,7 @@ mod tests {
         address_storage: &'a MockedClientAddressStorage,
     ) -> ApplicationAuthenticationService<'a, C>
     where
-        C: ApReplayCache,
+        C: ApReplayCache + Sync + Send,
     {
         ApplicationAuthenticationServiceBuilder::default()
             .realm(Realm::new("realm".as_bytes()).unwrap())
@@ -173,7 +173,7 @@ mod tests {
         assert!(receive_tgs_response(&tgs_req, &tgs_rep, &mock_client_env).is_ok());
 
         let ap_cache = MockedApReplayCache::new();
-        let mut address_storage = MockedClientAddressStorage::new();
+        let address_storage = MockedClientAddressStorage::new();
 
         let ap_req = prepare_ap_request(&mock_client_env, false, None)
             .expect("Failed to prepare AP request");
