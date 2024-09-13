@@ -1,8 +1,7 @@
 use crate::authentication_service::AuthenticationServiceBuilder;
-use crate::cryptography::Cryptography;
-use crate::cryptography_error::CryptographyError;
-use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
-use async_trait::async_trait;
+use crate::service_traits::PrincipalDatabaseRecord;
+use crate::tests_common::mocked::{MockedCrypto, MockedPrincipalDb};
+use lazy_static::lazy_static;
 use messages::basic_types::{
     EncryptionKey, KerberosFlags,
     KerberosString, KerberosTime, NameTypes, OctetString, PrincipalName, Realm,
@@ -11,51 +10,52 @@ use messages::flags::KdcOptionsFlag;
 use messages::{AsReq, KdcReqBodyBuilder};
 use std::time::Duration;
 
-struct MockedCrypto;
-
-impl Cryptography for MockedCrypto {
-    fn get_etype(&self) -> i32 {
-        1
-    }
-    fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        let data = data.to_vec();
-        let data = data
-            .iter()
-            .zip(key.iter().cycle())
-            .map(|(d, k)| *d ^ *k)
-            .collect();
-        Ok(data)
-    }
-
-    fn decrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
-        self.encrypt(data, key)
-    }
-
-    fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
-        Ok(vec![0xff; 8])
-    }
+lazy_static! {
+    static ref CLIENT_NAME: PrincipalName = PrincipalName::new(
+            NameTypes::NtPrincipal,
+            vec![KerberosString::new("CLIENT".to_string().as_bytes()).unwrap()],
+        ).unwrap();
+    static ref REALM: Realm = Realm::try_from("EXAMPLE.COM").unwrap();
+    static ref SERVER_NAME: PrincipalName = PrincipalName::new(
+        NameTypes::NtPrincipal,
+        vec![KerberosString::new("SERVER".to_string().as_bytes()).unwrap()],
+    ).unwrap();
+    static ref SERVER_KEY: EncryptionKey = EncryptionKey::new(
+        1,
+        OctetString::new([0x1; 16]).unwrap()
+    );
 }
 
-struct MockedPrincipalDb;
-
-#[async_trait]
-impl PrincipalDatabase for MockedPrincipalDb {
-    async fn get_principal(
-        &self,
-        principal_name: &PrincipalName,
-        realm: &Realm,
-    ) -> Option<PrincipalDatabaseRecord> {
-        Some(
-            PrincipalDatabaseRecord {
-                max_lifetime: Duration::from_secs(5 * 60),
-                key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
-                p_kvno: Some(1),
-                max_renewable_life: Duration::from_secs(5 * 60),
-                supported_encryption_types: vec![1, 2, 3],
-            },
-        )
-    }
+fn make_principal_db() -> MockedPrincipalDb {
+    let principal_database = MockedPrincipalDb::new();
+    principal_database.add_principal(
+        CLIENT_NAME.clone(),
+        REALM.clone(),
+        PrincipalDatabaseRecord {
+            max_renewable_life: Duration::from_secs(3600 * 24),
+            max_lifetime: Duration::from_secs(3600 * 24),
+            key: EncryptionKey::new(
+                1,
+                OctetString::new(vec![0xa; 16]).unwrap(), // Mocked key
+            ),
+            p_kvno: None,
+            supported_encryption_types: vec![1, 3, 23, 18],
+        },
+    );
+    principal_database.add_principal(
+        SERVER_NAME.clone(),
+        REALM.clone(),
+        PrincipalDatabaseRecord {
+            max_renewable_life: Duration::from_secs(3600 * 24),
+            max_lifetime: Duration::from_secs(3600 * 24),
+            key: SERVER_KEY.clone(),
+            p_kvno: None,
+            supported_encryption_types: vec![1, 3, 23, 18],
+        },
+    );
+    principal_database
 }
+
 
 #[tokio::test]
 async fn dummy_test() {
@@ -66,41 +66,23 @@ async fn dummy_test() {
                 .build()
                 .unwrap(),
         )
-        .cname(
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                vec!["me".to_string().try_into().unwrap()],
-            )
-            .unwrap(),
-        )
-        .realm(KerberosString::try_from("me".to_string()).unwrap())
-        .sname(
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                ["me".to_string().try_into().unwrap()],
-            )
-            .unwrap(),
-        )
+        .cname(CLIENT_NAME.clone())
+        .realm(REALM.clone())
+        .sname(SERVER_NAME.clone())
         .till(KerberosTime::now() + Duration::from_secs(5 * 60))
         .etype(vec![1, 2, 3])
         .nonce(123u32)
         .build()
         .unwrap();
     let crypto = MockedCrypto;
-    let principal_db = MockedPrincipalDb;
+    let principal_db = make_principal_db();
     let as_req = AsReq::new(None, kdc_req_body);
     let auth_service = AuthenticationServiceBuilder::default()
         .supported_crypto_systems(vec![Box::new(crypto)])
         .principal_db(&principal_db)
-        .realm("me".try_into().unwrap())
+        .realm(REALM.clone())
         .require_pre_authenticate(false)
-        .sname(
-            PrincipalName::new(
-                NameTypes::NtPrincipal,
-                vec!["me".to_string().try_into().unwrap()],
-            )
-            .unwrap(),
-        )
+        .sname(SERVER_NAME.clone(),)
         .build()
         .unwrap();
     auth_service
