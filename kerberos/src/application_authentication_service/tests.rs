@@ -2,41 +2,46 @@ use crate::application_authentication_service::ApplicationAuthenticationServiceB
 use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
 use crate::service_traits::{
-    ApReplayCache, ApReplayEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
-    ReplayCacheEntry,
+    ApReplayCache, ApReplayEntry, PrincipalDatabase, PrincipalDatabaseRecord,
 };
-use chrono::{DateTime, Local};
+use async_trait::async_trait;
+use chrono::Local;
 use messages::basic_types::{
     EncryptedData, EncryptionKey, KerberosString, KerberosTime, NameTypes, OctetString,
     PrincipalName, Realm,
 };
 use messages::{
-    APOptions, ApReq, Authenticator, AuthenticatorBuilder, EncTicketPart, Encode, Ticket,
-    TicketFlags, TransitedEncoding,
+    APOptions, ApReq, AuthenticatorBuilder, EncTicketPart, Encode, Ticket, TicketFlags,
+    TransitedEncoding,
 };
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 struct MockedReplayCached;
 
+#[async_trait]
 impl ApReplayCache for MockedReplayCached {
     type ApReplayCacheError = ();
 
-    fn store(&self, authenticator: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
+    async fn store(&self, _authenticator: &ApReplayEntry) -> Result<(), Self::ApReplayCacheError> {
         todo!()
     }
 
-    fn contain(&self, authenticator: &ApReplayEntry) -> Result<bool, Self::ApReplayCacheError> {
+    async fn contain(
+        &self,
+        _authenticator: &ApReplayEntry,
+    ) -> Result<bool, Self::ApReplayCacheError> {
         todo!()
     }
 }
 
 struct MockedKeyStorage;
 
+#[async_trait]
 impl PrincipalDatabase for MockedKeyStorage {
-    fn get_principal(
+    async fn get_principal(
         &self,
-        principal_name: &PrincipalName,
-        realm: &Realm,
+        _principal_name: &PrincipalName,
+        _realm: &Realm,
     ) -> Option<PrincipalDatabaseRecord> {
         todo!()
     }
@@ -49,23 +54,27 @@ impl Cryptography for MockedCrypto {
         1
     }
 
-    fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
+    fn encrypt(&self, data: &[u8], _key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
         Ok(data.into())
     }
 
-    fn decrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
+    fn decrypt(&self, data: &[u8], _key: &[u8]) -> Result<Vec<u8>, CryptographyError> {
         Ok(data.into())
     }
 
     fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
         Ok(Vec::from([0u8; 16]))
     }
+
+    fn clone_box(&self) -> Box<dyn Cryptography> {
+        Box::new(MockedCrypto)
+    }
 }
 
-#[test]
-fn test_handle_ap_req() {
+#[tokio::test]
+async fn test_handle_ap_req() {
     let cache = MockedReplayCached;
-    let key_storage = MockedKeyStorage;
+    let _key_storage = MockedKeyStorage;
     let crypto = MockedCrypto;
     let key = crypto.generate_key().unwrap();
     let transited_encoding = TransitedEncoding::new(
@@ -149,6 +158,7 @@ fn test_handle_ap_req() {
 
     assert!(auth_service
         .handle_krb_ap_req(ap_req)
+        .await
         .inspect_err(|e| println!("{:?}", e))
         .is_ok());
 }
