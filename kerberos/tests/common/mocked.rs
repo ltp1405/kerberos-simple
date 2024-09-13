@@ -11,10 +11,8 @@ use kerberos::service_traits::{
 use messages::basic_types::{
     EncryptionKey, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
 };
-use messages::{AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
+use messages::{AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -40,6 +38,10 @@ impl Cryptography for MockedCrypto {
 
     fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
         Ok(vec![0xff; 8])
+    }
+
+    fn clone_box(&self) -> Box<dyn Cryptography> {
+        Box::new(MockedCrypto)
     }
 }
 
@@ -254,6 +256,10 @@ impl CryptographicHash for MockedHasher {
 
     fn digest(&self, data: &[u8]) -> Vec<u8> {
         data.iter().rev().cloned().collect()
+    }
+
+    fn clone_box(&self) -> Box<dyn CryptographicHash> {
+        Box::new(MockedHasher)
     }
 }
 
