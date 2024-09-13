@@ -8,4 +8,6 @@ pub trait Cryptography: Send + Sync {
     fn decrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError>;
 
     fn generate_key(&self) -> Result<Vec<u8>, CryptographyError>;
+
+    fn clone_box(&self) -> Box<dyn Cryptography>;
 }

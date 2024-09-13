@@ -2,7 +2,8 @@ use crate::server::{
     infra::{
         cache::{cacheable::Cacheable, error::CacheResult},
         database::{Database, DatabaseResult, KrbV5Queryable, Migration},
-        host::{AsyncReceiver, ExchangeError, HostResult}, KrbDbSchema,
+        host::{AsyncReceiver, ExchangeError, HostResult},
+        KrbDbSchema,
     },
     KrbCache, KrbDatabase,
 };
@@ -114,11 +115,11 @@ pub struct MockCache;
 
 #[async_trait]
 impl Cacheable<String, String> for MockCache {
-    async fn get(&mut self, key: &String) -> CacheResult<String> {
+    async fn get(&self, key: &String) -> CacheResult<String> {
         Ok(key.clone())
     }
 
-    async fn put(&mut self, _key: String, _value: String) -> CacheResult<()> {
+    async fn put(&self, _key: String, _value: String) -> CacheResult<()> {
         Ok(())
     }
 }

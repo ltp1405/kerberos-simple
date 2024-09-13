@@ -18,6 +18,8 @@ derive_builder = "0.20.1"
 messages = { path = "../messages" }
 rand = "0.8.5"
 async-trait = "0.1.82"
+der = { version = "0.7.9", features = ["alloc", "derive", "std"] }
+
 
 [dev-dependencies]
 tokio = { version = "1.0.1", features = ["full"] }
