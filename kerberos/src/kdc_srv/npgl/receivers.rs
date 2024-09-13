@@ -40,13 +40,7 @@ impl AsyncReceiver for NpglAsReqHandler {
             .realm(self.0.realm.clone())
             .sname(self.0.sname.clone())
             .require_pre_authenticate(self.0.require_preauth)
-            .supported_crypto_systems(
-                self.0
-                    .supported_crypto_systems
-                    .iter()
-                    .map(|c| c.clone_box())
-                    .collect(),
-            )
+            .supported_crypto_systems(vec![])
             .principal_db(&npgl_db_view)
             .build()
             .expect("Failed to build authentication service");
@@ -104,20 +98,8 @@ impl AsyncReceiver for NpglTgsReqHandler {
         let tgs_service = TicketGrantingServiceBuilder::default()
             .realm(self.0.realm.clone())
             .name(self.0.sname.clone())
-            .supported_crypto(
-                self.0
-                    .supported_crypto_systems
-                    .iter()
-                    .map(|c| c.clone_box())
-                    .collect(),
-            )
-            .supported_checksum(
-                self.0
-                    .supported_checksum_types
-                    .iter()
-                    .map(|c| c.clone_box())
-                    .collect(),
-            )
+            .supported_crypto(vec![])
+            .supported_checksum(vec![])
             .principal_db(&npgl_db_view)
             .replay_cache(&npgl_cache_view)
             .last_req_db(&npgl_cache_view)

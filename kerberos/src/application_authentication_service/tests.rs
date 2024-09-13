@@ -65,10 +65,6 @@ impl Cryptography for MockedCrypto {
     fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
         Ok(Vec::from([0u8; 16]))
     }
-
-    fn clone_box(&self) -> Box<dyn Cryptography> {
-        Box::new(MockedCrypto)
-    }
 }
 
 #[tokio::test]
