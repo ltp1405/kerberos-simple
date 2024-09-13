@@ -98,7 +98,7 @@ where
 
     async fn get_client(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
         if let Some(cname) = as_req.req_body().cname() {
-            Some(self.principal_db.get_principal(&cname, &self.realm).await?)
+            Some(self.principal_db.get_principal(cname, &self.realm).await?)
         } else {
             None
         }
@@ -106,7 +106,7 @@ where
 
     async fn get_server(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
         if let Some(sname) = as_req.req_body().sname() {
-            Some(self.principal_db.get_principal(&sname, &self.realm).await?)
+            Some(self.principal_db.get_principal(sname, &self.realm).await?)
         } else {
             None
         }
@@ -177,8 +177,11 @@ where
                 return Err(build_protocol_error(Ecode::KDC_ERR_POLICY));
             }
             ticket_flags.set(TicketFlag::INVALID as usize);
-            starttime = Some(as_req.req_body().from().map(|t| *t).unwrap_or(kdc_time));
+            starttime = Some(as_req.req_body().from().copied().unwrap_or(kdc_time));
+        } else if starttime.is_some_and(|t| self.get_acceptable_clock_skew().contains(&t)) {
+            return Err(build_protocol_error(Ecode::KDC_ERR_CANNOT_POSTDATE));
         }
+
         let endtime = *[
             till,
             starttime.unwrap_or(kdc_time) + client.max_lifetime,
@@ -295,7 +298,7 @@ where
         ))
     }
 
-    fn verify_encryption_type(&self, as_req: &AsReq) -> Result<()> {
+    fn verify_encryption_type(&self, _as_req: &AsReq) -> Result<()> {
         Ok(())
     }
 
@@ -359,6 +362,7 @@ where
             .kdc_options()
             .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
         let start_time = as_req.req_body().from();
+        println!("{:?}", start_time);
         if start_time.is_none()
             || start_time
                 .is_some_and(|t| (t < &now || acceptable_clock_skew.contains(t)) && !postdated)
@@ -373,7 +377,8 @@ where
         }
     }
 
-    fn against_postdate_policy(&self, p0: Option<&KerberosTime>) -> bool {
-        todo!()
+    fn against_postdate_policy(&self, _p0: Option<&KerberosTime>) -> bool {
+        // TODO: correctly implement this
+        return false;
     }
 }
