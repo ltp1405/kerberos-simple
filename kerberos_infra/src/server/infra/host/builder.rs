@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::server::{config::HostSettings, KrbAsyncReceiver};
+use crate::server::{config::HostSettings, infra::KrbAsyncReceiver};
 
 use super::Runnable;
 

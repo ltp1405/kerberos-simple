@@ -1,7 +1,15 @@
 use der::Encode;
 use kerberos_infra::{
     client::{Sendable, TcpClient},
-    server::{load_server_from_dir, Builder, DbSettings, Krb5DbSchemaV1, PgDbSettings, Protocol},
+    server::{
+        database::{
+            postgres::{schemas::Krb5DbSchemaV1, PgDbSettings},
+            DbSettings,
+        },
+        load_server_from_dir,
+        types::Protocol,
+        Builder,
+    },
 };
 use mocks::{Mapper, SimpleASReceiver, SimpleTgtReceiver};
 use sqlx::PgPool;

@@ -2,12 +2,9 @@ use std::{net::SocketAddr, sync::Arc};
 
 use tokio::{net::UdpSocket, sync::mpsc};
 
-use crate::server::{
-    infra::{
-        host::{entry::Entry, utils::handle_result_at_router, HostResult},
-        KrbCache, KrbDatabase,
-    },
-    KrbAsyncReceiver,
+use crate::server::infra::{
+    host::{entry::Entry, utils::handle_result_at_router, HostResult},
+    KrbAsyncReceiver, KrbCache, KrbDatabase,
 };
 
 use super::entry::UdpEntry;

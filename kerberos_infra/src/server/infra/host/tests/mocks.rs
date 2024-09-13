@@ -1,8 +1,8 @@
 use crate::server::{
     infra::{
         cache::{cacheable::Cacheable, error::CacheResult},
-        database::{Database, DatabaseResult, Migration, Queryable},
-        host::{AsyncReceiver, ExchangeError, HostResult},
+        database::{Database, DatabaseResult, KrbV5Queryable, Migration},
+        host::{AsyncReceiver, ExchangeError, HostResult}, KrbDbSchema,
     },
     KrbCache, KrbDatabase,
 };
@@ -91,7 +91,7 @@ impl Migration for MockPool {
 }
 
 #[async_trait]
-impl Queryable for MockPool {}
+impl KrbV5Queryable for MockPool {}
 
 #[async_trait]
 impl Database for MockPool {
@@ -102,6 +102,10 @@ impl Database for MockPool {
     }
 
     fn inner_mut(&mut self) -> &mut Self::Inner {
+        unimplemented!()
+    }
+
+    fn get_schema(&self) -> &KrbDbSchema {
         unimplemented!()
     }
 }

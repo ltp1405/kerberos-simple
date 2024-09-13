@@ -3,17 +3,46 @@ pub use builder::{
     load as load_server, load_from_dir as load_server_from_dir, Builder, ServerBuilder,
 };
 
-pub use infra::{
-    cache::{cacheable::Cacheable, error::CacheResult},
-    database::{
-        postgres::{PgDbSettings, PostgresDb},
-        Database, DatabaseError, DbSettings, Krb5DbSchemaV1, Migration, Queryable, Schema,
-    },
-    host::{AsyncReceiver, ExchangeError, HostError, HostResult},
-    KrbAsyncReceiver, KrbCache, KrbDatabase, KrbHost,
-};
+pub mod database {
+    pub use crate::server::infra::database::{
+        ClonableSchema, Database, DatabaseError, DbSettings, Migration, Schema,
+    };
 
-pub use config::Protocol;
+    pub use crate::server::infra::database::KrbV5Queryable;
+
+    pub mod postgres {
+        pub mod schemas {
+            pub use crate::server::infra::database::postgres::Krb5DbSchemaV1;
+        }
+
+        pub use crate::server::infra::database::postgres::PgDbSettings;
+
+        pub use crate::server::infra::database::postgres::PostgresDb;
+    }
+
+    pub use secrecy::ExposeSecret;
+}
+
+pub mod cache {
+    pub use crate::server::infra::cache::cacheable::Cacheable;
+
+    pub use crate::server::infra::cache::error::CacheResult;
+}
+
+pub mod types {
+    pub use crate::server::infra::{KrbAsyncReceiver, KrbCache, KrbDatabase, KrbDbSchema, KrbHost};
+
+    pub use crate::server::config::Protocol;
+}
+
+pub mod host {
+    pub use crate::server::infra::host::{AsyncReceiver, ExchangeError, HostError, HostResult};
+}
+
+use sqlx::PgPool;
+use types::{KrbCache, KrbDatabase, KrbHost};
+
+pub type NpglServer = Server<PgPool>;
 
 pub struct Server<Db> {
     host: KrbHost<Db>,

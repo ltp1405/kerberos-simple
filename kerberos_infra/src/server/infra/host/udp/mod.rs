@@ -3,10 +3,7 @@ use router::UdpRouter;
 use std::net::SocketAddr;
 use tokio::signal;
 
-use crate::server::{
-    infra::{KrbCache, KrbDatabase},
-    KrbAsyncReceiver,
-};
+use crate::server::infra::{KrbAsyncReceiver, KrbCache, KrbDatabase};
 
 use super::runnable::{Address, Runnable};
 

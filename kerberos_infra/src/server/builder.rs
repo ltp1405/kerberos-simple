@@ -2,11 +2,13 @@ use sqlx::PgPool;
 use tokio::sync::RwLock;
 
 use super::config::{Configuration, Protocol};
+use super::host::AsyncReceiver;
 use super::infra::cache::Cache;
 use super::infra::database::postgres::{PgDbSettings, PostgresDb};
 use super::infra::host::HostBuilder;
 use super::infra::{KrbCache, KrbDatabase, KrbDbSchema, KrbHost};
-use super::{AsyncReceiver, KrbAsyncReceiver, Server, ServerResult};
+use super::types::KrbAsyncReceiver;
+use super::{Server, ServerResult};
 
 pub fn load_from_dir<Db>() -> ServerResult<ServerBuilder<Db>> {
     let config = Configuration::load(None).map_err(|_| "Fail to load configuration")?;
