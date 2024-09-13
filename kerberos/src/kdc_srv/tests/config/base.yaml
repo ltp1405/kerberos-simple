@@ -1,5 +1,5 @@
 postgres:
- host: "localhost"
+ host: "127.0.0.1"
  port: 5455
  username: "postgres"
  password: "password"
@@ -8,7 +8,7 @@ host:
  protocol: "tcp" # or "udp"
  as_port: 88
  tgs_port: 89
- host: "localhost"
+ host: "127.0.0.1"
 cache:
  capacity: 1000
  ttl: 3600 # in seconds
