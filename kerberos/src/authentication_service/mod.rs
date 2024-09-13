@@ -178,7 +178,10 @@ where
             }
             ticket_flags.set(TicketFlag::INVALID as usize);
             starttime = Some(as_req.req_body().from().copied().unwrap_or(kdc_time));
+        } else if starttime.is_some_and(|t| self.get_acceptable_clock_skew().contains(&t)) {
+            return Err(build_protocol_error(Ecode::KDC_ERR_CANNOT_POSTDATE));
         }
+
         let endtime = *[
             till,
             starttime.unwrap_or(kdc_time) + client.max_lifetime,
@@ -359,6 +362,7 @@ where
             .kdc_options()
             .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
         let start_time = as_req.req_body().from();
+        println!("{:?}", start_time);
         if start_time.is_none()
             || start_time
                 .is_some_and(|t| (t < &now || acceptable_clock_skew.contains(t)) && !postdated)

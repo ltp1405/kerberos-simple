@@ -1,13 +1,10 @@
-use crate::authentication_service::AuthenticationServiceBuilder;
-use crate::service_traits::PrincipalDatabaseRecord;
+use crate::authentication_service::{AuthenticationService, AuthenticationServiceBuilder};
+use crate::service_traits::{PrincipalDatabase, PrincipalDatabaseRecord};
 use crate::tests_common::mocked::{MockedCrypto, MockedPrincipalDb};
 use lazy_static::lazy_static;
-use messages::basic_types::{
-    EncryptionKey, KerberosFlags,
-    KerberosString, KerberosTime, NameTypes, OctetString, PrincipalName, Realm,
-};
+use messages::basic_types::{EncryptionKey, HostAddresses, KerberosFlags, KerberosFlagsBuilder, KerberosString, KerberosTime, NameTypes, OctetString, PrincipalName, Realm};
 use messages::flags::KdcOptionsFlag;
-use messages::{AsReq, KdcReqBodyBuilder};
+use messages::{AsReq, KdcReq, KdcReqBodyBuilder, TicketFlags};
 use std::time::Duration;
 
 lazy_static! {
@@ -24,6 +21,50 @@ lazy_static! {
         1,
         OctetString::new([0x1; 16]).unwrap()
     );
+}
+
+struct KdcConfig {
+    starttime: Option<KerberosTime>,
+    till: KerberosTime,
+    cname: PrincipalName,
+    sname: PrincipalName,
+    realm: Realm,
+    postdate: bool,
+}
+
+impl Default for KdcConfig {
+    fn default() -> Self {
+        KdcConfig {
+            starttime: None,
+            till: KerberosTime::now() + Duration::from_secs(60*60),
+            cname: CLIENT_NAME.clone(),
+            sname: SERVER_NAME.clone(),
+            realm: REALM.clone(),
+            postdate: false,
+        }
+    }
+}
+
+fn make_as_req(cfg: &KdcConfig) -> AsReq {
+    let mut flags = KerberosFlags::builder();
+    if  cfg.postdate {
+        flags.set(KdcOptionsFlag::ALLOW_POSTDATE as usize);
+    }
+    let kdc_req_body = KdcReqBodyBuilder::default()
+        .kdc_options(flags.build().unwrap())
+        .cname(cfg.cname.clone())
+        .realm(cfg.realm.clone())
+        .sname(cfg.sname.clone())
+        .till(cfg.till.clone())
+        .etype(vec![1, 2, 3])
+        .nonce(123u32)
+        .build()
+        .unwrap();
+
+    AsReq::new(
+        None,
+        kdc_req_body
+    )
 }
 
 fn make_principal_db() -> MockedPrincipalDb {
@@ -56,38 +97,61 @@ fn make_principal_db() -> MockedPrincipalDb {
     principal_database
 }
 
-
-#[tokio::test]
-async fn dummy_test() {
-    let kdc_req_body = KdcReqBodyBuilder::default()
-        .kdc_options(
-            KerberosFlags::builder()
-                .set(KdcOptionsFlag::POSTDATED as usize)
-                .build()
-                .unwrap(),
-        )
-        .cname(CLIENT_NAME.clone())
-        .realm(REALM.clone())
-        .sname(SERVER_NAME.clone())
-        .till(KerberosTime::now() + Duration::from_secs(5 * 60))
-        .etype(vec![1, 2, 3])
-        .nonce(123u32)
-        .build()
-        .unwrap();
+fn get_as_service<P: PrincipalDatabase>(db: &P) -> AuthenticationService<P> {
     let crypto = MockedCrypto;
-    let principal_db = make_principal_db();
-    let as_req = AsReq::new(None, kdc_req_body);
-    let auth_service = AuthenticationServiceBuilder::default()
+    AuthenticationServiceBuilder::default()
         .supported_crypto_systems(vec![Box::new(crypto)])
-        .principal_db(&principal_db)
+        .principal_db(db)
         .realm(REALM.clone())
         .require_pre_authenticate(false)
         .sname(SERVER_NAME.clone(),)
         .build()
-        .unwrap();
+        .unwrap()
+}
+
+#[tokio::test]
+async fn test() {
+    let principal_db = make_principal_db();
+    let as_req = make_as_req(
+        &KdcConfig {
+            ..KdcConfig::default()
+        }
+    );
+    let auth_service = get_as_service(&principal_db);
     auth_service
         .handle_krb_as_req(
             &as_req,
         )
         .await.unwrap();
+
+    let as_req = make_as_req(
+        &KdcConfig {
+            starttime: Some(KerberosTime::now() - Duration::from_secs(60*60)),
+            ..KdcConfig::default()
+        }
+    );
+    auth_service
+        .handle_krb_as_req(
+            &as_req,
+        )
+        .await.unwrap();
+
+}
+
+#[tokio::test]
+async fn test_postdate() {
+    let principal_db = make_principal_db();
+    let as_req = make_as_req(
+        &KdcConfig {
+            starttime: Some(KerberosTime::now() + Duration::from_secs(60*60*60)),
+            ..KdcConfig::default()
+        }
+    );
+    let auth_service = get_as_service(&principal_db);
+    auth_service
+        .handle_krb_as_req(
+            &as_req,
+        )
+        .await.expect_err("Should fail due to invalid postdate");
+
 }
