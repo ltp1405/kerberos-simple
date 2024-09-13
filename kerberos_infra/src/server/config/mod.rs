@@ -14,24 +14,32 @@ pub struct Configuration {
 }
 
 impl Configuration {
-    pub fn load(dir: Option<&str>) -> Result<Self, StartupError> {
-        let builder = {
-            let base_path = std::env::current_dir().expect("Fail to read the base directory");
-
-            let config = base_path.join(dir.unwrap_or("server"));
-
-            let env: Environment = std::env::var("ENVIRONMENT")
-                .unwrap_or("local".into())
-                .try_into()
-                .expect("Fail to parse environment");
-
-            Config::builder()
-                .add_source(config::File::from(config.join("base")))
-                .add_source(config::File::from(config.join(env.as_str())))
-        };
+    pub fn load_from_dir() -> Result<Self, StartupError> {
+        let builder = prepare("server");
 
         builder.build()?.try_into()
     }
+
+    pub fn load(dir: &str) -> Result<Self, StartupError> {
+        let builder = prepare(dir);
+
+        builder.build()?.try_into()
+    }
+}
+
+fn prepare(dir: &str) -> config::ConfigBuilder<config::builder::DefaultState> {
+    let base_path = std::env::current_dir().expect("Fail to read the base directory");
+
+    let config = base_path.join(dir);
+
+    let env: Environment = std::env::var("ENVIRONMENT")
+        .unwrap_or("local".into())
+        .try_into()
+        .expect("Fail to parse environment");
+
+    Config::builder()
+        .add_source(config::File::from(config.join("base")))
+        .add_source(config::File::from(config.join(env.as_str())))
 }
 
 impl TryFrom<Config> for Configuration {

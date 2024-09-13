@@ -11,13 +11,13 @@ use super::types::KrbAsyncReceiver;
 use super::{Server, ServerResult};
 
 pub fn load_from_dir<Db>() -> ServerResult<ServerBuilder<Db>> {
-    let config = Configuration::load(None).map_err(|_| "Fail to load configuration")?;
+    let config = Configuration::load_from_dir().map_err(|_| "Fail to load configuration")?;
 
     Ok(ServerBuilder::new(config))
 }
 
 pub fn load<Db>(dir: &str) -> ServerResult<ServerBuilder<Db>> {
-    let config = Configuration::load(Some(dir)).map_err(|_| "Fail to load configuration")?;
+    let config = Configuration::load(dir).map_err(|_| "Fail to load configuration")?;
 
     Ok(ServerBuilder::new(config))
 }

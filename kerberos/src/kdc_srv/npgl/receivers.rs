@@ -3,26 +3,21 @@ use kerberos_infra::server::{
     host::{AsyncReceiver, ExchangeError, HostError, HostResult},
     types::{KrbCache, KrbDatabase},
 };
-use messages::{
-    basic_types::{KerberosString, NameTypes, PrincipalName, Realm},
-    AsReq, Decode, Encode, TgsReq,
-};
+use messages::{AsReq, Decode, Encode, TgsReq};
 use sqlx::PgPool;
 
 use crate::{
     authentication_service::AuthenticationServiceBuilder,
+    kdc_srv::configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig},
     ticket_granting_service::TicketGrantingServiceBuilder,
 };
 
-use super::{
-    types::{NpglKdcCacheView, NpglKdcDbView},
-    NpglKdcSrcConfig,
-};
+use super::types::{NpglKdcCacheView, NpglKdcDbView};
 
-pub struct NpglAsReqHandler(NpglKdcSrcConfig);
+pub struct NpglAsReqHandler(AuthenticationServiceConfig);
 
 impl NpglAsReqHandler {
-    pub fn new(config: NpglKdcSrcConfig) -> Self {
+    pub fn new(config: AuthenticationServiceConfig) -> Self {
         Self(config)
     }
 }
@@ -41,27 +36,20 @@ impl AsyncReceiver for NpglAsReqHandler {
 
         let npgl_db_view = NpglKdcDbView::new(database.as_ref());
 
-        let authentication_server = {
-            let realm = Realm::new(&self.0.realm).expect("Invalid configuration value for realm");
-
-            let svalue =
-                vec![KerberosString::new(&self.0.sname)
-                    .expect("Invalid configuration value for sname")];
-
-            let sname = PrincipalName::new(NameTypes::NtPrincipal, svalue)
-                .expect("Failed to create principal name");
-
-            let supported_crypto_systems = vec![];
-
-            AuthenticationServiceBuilder::default()
-                .principal_db(&npgl_db_view)
-                .realm(realm)
-                .sname(sname)
-                .require_pre_authenticate(self.0.require_preauth)
-                .supported_crypto_systems(supported_crypto_systems)
-                .build()
-        }
-        .expect("Failed to build authentication service");
+        let authentication_server = AuthenticationServiceBuilder::default()
+            .realm(self.0.realm.clone())
+            .sname(self.0.sname.clone())
+            .require_pre_authenticate(self.0.require_preauth)
+            .supported_crypto_systems(
+                self.0
+                    .supported_crypto_systems
+                    .iter()
+                    .map(|c| c.clone_box())
+                    .collect(),
+            )
+            .principal_db(&npgl_db_view)
+            .build()
+            .expect("Failed to build authentication service");
 
         let as_req = AsReq::from_der(bytes).unwrap();
 
@@ -87,10 +75,10 @@ impl From<crate::authentication_service::ServerError> for HostError {
     }
 }
 
-pub struct NpglTgsReqHandler(NpglKdcSrcConfig);
+pub struct NpglTgsReqHandler(TicketGrantingServiceConfig);
 
 impl NpglTgsReqHandler {
-    pub fn new(config: NpglKdcSrcConfig) -> Self {
+    pub fn new(config: TicketGrantingServiceConfig) -> Self {
         Self(config)
     }
 }
@@ -113,31 +101,28 @@ impl AsyncReceiver for NpglTgsReqHandler {
 
         let npgl_cache_view = NpglKdcCacheView::new(cache.as_mut());
 
-        let tgs_service = {
-            let realm = Realm::new(&self.0.realm).expect("Invalid configuration value for realm");
-
-            let svalue =
-                vec![KerberosString::new(&self.0.sname)
-                    .expect("Invalid configuration value for sname")];
-
-            let name = PrincipalName::new(NameTypes::NtPrincipal, svalue)
-                .expect("Failed to create principal name");
-
-            let supported_crypto_systems = vec![];
-
-            let supported_checksum_systems = vec![];
-
-            TicketGrantingServiceBuilder::default()
-                .principal_db(&npgl_db_view)
-                .replay_cache(&npgl_cache_view)
-                .realm(realm)
-                .name(name)
-                .supported_crypto(supported_crypto_systems)
-                .supported_checksum(supported_checksum_systems)
-                .last_req_db(todo!("Implement last req db"))
-                .build()
-                .expect("Failed to build ticket granting service")
-        };
+        let tgs_service = TicketGrantingServiceBuilder::default()
+            .realm(self.0.realm.clone())
+            .name(self.0.sname.clone())
+            .supported_crypto(
+                self.0
+                    .supported_crypto_systems
+                    .iter()
+                    .map(|c| c.clone_box())
+                    .collect(),
+            )
+            .supported_checksum(
+                self.0
+                    .supported_checksum_types
+                    .iter()
+                    .map(|c| c.clone_box())
+                    .collect(),
+            )
+            .principal_db(&npgl_db_view)
+            .replay_cache(&npgl_cache_view)
+            .last_req_db(&npgl_cache_view)
+            .build()
+            .expect("Failed to build ticket granting service");
 
         let tgs_req = TgsReq::from_der(bytes).unwrap();
 

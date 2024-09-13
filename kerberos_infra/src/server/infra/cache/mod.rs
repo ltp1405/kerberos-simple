@@ -48,7 +48,7 @@ where
     K: Eq + Hash + Send + Sync + Clone,
     V: Clone + Send + Sync,
 {
-    async fn get(&mut self, key: &K) -> CacheResult<V> {
+    async fn get(&self, key: &K) -> CacheResult<V> {
         let mut storage = self.storage.write().unwrap();
         match storage.get(key) {
             Some((value, instant)) => {
@@ -63,7 +63,7 @@ where
         }
     }
 
-    async fn put(&mut self, key: K, value: V) -> CacheResult<()> {
+    async fn put(&self, key: K, value: V) -> CacheResult<()> {
         let mut storage = self.storage.write().unwrap();
         if storage.len() == storage.cap().get() {
             storage.pop_lru();
@@ -90,7 +90,7 @@ mod tests {
 
     #[tokio::test]
     async fn cache_should_be_able_to_store_and_retrieve_values() {
-        let mut cache = mock_cache();
+        let cache = mock_cache();
         cache.put("key1", "value1").await.unwrap();
         cache.put("key2", "value2").await.unwrap();
         assert_eq!(cache.get(&"key1").await.unwrap(), "value1");
@@ -99,7 +99,7 @@ mod tests {
 
     #[tokio::test]
     async fn cache_should_expire_values() {
-        let mut cache = mock_cache();
+        let cache = mock_cache();
         cache.put("key1", "value1").await.unwrap();
         cache.put("key2", "value2").await.unwrap();
         assert_eq!(cache.get(&"key1").await.unwrap(), "value1");
@@ -111,7 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn cache_should_evict_lru_values() {
-        let mut cache = mock_cache();
+        let cache = mock_cache();
         cache.put("key1", "value1").await.unwrap();
         cache.put("key2", "value2").await.unwrap();
         cache.put("key3", "value3").await.unwrap();

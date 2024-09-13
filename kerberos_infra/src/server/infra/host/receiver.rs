@@ -27,13 +27,6 @@ pub trait AsyncReceiver: Send + Sync {
     ) -> HostResult<Vec<u8>>;
 
     fn error(&self, err: ExchangeError) -> HostResult<Vec<u8>>;
-
-    // fn boxed(self) -> Box<dyn AsyncReceiver>
-    // where
-    //     Self: Sized + 'static,
-    // {
-    //     Box::new(self)
-    // }
 }
 
 

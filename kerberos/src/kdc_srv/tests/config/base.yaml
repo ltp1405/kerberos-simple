@@ -1,0 +1,14 @@
+postgres:
+ host: "localhost"
+ port: 5455
+ username: "postgres"
+ password: "password"
+ name: "kerberos"
+host:
+ protocol: "tcp" # or "udp"
+ as_port: 88
+ tgs_port: 89
+ host: "localhost"
+cache:
+ capacity: 1000
+ ttl: 3600 # in seconds

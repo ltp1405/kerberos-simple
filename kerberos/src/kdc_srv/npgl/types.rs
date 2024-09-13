@@ -1,18 +1,20 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use der::{Decode, Sequence};
 use kerberos_infra::server::{
     cache::Cacheable,
     database::{Database, ExposeSecret, KrbV5Queryable},
 };
 use messages::{
     basic_types::{EncryptionKey, OctetString, PrincipalName, Realm},
-    Decode, Encode,
+    Encode, LastReq,
 };
 use sqlx::PgPool;
 
 use crate::service_traits::{
-    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
+    LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
+    ReplayCacheEntry,
 };
 
 pub struct NpglKdcDbView<'a>(&'a dyn Database<Inner = PgPool>);
@@ -58,6 +60,21 @@ impl PrincipalDatabase for NpglKdcDbView<'_> {
 
 pub struct NpglKdcCacheView<'a>(&'a mut dyn Cacheable<String, String>);
 
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
+struct LastReqEntryKey {
+    realm: Realm,
+    name: PrincipalName,
+}
+
+impl From<&LastReqEntry> for LastReqEntryKey {
+    fn from(entry: &LastReqEntry) -> Self {
+        Self {
+            realm: entry.realm.clone(),
+            name: entry.name.clone(),
+        }
+    }
+}
+
 impl<'a> NpglKdcCacheView<'a> {
     pub fn new(cache: &'a mut dyn Cacheable<String, String>) -> Self {
         Self(cache)
@@ -69,24 +86,50 @@ impl ReplayCache for NpglKdcCacheView<'_> {
     type ReplayCacheError = String;
 
     async fn store(&self, entry: &ReplayCacheEntry) -> Result<(), Self::ReplayCacheError> {
-        let encoded = {
-            let sname = map_der_to_string(&entry.server_name);
-            let cname = map_der_to_string(&entry.client_name);
-            let time = map_der_to_string(&entry.time);
-            let microseconds = map_der_to_string(&entry.microseconds);
-            format!("{}-{}-{}-{}", sname, cname, time, microseconds)
-        };
+        let key = map_der_to_string(entry);
 
-        // self.0.put(encoded, String::new()).await.unwrap();
+        self.0.put(key.clone(), key).await.unwrap();
 
         Ok(())
     }
 
     async fn contain(&self, entry: &ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError> {
-        todo!()
+        let key = map_der_to_string(entry);
+
+        let result = self.0.get(&key).await;
+
+        Ok(result.is_ok())
+    }
+}
+
+#[async_trait]
+impl LastReqDatabase for NpglKdcCacheView<'_> {
+    async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq> {
+        let key = map_der_to_string(&LastReqEntryKey {
+            realm: realm.clone(),
+            name: principal_name.clone(),
+        });
+
+        let value = self.0.get(&key).await.ok()?;
+
+        let last_req = LastReq::from_der(value.as_bytes()).ok()?;
+
+        Some(last_req)
+    }
+
+    async fn store_last_req(&self, last_req_entry: LastReqEntry) {
+        let key = map_der_to_string(&LastReqEntryKey::from(&last_req_entry));
+
+        let value = map_der_to_string(&last_req_entry.last_req);
+
+        self.0.put(key, value).await.unwrap();
     }
 }
 
 fn map_der_to_string<T: Encode>(der: &T) -> String {
-    String::from_der(&der.to_der().expect("Failed to encode")).expect("Failed to encode")
+    let encoded = der.to_der().expect("Failed to encode");
+
+    let key: String = String::from_utf8(encoded).unwrap();
+
+    key
 }
