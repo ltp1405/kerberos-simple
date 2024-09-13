@@ -34,10 +34,6 @@ impl Cryptography for MockedCrypto {
     fn generate_key(&self) -> Result<Vec<u8>, CryptographyError> {
         Ok(vec![0xff; 8])
     }
-
-    fn clone_box(&self) -> Box<dyn Cryptography> {
-        Box::new(MockedCrypto)
-    }
 }
 
 struct MockedPrincipalDb;
