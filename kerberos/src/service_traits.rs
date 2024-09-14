@@ -6,6 +6,7 @@ use messages::basic_types::{
 use messages::{ApReq, LastReq};
 use std::time::Duration;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrincipalDatabaseRecord {
     pub max_renewable_life: Duration,
     pub max_lifetime: Duration,
@@ -45,7 +46,7 @@ pub trait TicketHotList {
     async fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
-#[derive(Debug, Clone, Sequence)]
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 pub struct ApReplayEntry {
     pub ctime: KerberosTime,
     pub cusec: Microseconds,

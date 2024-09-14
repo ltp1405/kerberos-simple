@@ -1,17 +1,18 @@
 use async_trait::async_trait;
-use kerberos::client::client_env::ClientEnv;
-use kerberos::client::client_env_error::ClientEnvError;
-use kerberos::cryptographic_hash::CryptographicHash;
-use kerberos::cryptography::Cryptography;
-use kerberos::cryptography_error::CryptographyError;
-use kerberos::service_traits::{
-    LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
-    ReplayCacheEntry,
+use crate::client::client_env::ClientEnv;
+use crate::client::client_env_error::ClientEnvError;
+use crate::cryptographic_hash::CryptographicHash;
+use crate::cryptography::Cryptography;
+use crate::cryptography_error::CryptographyError;
+use crate::service_traits::{
+    ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry,
+    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
 };
 use messages::basic_types::{
-    EncryptionKey, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
+    EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName,
+    Realm,
 };
-use messages::{AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
+use messages::{ApReq, AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -41,22 +42,48 @@ impl Cryptography for MockedCrypto {
     }
 }
 
-pub(crate) struct MockedPrincipalDb;
+pub(crate) struct MockedPrincipalDb {
+    data: Arc<Mutex<Vec<(PrincipalName, Realm, PrincipalDatabaseRecord)>>>,
+}
+
+impl MockedPrincipalDb {
+    pub fn new() -> MockedPrincipalDb {
+        MockedPrincipalDb {
+            data: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn add_principal(
+        &self,
+        principal_name: PrincipalName,
+        realm: Realm,
+        record: PrincipalDatabaseRecord,
+    ) {
+        self.data
+            .lock()
+            .unwrap()
+            .push((principal_name, realm, record));
+    }
+}
 
 #[async_trait]
 impl PrincipalDatabase for MockedPrincipalDb {
     async fn get_principal(
         &self,
-        _principal_name: &PrincipalName,
-        _realm: &Realm,
+        principal_name: &PrincipalName,
+        realm: &Realm,
     ) -> Option<PrincipalDatabaseRecord> {
-        Some(PrincipalDatabaseRecord {
-            key: EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()),
-            p_kvno: Some(1),
-            max_renewable_life: Duration::from_secs(5 * 60),
-            supported_encryption_types: vec![1, 2, 3],
-            max_lifetime: Duration::from_secs(24 * 60 * 60),
-        })
+        self.data
+            .lock()
+            .unwrap()
+            .iter()
+            .find_map(|(name, realm, record)| {
+                if name == principal_name && realm == realm {
+                    Some(record.clone())
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -103,10 +130,6 @@ impl ClientEnv for MockClientEnv {
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
         Ok(KerberosString::new("realm".as_bytes()).unwrap())
-    }
-
-    fn get_client_address(&self) -> Result<OctetString, ClientEnvError> {
-        Ok(OctetString::new(vec![0; 4]).unwrap())
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {
