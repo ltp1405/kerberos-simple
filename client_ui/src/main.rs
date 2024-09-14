@@ -1,8 +1,10 @@
 use clap::Parser;
+use client_ui::cli::{
+    Cli,
+    Commands::{GetTicket, ListTicket},
+};
 use client_ui::client::Client;
 use client_ui::config::{AppConfig, TransportType};
-use client_ui::Cli;
-use client_ui::Commands::{GetTicket, ListTicket};
 use config::ConfigError;
 use kerberos::client::as_exchange::{prepare_as_request, receive_as_response};
 use kerberos::client::tgs_exchange::prepare_tgs_request;
