@@ -53,6 +53,7 @@ impl Schema for AppDbSchema {
                 INSERT INTO "{0}".UserProfile (username, email, firstname, lastname, birthday)
                 VALUES
                     ('admin', 'admin@gmail.com', 'Admin', 'Admin', '1990-01-01'),
+                    ('toney', 'toney@hotmail.com', 'Toney', 'Jordan', '1990-12-01'),
                     ('user', 'user@gmail.com', 'User', 'User', '1990-01-02');
             COMMIT;
         "#,
