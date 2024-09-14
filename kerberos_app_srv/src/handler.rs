@@ -17,14 +17,14 @@ use crate::{
     auth_cache::{self, auth_cache::ApplicationAuthenticationCache}, authentication::{
         authentication_request::AuthenticationRequest,
         authentication_response::AuthenticationResponse,
-    }, handleable::Handleable, replay_cache::replay_cache::AppServerReplayCache, user_profile::{
+    }, handleable::Handleable, replay_cache::replay_cache::AppServerReplayCache, session_storage::session_storage::ApplicationSessionStorage, user_profile::{
         error::AppServerHandlerError, user_profile::UserProfile, user_profile_request::UserProfileRequest, user_profile_response::UserProfileResponse
     }
 };
 
 pub struct AppServerHandler<'a> {
     db: Arc<PostgresDb>,
-    auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache>,
+    auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache, ApplicationSessionStorage>,
     auth_cache: ApplicationAuthenticationCache
 }
 
@@ -33,7 +33,7 @@ unsafe impl<'a> Sync for AppServerHandler<'a> {}
 impl<'a> AppServerHandler<'a> {
     pub fn new(
         db: Arc<PostgresDb>,
-        auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache>,
+        auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache, ApplicationSessionStorage>,
         auth_cache: ApplicationAuthenticationCache,
     ) -> Self {
         Self { db, auth_service, auth_cache }

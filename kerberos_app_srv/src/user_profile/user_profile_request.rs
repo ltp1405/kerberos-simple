@@ -15,7 +15,7 @@ impl UserProfileRequest {
         &self.username
     }
     pub fn sequence_number(&self) -> Vec<u8> {
-        self.sequence_number
+        self.sequence_number.clone()
     }
 }
 
