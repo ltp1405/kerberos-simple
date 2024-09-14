@@ -39,6 +39,11 @@ impl Responder for UserProfileResponse {
                         .content_type("text/plain")
                         .body("Internal server error")
                 }
+                AppServerHandlerError::UserIsNotAuthorized => {
+                    actix_web::HttpResponse::Forbidden()
+                        .content_type("text/plain")
+                        .body("User is not authorized")
+                }
             },
         }
     }

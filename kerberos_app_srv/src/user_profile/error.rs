@@ -1,5 +1,6 @@
 pub enum AppServerHandlerError {
     InvalidCredentials,
+    UserIsNotAuthorized,
     UserProfileNotFound,
     InternalServerError,
 }
@@ -10,6 +11,7 @@ impl std::fmt::Display for AppServerHandlerError {
             AppServerHandlerError::InvalidCredentials => write!(f, "Invalid credentials"),
             AppServerHandlerError::UserProfileNotFound => write!(f, "User not found"),
             AppServerHandlerError::InternalServerError => write!(f, "Internal server error"),
+            AppServerHandlerError::UserIsNotAuthorized => write!(f, "User is not authorized"),
         }
     }
 }
