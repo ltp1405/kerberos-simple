@@ -97,7 +97,7 @@ fn make_principal_db() -> MockedPrincipalDb {
     principal_database
 }
 
-fn get_as_service<P: PrincipalDatabase>(db: &P) -> AuthenticationService<P> {
+fn get_as_service<P: PrincipalDatabase + Sync + Send>(db: &P) -> AuthenticationService<P> {
     let crypto = MockedCrypto;
     AuthenticationServiceBuilder::default()
         .supported_crypto_systems(vec![Box::new(crypto)])

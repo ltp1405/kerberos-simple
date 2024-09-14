@@ -108,10 +108,6 @@ impl ClientEnv for MockClientEnv {
         Ok(KerberosString::new("realm".as_bytes()).unwrap())
     }
 
-    fn get_client_address(&self) -> Result<OctetString, ClientEnvError> {
-        Ok(OctetString::new(vec![0; 4]).unwrap())
-    }
-
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {
         Ok(self
             .kdc_options

@@ -79,8 +79,8 @@ fn make_basic_tgs_service<'a, P, C>(
     mocked_last_req_db: &'a MockedLastReqDb,
 ) -> TicketGrantingService<'a, P, C>
 where
-    C: ReplayCache,
-    P: PrincipalDatabase,
+    C: ReplayCache + Send + Sync,
+    P: PrincipalDatabase + Send + Sync,
 {
     TicketGrantingServiceBuilder::default()
         .name(make_principal_name_unsafe("tgs"))
