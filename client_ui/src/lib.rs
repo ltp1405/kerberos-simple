@@ -2,10 +2,12 @@ pub mod client;
 pub mod config;
 mod util;
 
-use clap::{Parser, Subcommand};
+use crate::config::TransportType;
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 pub struct Cli {
+    pub config_path: Option<String>,
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -33,10 +35,9 @@ pub enum Commands {
 
         #[arg(short, long)]
         renewable: bool,
+
+        #[arg(long)]
+        transport: TransportType,
     },
     ListTicket,
-    ChooseTransportLayer {
-        #[arg(long)]
-        transport_layer: String,
-    },
 }

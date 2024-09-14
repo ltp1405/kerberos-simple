@@ -1,8 +1,9 @@
 use config::{Config, ConfigError};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use clap::ValueEnum;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, ValueEnum, Copy, Clone)]
 pub enum TransportType {
     Tcp,
     Udp,
@@ -13,25 +14,20 @@ pub struct AppConfig {
     pub name: String,
     pub realm: String,
     pub address: String,
-    pub key: String,
+    pub key: Option<String>,
     pub cache_location: Option<PathBuf>,
-    pub transport_type: TransportType,
+    pub transport_type: Option<TransportType>,
 }
 
 impl AppConfig {
-    pub fn init() -> Result<AppConfig, ConfigError> {
-        // let cfg = Config::builder()
-        //     .add_source(config::File::with_name("./cfg"))
-        //     .build()?;
-        //
-        // cfg.try_deserialize()
-        Ok(AppConfig {
-            name: "client".to_string(),
-            realm: "realm".to_string(),
-            address: "127.0.0.1:88".to_string(),
-            key: "key".to_string(),
-            cache_location: None,
-            transport_type: TransportType::Tcp,
-        })
+    pub fn init(
+        config_path: String,
+    ) -> Result<AppConfig, ConfigError> {
+        let cfg = Config::builder()
+            .add_source(config::File::with_name(&config_path))
+            .build()?;
+
+        let cfg = cfg.try_deserialize()?;
+        Ok(cfg)
     }
 }

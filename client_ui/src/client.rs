@@ -15,44 +15,60 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub struct Client {
+    pub name: String,
+    pub realm: String,
     pub renewable: bool,
-    pub server_name: String,
-    pub server_realm: String,
-    pub server_address: String,
-    pub cfg: AppConfig,
-    pub sender: Box<dyn Sendable>,
+    pub server_name: Option<String>,
+    pub server_realm: Option<String>,
+    pub server_address: Option<String>,
+    pub sender: Option<Box<dyn Sendable>>,
+    pub key: Option<String>,
+    pub cache_location: PathBuf,
+    pub transport_type: TransportType,
 }
 
 impl Client {
     pub fn new(
+        cfg: AppConfig,
         renewable: bool,
-        server_name: String,
-        server_realm: String,
-        server_address: String,
+        server_realm: Option<String>,
+        server_name: Option<String>,
+        server_address: Option<String>,
+        password: Option<String>,
+        cache_location: PathBuf,
     ) -> Result<Client, ConfigError> {
-        let cfg = AppConfig::init()?;
-        let sender: Box<dyn Sendable> = match &cfg.transport_type {
-            TransportType::Tcp => {
-                Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
-                    Err(ConfigError::Message("Failed to parse address".to_string())),
-                )?)))
-            }
-            TransportType::Udp => Box::new(UdpClient::new(
-                SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
-                    "Failed to parse address".to_string(),
-                )))?),
-                SocketAddr::V4(server_address.parse().or(Err(ConfigError::Message(
-                    "Failed to parse address".to_string(),
-                )))?),
-            )),
+        let sender: Option<Box<dyn Sendable>> = if let Some(ref server_address) = server_address {
+            let client: Box<dyn Sendable> = match &cfg.transport_type.unwrap_or(TransportType::Tcp)
+            {
+                TransportType::Tcp => {
+                    Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
+                        Err(ConfigError::Message("Failed to parse address".to_string())),
+                    )?)))
+                }
+                TransportType::Udp => Box::new(UdpClient::new(
+                    SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
+                        "Failed to parse address".to_string(),
+                    )))?),
+                    SocketAddr::V4(server_address.parse().or(Err(ConfigError::Message(
+                        "Failed to parse address".to_string(),
+                    )))?),
+                )),
+            };
+            Some(client)
+        } else {
+            None
         };
         Ok(Client {
+            name: cfg.name,
+            realm: cfg.realm,
+            key: cfg.key.or(password),
+            cache_location: cfg.cache_location.unwrap_or(cache_location),
             renewable,
             server_name,
             server_realm,
             server_address,
-            cfg,
             sender,
+            transport_type: cfg.transport_type.unwrap_or(TransportType::Tcp),
         })
     }
 
@@ -62,11 +78,7 @@ impl Client {
         name: &str,
         data: &[u8],
     ) -> std::io::Result<()> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         match folder_name {
             None => {}
             Some(folder) => {
@@ -84,11 +96,7 @@ impl Client {
         folder_name: Option<&str>,
         name: &str,
     ) -> std::io::Result<Vec<u8>> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         match folder_name {
             None => {}
             Some(folder) => {
@@ -101,11 +109,7 @@ impl Client {
     }
 
     pub fn list_tickets(&self) -> Vec<EncAsRepPart> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("enc_as_rep_part");
 
         let entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
@@ -127,39 +131,27 @@ impl Client {
 
 impl ClientEnv for Client {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
-        self.cfg
-            .name
-            .clone()
-            .try_into()
-            .map_err(|_| ClientEnvError {
-                message: "Failed to get client name".to_string(),
-            })
+        self.name.clone().try_into().map_err(|_| ClientEnvError {
+            message: "Failed to get client name".to_string(),
+        })
     }
 
     fn get_client_realm(&self) -> Result<KerberosString, ClientEnvError> {
-        self.cfg
-            .realm
-            .clone()
-            .try_into()
-            .map_err(|_| ClientEnvError {
-                message: "Failed to get client realm".to_string(),
-            })
+        self.realm.clone().try_into().map_err(|_| ClientEnvError {
+            message: "Failed to get client realm".to_string(),
+        })
     }
 
     fn get_server_name(&self) -> Result<KerberosString, ClientEnvError> {
-        KerberosString::new(self.server_name.as_bytes()).or(Err(ClientEnvError {
+        KerberosString::new(self.server_name.as_ref().unwrap().as_bytes()).or(Err(ClientEnvError {
             message: "Failed to get server name".to_string(),
         }))
     }
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
-        KerberosString::new(self.server_realm.as_bytes()).or(Err(ClientEnvError {
+        KerberosString::new(self.server_realm.as_ref().unwrap().as_bytes()).or(Err(ClientEnvError {
             message: "Failed to get server realm".to_string(),
         }))
-    }
-
-    fn get_client_address(&self) -> Result<OctetString, ClientEnvError> {
-        todo!()
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {
@@ -190,11 +182,7 @@ impl ClientEnv for Client {
     }
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("key");
         let mut f = fs::File::open(loc).map_err(|_| ClientEnvError {
             message: "Failed to fetch key".to_string(),
@@ -232,11 +220,7 @@ impl ClientEnv for Client {
     }
 
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("as_rep");
 
         let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
@@ -263,11 +247,7 @@ impl ClientEnv for Client {
     }
 
     fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("as_rep_enc_part");
 
         let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
@@ -317,11 +297,7 @@ impl ClientEnv for Client {
     }
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("tgs_rep");
 
         let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
@@ -348,11 +324,7 @@ impl ClientEnv for Client {
     }
 
     fn get_tgs_reply_enc_part(&self) -> Result<EncTgsRepPart, ClientEnvError> {
-        let mut loc = self
-            .cfg
-            .cache_location
-            .clone()
-            .unwrap_or(PathBuf::from("./"));
+        let mut loc = self.cache_location.clone();
         loc.push("tgs_rep_enc_part");
 
         let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
