@@ -90,17 +90,14 @@ where
     pub async fn handle_krb_ap_req(&self, ap_req: ApReq) -> Result<ApRep, ServerError> {
         let replay_cache = self.replay_cache;
         let crypto = &self.crypto;
-        let mut error_msg = Mutex::new(self.default_error_builder());
+        let mut error_msg = self.default_error_builder();
 
-        let build_protocol_error = |e| {
-            ProtocolError(Box::new(
-                error_msg.lock().unwrap().error_code(e).build().unwrap(),
-            ))
-        };
+        let mut build_protocol_error =
+            |e| ProtocolError(Box::new(error_msg.error_code(e).build().unwrap()));
 
         self.verify_msg_type(ap_req.msg_type())
             .and(self.verify_key(ap_req.ticket().tkt_vno()))
-            .map_err(build_protocol_error)?;
+            .map_err(&mut build_protocol_error)?;
 
         let key = self
             .get_key_for_decrypt(
@@ -109,7 +106,7 @@ where
                 *ap_req.ticket().enc_part().etype(),
                 ap_req.ticket().enc_part().kvno().copied(),
             )
-            .map_err(build_protocol_error)?;
+            .map_err(&mut build_protocol_error)?;
 
         let decrypted_ticket = crypto
             .iter()
@@ -150,15 +147,15 @@ where
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_SKEW));
         }
 
-        {
-            error_msg
-                .lock()
-                .unwrap()
-                .ctime(authenticator.ctime().to_owned())
-                .cusec(authenticator.cusec().to_owned())
-                .crealm(authenticator.crealm().to_owned())
-                .cname(authenticator.cname().to_owned());
-        }
+        // {
+        //     error_msg
+        //         .lock()
+        //         .unwrap()
+        //         .ctime(authenticator.ctime().to_owned())
+        //         .cusec(authenticator.cusec().to_owned())
+        //         .crealm(authenticator.crealm().to_owned())
+        //         .cname(authenticator.cname().to_owned());
+        // }
 
         if self
             .replay_cache
@@ -238,20 +235,23 @@ where
                 cname: authenticator.cname().to_owned(),
                 crealm: authenticator.crealm().to_owned(),
                 session_key: decrypted_ticket.key().to_owned(),
-                sequence_number: authenticator.seq_number().ok_or(ProtocolError(Box::new(
-                    error_msg
-                        .lock()
-                        .unwrap()
-                        .error_code(Ecode::KRB_ERR_GENERIC)
-                        .e_data(
-                            OctetString::new(
-                                "Sequence number must be provided".to_string().as_bytes(),
-                            )
-                            .unwrap(),
-                        )
-                        .build()
-                        .unwrap(),
-                )))?,
+                sequence_number: authenticator.seq_number().ok_or(
+                    build_protocol_error(Ecode::KRB_ERR_GENERIC)
+                )?,
+                // sequence_number: authenticator.seq_number().ok_or(ProtocolError(Box::new(
+                //     error_msg
+                //         .lock()
+                //         .unwrap()
+                //         .error_code(Ecode::KRB_ERR_GENERIC)
+                //         .e_data(
+                //             OctetString::new(
+                //                 "Sequence number must be provided".to_string().as_bytes(),
+                //             )
+                //             .unwrap(),
+                //         )
+                //         .build()
+                //         .unwrap(),
+                // )))?,
             })
             .await
             .map_err(|_| ServerError::Internal)?;

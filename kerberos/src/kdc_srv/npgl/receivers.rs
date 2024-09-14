@@ -7,6 +7,7 @@ use messages::{AsReq, Decode, Encode, TgsReq};
 use sqlx::PgPool;
 
 use crate::{
+    algo::{AesGcm, Sha1},
     authentication_service::AuthenticationServiceBuilder,
     kdc_srv::configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig},
     ticket_granting_service::TicketGrantingServiceBuilder,
@@ -40,7 +41,7 @@ impl AsyncReceiver for NpglAsReqHandler {
             .realm(self.0.realm.clone())
             .sname(self.0.sname.clone())
             .require_pre_authenticate(self.0.require_preauth)
-            .supported_crypto_systems(vec![])
+            .supported_crypto_systems(vec![Box::new(AesGcm::new())])
             .principal_db(&npgl_db_view)
             .build()
             .expect("Failed to build authentication service");
@@ -98,8 +99,8 @@ impl AsyncReceiver for NpglTgsReqHandler {
         let tgs_service = TicketGrantingServiceBuilder::default()
             .realm(self.0.realm.clone())
             .name(self.0.sname.clone())
-            .supported_crypto(vec![])
-            .supported_checksum(vec![])
+            .supported_crypto(vec![Box::new(AesGcm::new())])
+            .supported_checksum(vec![Box::new(Sha1::new())])
             .principal_db(&npgl_db_view)
             .replay_cache(&npgl_cache_view)
             .last_req_db(&npgl_cache_view)
