@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{http::header::Date, web, Responder};
 use async_trait::async_trait;
+use der::Encode;
 use kerberos::{
     application_authentication_service::{
         ApplicationAuthenticationService, ApplicationAuthenticationServiceBuilder,
@@ -24,8 +25,7 @@ use crate::{
 
 pub struct AppServerHandler<'a> {
     db: Arc<PostgresDb>,
-    auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache, ApplicationSessionStorage>,
-    auth_cache: ApplicationAuthenticationCache
+    auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache, ApplicationSessionStorage>
 }
 
 unsafe impl<'a> Sync for AppServerHandler<'a> {}
@@ -34,9 +34,8 @@ impl<'a> AppServerHandler<'a> {
     pub fn new(
         db: Arc<PostgresDb>,
         auth_service: ApplicationAuthenticationService<'a, AppServerReplayCache, ApplicationSessionStorage>,
-        auth_cache: ApplicationAuthenticationCache,
     ) -> Self {
-        Self { db, auth_service, auth_cache }
+        Self { db, auth_service }
     }
 
 }
@@ -45,7 +44,8 @@ impl<'a> Handleable for AppServerHandler<'a> {
     async fn get_user_profile(&self, request: UserProfileRequest) -> UserProfileResponse {
         let username = request.username();
         let sequence_number = request.sequence_number();
-        if !self.auth_cache.contains(username, sequence_number).await {
+        let realm = request.realm();
+        if !self.auth_service.is_user_authenticated(username, realm, sequence_number).await {
             return UserProfileResponse::new(Err(AppServerHandlerError::UserIsNotAuthorized));
         }
         let pool = self.db.inner();
@@ -56,7 +56,7 @@ impl<'a> Handleable for AppServerHandler<'a> {
             SELECT * FROM "{0}".UserProfile WHERE username = '{1}';
             "#,
                     self.db.get_schema().schema_name(),
-                    username
+                    String::from_utf8(username.to_der().expect("Failed to encode username")).expect("Failed to convert username to string")
                 )
                 .as_str(),
             )

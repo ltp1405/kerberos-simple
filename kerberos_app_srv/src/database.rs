@@ -4,7 +4,6 @@ extern crate kerberos;
 extern crate kerberos_infra;
 
 use actix_web::App;
-use kerberos_infra::server::{ClonableSchema, Database, Schema};
 
 pub struct AppDbSchema;
 impl AppDbSchema {

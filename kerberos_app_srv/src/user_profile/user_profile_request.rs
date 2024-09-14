@@ -2,20 +2,31 @@ use std::sync::Arc;
 
 use actix_web::{web, FromRequest};
 use kerberos_infra::server::database::postgres::PostgresDb;
+use messages::basic_types::{PrincipalName, Realm};
 use serde::Serialize;
 use tokio::sync::futures;
 
 pub struct UserProfileRequest {
-    username: String,
-    sequence_number: Vec<u8>
+    username: PrincipalName,
+    realm: Realm,
+    sequence_number: i32
 }
 
 impl UserProfileRequest {
-    pub fn username(&self) -> &str {
+    pub fn new(username: PrincipalName, realm: Realm, sequence_number: i32) -> Self {
+        Self { username, realm, sequence_number }
+    }
+
+    pub fn username(&self) -> &PrincipalName {
         &self.username
     }
-    pub fn sequence_number(&self) -> Vec<u8> {
-        self.sequence_number.clone()
+
+    pub fn realm(&self) -> &Realm {
+        &self.realm
+    }
+
+    pub fn sequence_number(&self) -> i32 {
+        self.sequence_number
     }
 }
 
@@ -28,7 +39,10 @@ impl FromRequest for UserProfileRequest {
         _payload: &mut actix_web::dev::Payload,
     ) -> Self::Future {
         let username = req.match_info().get("username").unwrap().to_string();
-        let sequence_number = req.match_info().get("sequence_number").unwrap().to_string().as_bytes().to_vec();
-        futures_util::future::ready(Ok(UserProfileRequest { username, sequence_number }))
+        let realm = req.match_info().get("realm").unwrap().to_string();
+
+        let sequence_number = req.match_info().get("sequence_number").unwrap();
+        let sequence_number = sequence_number.parse::<i32>().unwrap();
+        futures_util::future::ready(Ok(UserProfileRequest { username, realm, sequence_number }))
     }
 }
