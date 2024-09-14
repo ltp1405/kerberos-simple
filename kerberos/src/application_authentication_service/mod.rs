@@ -3,7 +3,7 @@ mod tests;
 
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage};
+use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage, UserSessionEntry, UserSessionStorage};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
@@ -18,18 +18,20 @@ use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-pub struct ApplicationAuthenticationService<'a, C>
+pub struct ApplicationAuthenticationService<'a, C, S>
 where
-    C: ApReplayCache + Sync + Send,
+    C: ApReplayCache,
+    S: UserSessionStorage,
 {
     realm: Realm,
     sname: PrincipalName,
     service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
-    address_storage: &'a (dyn ClientAddressStorage + Sync + Send),
+    address_storage: &'a dyn ClientAddressStorage,
     replay_cache: &'a C,
     crypto: Vec<Box<dyn Cryptography + Send + Sync>>,
+    session_storage: &'a S,
 }
 
 #[derive(Debug)]
@@ -38,9 +40,10 @@ pub enum ServerError {
     Internal,
 }
 
-impl<'a, C> ApplicationAuthenticationService<'a, C>
+impl<'a, C, S> ApplicationAuthenticationService<'a, C, S>
 where
-    C: ApReplayCache + Sync + Send,
+    C: ApReplayCache,
+    S: UserSessionStorage,
 {
     fn verify_msg_type(&self, msg_type: &u8) -> Result<(), Ecode> {
         match msg_type {
@@ -146,7 +149,8 @@ where
 
         {
             error_msg
-                .lock().unwrap()
+                .lock()
+                .unwrap()
                 .ctime(authenticator.ctime().to_owned())
                 .cusec(authenticator.cusec().to_owned())
                 .crealm(authenticator.crealm().to_owned())
@@ -223,6 +227,15 @@ where
                 &rep_authenticator,
                 decrypted_ticket.key().keyvalue().as_bytes(),
             )
+            .map_err(|_| ServerError::Internal)?;
+
+        self.session_storage
+            .store_session(&UserSessionEntry {
+                cname: authenticator.cname().to_owned(),
+                crealm: authenticator.crealm().to_owned(),
+                session_key: decrypted_ticket.key().to_owned(),
+            })
+            .await
             .map_err(|_| ServerError::Internal)?;
 
         Ok(ApRep::new(EncryptedData::new(
