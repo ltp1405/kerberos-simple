@@ -7,6 +7,7 @@ pub mod authentication_service;
 pub mod service_traits;
 pub mod cryptographic_hash;
 pub mod kdc_srv;
+mod algo;
 
 #[cfg(test)]
 pub(crate) mod tests_common;
