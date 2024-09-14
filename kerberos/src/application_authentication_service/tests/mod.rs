@@ -3,7 +3,9 @@ use crate::application_authentication_service::{
 };
 use crate::cryptography::Cryptography;
 use crate::service_traits::{ApReplayCache, ClientAddressStorage};
-use crate::tests_common::mocked::{MockedApReplayCache, MockedClientAddressStorage, MockedCrypto};
+use crate::tests_common::mocked::{
+    MockedApReplayCache, MockedClientAddressStorage, MockedCrypto, MockedUserSessionStorage,
+};
 use messages::basic_types::{
     EncryptedData, EncryptionKey, HostAddresses, KerberosString, KerberosTime, NameTypes,
     OctetString, PrincipalName, Realm,
@@ -85,13 +87,11 @@ impl Default for TicketConfig {
     }
 }
 
-fn create_ap_service<'a, C>(
-    ap_replay_cache: &'a C,
-    address_storage: &'a (dyn ClientAddressStorage + Sync + Send),
-) -> ApplicationAuthenticationService<'a, C>
-where
-    C: ApReplayCache + Send + Sync,
-{
+fn create_ap_service<'a>(
+    ap_replay_cache: &'a MockedApReplayCache,
+    address_storage: &'a MockedClientAddressStorage,
+    session_storage: &'a MockedUserSessionStorage,
+) -> ApplicationAuthenticationService<'a, MockedApReplayCache, MockedUserSessionStorage> {
     ApplicationAuthenticationServiceBuilder::default()
         .realm(SERVER_REALM.clone())
         .sname(SERVER_NAME.clone())
@@ -99,6 +99,7 @@ where
         .ticket_allowable_clock_skew(Duration::from_secs(60 * 5))
         .replay_cache(ap_replay_cache)
         .crypto(vec![Box::new(MockedCrypto)])
+        .session_storage(session_storage)
         .service_key(SERVER_KEY.to_owned())
         .address_storage(address_storage)
         .build()
@@ -133,6 +134,7 @@ fn make_ticket(config: &TicketConfig) -> Ticket {
 async fn test_handle_ap_req() {
     let cache = MockedApReplayCache::new();
     let address_storage = MockedClientAddressStorage::new();
+    let session_storage = MockedUserSessionStorage::new();
     let crypto = MockedCrypto;
     let transited_encoding = TransitedEncoding::new(
         1,
@@ -159,7 +161,7 @@ async fn test_handle_ap_req() {
 
     let ap_req = ApReq::new(APOptions::new(false, false), ticket, authenticator);
 
-    let auth_service = create_ap_service(&cache, &address_storage);
+    let auth_service = create_ap_service(&cache, &address_storage, &session_storage);
     assert!(auth_service
         .handle_krb_ap_req(ap_req.clone())
         .await
@@ -176,12 +178,13 @@ async fn test_handle_ap_req() {
 async fn test_client_clock_skew() {
     let cache = MockedApReplayCache::new();
     let address_storage = MockedClientAddressStorage::new();
+    let session_storage = MockedUserSessionStorage::new();
     let crypto = MockedCrypto;
     let transited_encoding = TransitedEncoding::new(
         1,
         OctetString::new("EDU,MIT.,ATHENA.,WASHINGTON.EDU,CS.".to_string().as_bytes()).unwrap(),
     );
-    let auth_service = create_ap_service(&cache, &address_storage);
+    let auth_service = create_ap_service(&cache, &address_storage, &session_storage);
 
     let ticket = make_ticket(&TicketConfig::default());
     let make_authenticator = |ctime: KerberosTime| {
@@ -224,6 +227,7 @@ async fn test_client_clock_skew() {
 async fn test_ticket_time() {
     let cache = MockedApReplayCache::new();
     let address_storage = MockedClientAddressStorage::new();
+    let session_storage = MockedUserSessionStorage::new();
     let crypto = MockedCrypto;
     let transited_encoding = TransitedEncoding::new(
         1,
@@ -253,7 +257,7 @@ async fn test_ticket_time() {
 
     let ap_req = ApReq::new(APOptions::new(false, false), ticket, authenticator.clone());
 
-    let auth_service = create_ap_service(&cache, &address_storage);
+    let auth_service = create_ap_service(&cache, &address_storage, &session_storage);
 
     auth_service
         .handle_krb_ap_req(ap_req)

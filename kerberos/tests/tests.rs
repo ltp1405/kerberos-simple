@@ -8,7 +8,7 @@ pub mod common;
 mod tests {
     use crate::common::mocked::{
         MockClientEnv, MockedApReplayCache, MockedClientAddressStorage, MockedCrypto, MockedHasher,
-        MockedLastReqDb, MockedPrincipalDb, MockedReplayCache,
+        MockedLastReqDb, MockedPrincipalDb, MockedReplayCache, MockedUserSessionStorage,
     };
     use kerberos::application_authentication_service::{
         ApplicationAuthenticationService, ApplicationAuthenticationServiceBuilder,
@@ -79,7 +79,8 @@ mod tests {
     fn get_ap_service<'a, C>(
         replay_cache: &'a C,
         address_storage: &'a MockedClientAddressStorage,
-    ) -> ApplicationAuthenticationService<'a, C>
+        session_storage: &'a MockedUserSessionStorage,
+    ) -> ApplicationAuthenticationService<'a, C, MockedUserSessionStorage>
     where
         C: ApReplayCache + Sync + Send,
     {
@@ -93,6 +94,7 @@ mod tests {
                 .unwrap(),
             )
             .replay_cache(replay_cache)
+            .session_storage(session_storage)
             .service_key(EncryptionKey::new(1, OctetString::new(vec![1; 8]).unwrap()))
             .accept_empty_address_ticket(true)
             .ticket_allowable_clock_skew(Duration::from_secs(60 * 10))
@@ -157,6 +159,7 @@ mod tests {
         let as_rep = as_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
         let as_rep = as_rep.unwrap();
+        let session_storage = MockedUserSessionStorage::new();
         println!(
             "{:?}",
             receive_as_response(&mock_client_env, &as_req, &as_rep)
@@ -185,7 +188,7 @@ mod tests {
             )
             .unwrap(),
         );
-        let ap_service = get_ap_service(&ap_cache, &address_storage);
+        let ap_service = get_ap_service(&ap_cache, &address_storage, &session_storage);
         let ap_rep = ap_service.handle_krb_ap_req(ap_req).await;
         ap_rep.unwrap();
     }

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use crate::client::client_env::ClientEnv;
 use crate::client::client_env_error::ClientEnvError;
 use crate::cryptographic_hash::CryptographicHash;
@@ -6,8 +5,10 @@ use crate::cryptography::Cryptography;
 use crate::cryptography_error::CryptographyError;
 use crate::service_traits::{
     ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry,
-    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
+    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry, UserSessionEntry,
+    UserSessionStorage,
 };
+use async_trait::async_trait;
 use messages::basic_types::{
     EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName,
     Realm,
@@ -358,5 +359,41 @@ impl ClientAddressStorage for MockedClientAddressStorage {
             .iter()
             .find_map(|(r, a)| if r == req { Some(a.clone()) } else { None })
             .unwrap()
+    }
+}
+
+pub struct MockedUserSessionStorage {
+    sessions: Arc<Mutex<Vec<UserSessionEntry>>>,
+}
+
+impl MockedUserSessionStorage {
+    pub fn new() -> MockedUserSessionStorage {
+        MockedUserSessionStorage {
+            sessions: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl UserSessionStorage for MockedUserSessionStorage {
+    type Error = ();
+
+    async fn get_session(
+        &self,
+        cname: &PrincipalName,
+        crealm: &Realm,
+    ) -> Result<Option<UserSessionEntry>, Self::Error> {
+        Ok(self.sessions.lock().unwrap().iter().find_map(|s| {
+            if &s.cname == cname && &s.crealm == crealm {
+                Some(s.clone())
+            } else {
+                None
+            }
+        }))
+    }
+
+    async fn store_session(&self, session: &UserSessionEntry) -> Result<(), Self::Error> {
+        self.sessions.lock().unwrap().push(session.clone());
+        Ok(())
     }
 }
