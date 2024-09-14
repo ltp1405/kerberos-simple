@@ -5,17 +5,14 @@ use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos::cryptography_error::CryptographyError;
 use kerberos::service_traits::{
-    ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry,
-    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry,
+    LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
+    ReplayCacheEntry,
 };
 use messages::basic_types::{
-    EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName,
-    Realm,
+    EncryptionKey, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
 };
-use messages::{ApReq, AsRep, AsReq, Decode, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
+use messages::{AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -106,6 +103,10 @@ impl ClientEnv for MockClientEnv {
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
         Ok(KerberosString::new("realm".as_bytes()).unwrap())
+    }
+
+    fn get_client_address(&self) -> Result<OctetString, ClientEnvError> {
+        Ok(OctetString::new(vec![0; 4]).unwrap())
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {

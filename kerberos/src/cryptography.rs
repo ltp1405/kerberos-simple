@@ -1,6 +1,6 @@
 use crate::cryptography_error::CryptographyError;
 
-pub trait Cryptography {
+pub trait Cryptography: Send + Sync {
     fn get_etype(&self) -> i32;
 
     fn encrypt(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, CryptographyError>;

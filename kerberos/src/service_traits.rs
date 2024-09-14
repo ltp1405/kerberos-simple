@@ -1,9 +1,10 @@
+use async_trait::async_trait;
+use der::Sequence;
 use messages::basic_types::{
     EncryptionKey, HostAddress, Int32, KerberosTime, Microseconds, PrincipalName, Realm, UInt32,
 };
 use messages::{ApReq, LastReq};
 use std::time::Duration;
-use async_trait::async_trait;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrincipalDatabaseRecord {
@@ -23,7 +24,7 @@ pub trait PrincipalDatabase {
     ) -> Option<PrincipalDatabaseRecord>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 pub struct ReplayCacheEntry {
     pub server_name: PrincipalName,
     pub client_name: PrincipalName,
@@ -45,7 +46,7 @@ pub trait TicketHotList {
     async fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 pub struct ApReplayEntry {
     pub ctime: KerberosTime,
     pub cusec: Microseconds,
@@ -65,6 +66,8 @@ pub trait ClientAddressStorage {
     async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
 }
 
+
+#[derive(Debug, Clone, Sequence)]
 pub struct LastReqEntry {
     pub last_req: LastReq,
     pub realm: Realm,
@@ -72,7 +75,7 @@ pub struct LastReqEntry {
 }
 
 #[async_trait]
-pub trait LastReqDatabase {
+pub trait LastReqDatabase: Send + Sync {
     async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
     async fn store_last_req(&self, last_req_entry: LastReqEntry);
 }
