@@ -58,6 +58,11 @@ impl KerberosTime {
             .expect("Should not failed")
     }
 
+    pub fn abs_diff(&self, other: &KerberosTime) -> Duration {
+        self.checked_sub_kerberos_time(*other)
+            .unwrap_or_else(|| other.checked_sub_kerberos_time(*self).unwrap())
+    }
+
     pub fn to_unix_duration(&self) -> Duration {
         self.0.to_unix_duration()
     }

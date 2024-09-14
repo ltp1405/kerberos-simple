@@ -6,6 +6,7 @@ use messages::basic_types::{
 use messages::{ApReq, LastReq};
 use std::time::Duration;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrincipalDatabaseRecord {
     pub max_renewable_life: Duration,
     pub max_lifetime: Duration,
@@ -45,7 +46,7 @@ pub trait TicketHotList {
     async fn contain(&self, ticket: &[u8]) -> Result<bool, Self::TicketHotListError>;
 }
 
-#[derive(Debug, Clone, Sequence)]
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 pub struct ApReplayEntry {
     pub ctime: KerberosTime,
     pub cusec: Microseconds,
@@ -61,10 +62,9 @@ pub trait ApReplayCache {
 }
 
 #[async_trait]
-pub trait ClientAddressStorage {
+pub trait ClientAddressStorage: Sync + Send {
     async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
 }
-
 
 #[derive(Debug, Clone, Sequence)]
 pub struct LastReqEntry {
@@ -77,4 +77,22 @@ pub struct LastReqEntry {
 pub trait LastReqDatabase: Send + Sync {
     async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq>;
     async fn store_last_req(&self, last_req_entry: LastReqEntry);
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Sequence)]
+pub struct UserSessionEntry {
+    pub cname: PrincipalName,
+    pub crealm: Realm,
+    pub session_key: EncryptionKey,
+    pub sequence_number: Int32,
+}
+#[async_trait]
+pub trait UserSessionStorage: Send + Sync {
+    type Error;
+    async fn get_session(
+        &self,
+        cname: &PrincipalName,
+        crealm: &Realm,
+    ) -> Result<Option<UserSessionEntry>, Self::Error>;
+    async fn store_session(&self, session: &UserSessionEntry) -> Result<(), Self::Error>;
 }

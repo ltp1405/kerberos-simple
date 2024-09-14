@@ -16,8 +16,6 @@ pub trait ClientEnv {
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError>;
 
-    fn get_client_address(&self) -> Result<OctetString, ClientEnvError>;
-
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError>;
 
     fn get_current_time(&self) -> Result<Duration, ClientEnvError> {
