@@ -3,7 +3,9 @@ mod tests;
 
 use crate::application_authentication_service::ServerError::ProtocolError;
 use crate::cryptography::Cryptography;
-use crate::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage, UserSessionEntry, UserSessionStorage};
+use crate::service_traits::{
+    ApReplayCache, ApReplayEntry, ClientAddressStorage, UserSessionEntry, UserSessionStorage,
+};
 use chrono::Local;
 use derive_builder::Builder;
 use messages::basic_types::{
@@ -13,6 +15,7 @@ use messages::basic_types::{
 use messages::flags::TicketFlag;
 use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
+use rand::Rng;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -229,11 +232,26 @@ where
             )
             .map_err(|_| ServerError::Internal)?;
 
+        let mut rng = rand::thread_rng();
         self.session_storage
             .store_session(&UserSessionEntry {
                 cname: authenticator.cname().to_owned(),
                 crealm: authenticator.crealm().to_owned(),
                 session_key: decrypted_ticket.key().to_owned(),
+                sequence_number: authenticator.seq_number().ok_or(ProtocolError(Box::new(
+                    error_msg
+                        .lock()
+                        .unwrap()
+                        .error_code(Ecode::KRB_ERR_GENERIC)
+                        .e_data(
+                            OctetString::new(
+                                "Sequence number must be provided".to_string().as_bytes(),
+                            )
+                            .unwrap(),
+                        )
+                        .build()
+                        .unwrap(),
+                )))?,
             })
             .await
             .map_err(|_| ServerError::Internal)?;

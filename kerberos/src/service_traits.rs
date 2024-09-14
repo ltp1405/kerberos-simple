@@ -84,6 +84,7 @@ pub struct UserSessionEntry {
     pub cname: PrincipalName,
     pub crealm: Realm,
     pub session_key: EncryptionKey,
+    pub sequence_number: Int32,
 }
 #[async_trait]
 pub trait UserSessionStorage: Send + Sync {
