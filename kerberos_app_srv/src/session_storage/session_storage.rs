@@ -8,6 +8,7 @@ use tokio::sync::Mutex;
 
 use super::error::ApplicationSessionStorageError;
 
+#[derive(Clone)]
 pub struct ApplicationSessionStorage {
     pub session_storage: Arc<Mutex<HashMap<String, (EncryptionKey, i32)>>>,
 }
@@ -35,7 +36,7 @@ impl UserSessionStorage for ApplicationSessionStorage {
         crealm: &Realm,
     ) -> Result<Option<UserSessionEntry>, Self::Error> {
         let session_storage = self.session_storage.lock().await;
-        
+
         let key = map_der_to_string(&AppServerSessionRequest {
             cname: cname.clone(),
             crealm: crealm.clone(),

@@ -3,8 +3,6 @@ use kerberos_infra::server::database::{ClonableSchema, Schema};
 extern crate kerberos;
 extern crate kerberos_infra;
 
-use actix_web::App;
-
 pub struct AppDbSchema;
 impl AppDbSchema {
     pub fn boxed() -> Box<dyn ClonableSchema> {

@@ -8,6 +8,7 @@ pub mod service_traits;
 pub mod cryptographic_hash;
 pub mod kdc_srv;
 mod algo;
+pub use algo::AesGcm;
 
 #[cfg(test)]
 pub(crate) mod tests_common;

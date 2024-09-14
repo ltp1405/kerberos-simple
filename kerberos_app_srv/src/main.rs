@@ -1,35 +1,188 @@
-use std::sync::Arc;
+use std::time::Duration;
 
-use actix_web::{web::{self, Data}, App, HttpServer, Responder};
+use actix_web::{
+    web::{self},
+    App, HttpResponse, HttpServer, Responder,
+};
+use chrono::DateTime;
 use database::AppDbSchema;
+use der::{asn1::OctetString, Decode, Encode};
 use kerberos::application_authentication_service::ApplicationAuthenticationServiceBuilder;
-use kerberos_app_srv::{auth_cache, handleable::Handleable, handler::AppServerHandler};
-use kerberos_infra::server::database::{postgres::{PgDbSettings, PostgresDb}, DbSettings};
+use kerberos_app_srv::{
+    replay_cache::replay_cache::AppServerReplayCache,
+    session_storage::session_storage::ApplicationSessionStorage,
+};
+use kerberos_infra::server::database::{
+    postgres::{PgDbSettings, PostgresDb},
+    Database, DbSettings, Migration,
+};
+use messages::{
+    basic_types::{EncryptionKey, KerberosString, NameTypes, PrincipalName, Realm},
+    ApReq,
+};
+use serde::{Deserialize, Serialize};
+use sqlx::{Executor, Row};
+
+#[derive(Deserialize)]
+pub struct UserProfileQuery {
+    pub realm: String,
+    pub sequence: i32,
+}
+
+#[derive(Serialize)]
+pub struct UserProfileResponse {
+    pub id: i32,
+    pub username: String,
+    pub email: String,
+    pub firstname: String,
+    pub lastname: String,
+    pub birthday: DateTime<chrono::Utc>,
+    pub created_at: DateTime<chrono::Utc>,
+    pub updated_at: DateTime<chrono::Utc>,
+}
+
+#[derive(Deserialize)]
+pub struct UserAuthenticateCommand {
+    pub tickets: Vec<u8>,
+}
+
+pub struct AuthenticationServiceConfig {
+    pub realm: Realm,
+    pub sname: PrincipalName,
+    pub service_key: EncryptionKey,
+    pub accept_empty_address_ticket: bool,
+    pub ticket_allowable_clock_skew: Duration,
+}
+
+async fn handle_get(
+    db: web::Data<PostgresDb>,
+    auth_service_config: web::Data<AuthenticationServiceConfig>,
+    replay_cache: web::Data<AppServerReplayCache>,
+    session_cache: web::Data<ApplicationSessionStorage>,
+    query: web::Query<UserProfileQuery>,
+    username: web::Path<String>,
+) -> impl Responder {
+    let username = PrincipalName::new(
+        NameTypes::NtPrincipal,
+        vec![KerberosString::new(username.as_bytes()).unwrap()],
+    )
+    .unwrap();
+    let sequence_number = query.sequence;
+    let realm = Realm::new(query.realm.as_bytes()).unwrap();
+
+    let auth_service = ApplicationAuthenticationServiceBuilder::default()
+        .realm(auth_service_config.realm.clone())
+        .sname(auth_service_config.sname.clone())
+        .service_key(auth_service_config.service_key.clone())
+        .accept_empty_address_ticket(auth_service_config.accept_empty_address_ticket)
+        .ticket_allowable_clock_skew(auth_service_config.ticket_allowable_clock_skew)
+        .replay_cache(replay_cache.as_ref())
+        .session_storage(session_cache.as_ref())
+        .crypto(vec![Box::new(kerberos::AesGcm::new())])
+        .build()
+        .expect("Failed to build authentication service");
+
+    if auth_service
+        .is_user_authenticated(&username, &realm, sequence_number)
+        .await
+    {
+        return HttpResponse::Unauthorized().finish();
+    }
+    let pool = db.inner();
+    let row = pool
+        .fetch_optional(
+            format!(
+                r#"
+            SELECT * FROM "{0}".UserProfile WHERE username = '{1}';
+            "#,
+                db.get_schema().schema_name(),
+                String::from_utf8(username.to_der().expect("Failed to encode username"))
+                    .expect("Failed to convert username to string")
+            )
+            .as_str(),
+        )
+        .await
+        .expect("Failed to fetch user profile");
+    match row {
+        Some(row) => {
+            let user_profile = UserProfileResponse {
+                id: row.get("id"),
+                username: row.get("username"),
+                email: row.get("email"),
+                firstname: row.get("firstname"),
+                lastname: row.get("lastname"),
+                birthday: row.get("birthday"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            };
+            // Return the user profile with impl Responder
+            HttpResponse::Ok().json(user_profile)
+        }
+        None => HttpResponse::NotFound().finish(),
+    }
+}
+
+async fn handle_post(
+    auth_service_config: web::Data<AuthenticationServiceConfig>,
+    replay_cache: web::Data<AppServerReplayCache>,
+    session_cache: web::Data<ApplicationSessionStorage>,
+    body: web::Json<UserAuthenticateCommand>,
+) -> impl Responder {
+    let auth_service = ApplicationAuthenticationServiceBuilder::default()
+        .realm(auth_service_config.realm.clone())
+        .sname(auth_service_config.sname.clone())
+        .service_key(auth_service_config.service_key.clone())
+        .accept_empty_address_ticket(auth_service_config.accept_empty_address_ticket)
+        .ticket_allowable_clock_skew(auth_service_config.ticket_allowable_clock_skew)
+        .replay_cache(replay_cache.as_ref())
+        .session_storage(session_cache.as_ref())
+        .crypto(vec![Box::new(kerberos::AesGcm::new())])
+        .build()
+        .expect("Failed to build authentication service");
+
+    let as_req = ApReq::from_der(&body.tickets).unwrap();
+
+    let reply = auth_service.handle_krb_ap_req(as_req).await;
+
+    if let Ok(ap_rep) = reply {
+        HttpResponse::Ok().body(ap_rep.to_der().unwrap())
+    } else {
+        HttpResponse::Unauthorized().finish()
+    }
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let config = PgDbSettings::load_from_dir();
     let schema = AppDbSchema::boxed();
-    let mut postgre = PostgresDb::new(config, schema);
-    postgre.migrate_then_seed().await.unwrap();
-    let db = Arc::new(postgre);
-    let auth_service = ApplicationAuthenticationServiceBuilder::default().build();
-    let auth_cache = auth_cache::ApplicationAuthenticationCache::new();
-    let app_server_handler = AppServerHandler::new(db, auth_service);
+    let mut postgres = PostgresDb::new(config, schema);
+    postgres.migrate_then_seed().await.unwrap();
     HttpServer::new(move || {
-        App::new().app_data(web::Data::new(app_server_handler)).service(
-            // prefixes all resources and routes attached to it...
-            web::scope("/app")
-                // ...so this handles requests for `GET /app/index.html`
-                .route(
-                    "/user/{username}",
-                    web::get().to(AppServerHandler::get_user_profile),
-                )
-                .route(
-                    "/authenticate",
-                    web::post().to(AppServerHandler::authenticate),
-                ),
-        )
+        let replay_cache = AppServerReplayCache::new();
+        let session_cache = ApplicationSessionStorage::new();
+        let auth_service_config = AuthenticationServiceConfig {
+            realm: Realm::new(b"EXAMPLE.COM").unwrap(),
+            sname: PrincipalName::new(
+                NameTypes::NtEnterprise,
+                vec![KerberosString::new(b"host").unwrap()],
+            )
+            .unwrap(),
+            service_key: EncryptionKey::new(17, OctetString::new(vec![0; 16]).unwrap()),
+            accept_empty_address_ticket: true,
+            ticket_allowable_clock_skew: Duration::from_secs(10),
+        };
+        App::new()
+            .app_data(web::Data::new(replay_cache))
+            .app_data(web::Data::new(session_cache))
+            .app_data(web::Data::new(postgres.clone()))
+            .app_data(web::Data::new(auth_service_config))
+            .service(
+                // prefixes all resources and routes attached to it...
+                web::scope("/app")
+                    // ...so this handles requests for `GET /app/index.html`
+                    .route("/user/{username}", web::get().to(handle_get))
+                    .route("/authenticate", web::post().to(handle_post)),
+            )
     })
     .bind(("127.0.0.1", 8080))?
     .run()

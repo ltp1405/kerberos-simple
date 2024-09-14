@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 
 use super::error::AppServerReplayCacheError;
 
+#[derive(Clone)]
 pub struct AppServerReplayCache {
     pub cache: Arc<Mutex<HashMap<Vec<u8>, bool>>>,
 }
