@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig};
+pub use configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig};
 
 #[async_trait]
 pub trait Listen: Sized {
