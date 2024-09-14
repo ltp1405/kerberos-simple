@@ -20,8 +20,8 @@ pub struct Client {
     pub renewable: bool,
     pub server_name: Option<String>,
     pub server_realm: Option<String>,
-    pub server_address: Option<String>,
-    pub sender: Option<Box<dyn Sendable>>,
+    pub as_sender: Option<Box<dyn Sendable>>,
+    pub tgs_sender: Option<Box<dyn Sendable>>,
     pub key: Option<String>,
     pub cache_location: PathBuf,
     pub transport_type: TransportType,
@@ -33,31 +33,55 @@ impl Client {
         renewable: bool,
         server_realm: Option<String>,
         server_name: Option<String>,
-        server_address: Option<String>,
+        as_server_address: Option<String>,
+        tgs_server_address: Option<String>,
         password: Option<String>,
         cache_location: PathBuf,
     ) -> Result<Client, ConfigError> {
-        let sender: Option<Box<dyn Sendable>> = if let Some(ref server_address) = server_address {
-            let client: Box<dyn Sendable> = match &cfg.transport_type.unwrap_or(TransportType::Tcp)
-            {
-                TransportType::Tcp => {
-                    Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
-                        Err(ConfigError::Message("Failed to parse address".to_string())),
-                    )?)))
-                }
-                TransportType::Udp => Box::new(UdpClient::new(
-                    SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
-                        "Failed to parse address".to_string(),
-                    )))?),
-                    SocketAddr::V4(server_address.parse().or(Err(ConfigError::Message(
-                        "Failed to parse address".to_string(),
-                    )))?),
-                )),
+        let as_sender: Option<Box<dyn Sendable>> =
+            if let Some(ref server_address) = as_server_address {
+                let client: Box<dyn Sendable> =
+                    match &cfg.transport_type.unwrap_or(TransportType::Tcp) {
+                        TransportType::Tcp => {
+                            Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
+                                Err(ConfigError::Message("Failed to parse address".to_string())),
+                            )?)))
+                        }
+                        TransportType::Udp => Box::new(UdpClient::new(
+                            SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
+                                "Failed to parse address".to_string(),
+                            )))?),
+                            SocketAddr::V4(server_address.parse().or(Err(
+                                ConfigError::Message("Failed to parse address".to_string()),
+                            ))?),
+                        )),
+                    };
+                Some(client)
+            } else {
+                None
             };
-            Some(client)
-        } else {
-            None
-        };
+        let tgs_sender: Option<Box<dyn Sendable>> =
+            if let Some(ref server_address) = tgs_server_address {
+                let client: Box<dyn Sendable> =
+                    match &cfg.transport_type.unwrap_or(TransportType::Tcp) {
+                        TransportType::Tcp => {
+                            Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
+                                Err(ConfigError::Message("Failed to parse address".to_string())),
+                            )?)))
+                        }
+                        TransportType::Udp => Box::new(UdpClient::new(
+                            SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
+                                "Failed to parse address".to_string(),
+                            )))?),
+                            SocketAddr::V4(server_address.parse().or(Err(
+                                ConfigError::Message("Failed to parse address".to_string()),
+                            ))?),
+                        )),
+                    };
+                Some(client)
+            } else {
+                None
+            };
         Ok(Client {
             name: cfg.name,
             realm: cfg.realm,
@@ -66,8 +90,8 @@ impl Client {
             renewable,
             server_name,
             server_realm,
-            server_address,
-            sender,
+            as_sender,
+            tgs_sender,
             transport_type: cfg.transport_type.unwrap_or(TransportType::Tcp),
         })
     }
@@ -149,9 +173,11 @@ impl ClientEnv for Client {
     }
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
-        KerberosString::new(self.server_realm.as_ref().unwrap().as_bytes()).or(Err(ClientEnvError {
-            message: "Failed to get server realm".to_string(),
-        }))
+        KerberosString::new(self.server_realm.as_ref().unwrap().as_bytes()).or(Err(
+            ClientEnvError {
+                message: "Failed to get server realm".to_string(),
+            },
+        ))
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {

@@ -38,6 +38,12 @@ pub enum Commands {
 
         #[arg(long)]
         transport: TransportType,
+
+        #[arg(long)]
+        as_server_address: String,
+
+        #[arg(long)]
+        tgs_server_address: String,
     },
     ListTicket,
 }

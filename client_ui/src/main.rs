@@ -30,8 +30,17 @@ async fn main() {
     };
     match args.command {
         ListTicket => {
-            let client = Client::new(config, false, None, None, None, None, PathBuf::from("./"))
-                .expect("failed to create client");
+            let client = Client::new(
+                config,
+                false,
+                None,
+                None,
+                None,
+                None,
+                None,
+                PathBuf::from("./"),
+            )
+            .expect("failed to create client");
             println!("List ticket: ");
             println!("{:#?}", client.list_tickets());
         }
@@ -44,6 +53,8 @@ async fn main() {
             forwardable,
             renewable,
             transport,
+            as_server_address,
+            tgs_server_address,
         } => {
             match transport {
                 TransportType::Tcp => {
@@ -55,11 +66,12 @@ async fn main() {
             }
             let mut client = Client::new(
                 config,
-                true,
+                renewable,
+                Some("EXAMPLE.COM".to_string()),
                 Some(principal),
+                Some(as_server_address),
+                Some(tgs_server_address),
                 Some(password),
-                None,
-                None,
                 PathBuf::from("./"),
             )
             .expect("failed to create client");
@@ -79,7 +91,7 @@ async fn main() {
             )
             .unwrap();
             let response = client
-                .sender
+                .as_sender
                 .as_mut()
                 .unwrap()
                 .send(as_req.to_der().unwrap().as_slice())
@@ -99,14 +111,14 @@ async fn main() {
 
             let tgs_req = prepare_tgs_request(&client).unwrap();
             let response = client
-                .sender
+                .tgs_sender
                 .as_mut()
                 .unwrap()
                 .send(tgs_req.to_der().unwrap().as_slice())
                 .await
                 .expect("failed to send");
-            let as_rep = AsRep::from_der(response.as_slice()).unwrap();
-            let ok = receive_as_response(&client, &as_req, &as_rep);
+            let tgs_rep = AsRep::from_der(response.as_slice()).unwrap();
+            let ok = receive_as_response(&client, &as_req, &tgs_rep);
             match ok {
                 Ok(_) => {
                     println!("Success");
