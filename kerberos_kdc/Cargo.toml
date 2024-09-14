@@ -1,0 +1,9 @@
+[package]
+name = "kerberos_kdc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+kerberos = { path = "../kerberos" }
+messages = { path = "../messages" }
+tokio = { version = "1.0.1", features = ["full"] }
