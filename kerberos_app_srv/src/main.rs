@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use actix_web::{
+    dev::ConnectionInfo,
     web::{self},
     App, HttpResponse, HttpServer, Responder,
 };
@@ -18,7 +19,9 @@ use kerberos_infra::server::database::{
     Database, DbSettings, Migration,
 };
 use messages::{
-    basic_types::{EncryptionKey, KerberosString, NameTypes, PrincipalName, Realm},
+    basic_types::{
+        AddressTypes, EncryptionKey, HostAddress, KerberosString, NameTypes, PrincipalName, Realm,
+    },
     ApReq,
 };
 use serde::{Deserialize, Serialize};
@@ -135,6 +138,7 @@ async fn handle_get(
 }
 
 async fn handle_post(
+    connection: ConnectionInfo,
     auth_service_config: web::Data<AuthenticationServiceConfig>,
     replay_cache: web::Data<AppServerReplayCache>,
     session_cache: web::Data<ApplicationSessionStorage>,
@@ -148,10 +152,24 @@ async fn handle_post(
         address_cache.as_ref(),
     );
 
-    let as_req = ApReq::from_der(&body.tickets)
+    let address = connection
+        .peer_addr()
+        .map(|addr| HostAddress::new(AddressTypes::Ipv4, OctetString::new(addr).unwrap()));
+
+    let ap_req = ApReq::from_der(&body.tickets)
         .map_err(|_| actix_web::error::ErrorBadRequest("Failed to decode AP-REQ".to_string()))?;
 
-    let reply = auth_service.handle_krb_ap_req(as_req).await;
+    if let Some(inner) = address {
+        if let Ok(address) = inner {
+            address_cache.store(&ap_req, &address).await;
+        } else {
+            return Ok(HttpResponse::Unauthorized().finish());
+        }
+    } else {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
+    let reply = auth_service.handle_krb_ap_req(ap_req).await;
 
     if let Ok(ap_rep) = reply {
         Ok(HttpResponse::Ok().body(ap_rep.to_der().map_err(|_| {
