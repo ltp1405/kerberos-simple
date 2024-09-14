@@ -9,6 +9,7 @@ use database::AppDbSchema;
 use der::{asn1::OctetString, Decode, Encode};
 use kerberos::application_authentication_service::ApplicationAuthenticationServiceBuilder;
 use kerberos_app_srv::{
+    client_address_storage::AppServerClientStorage,
     replay_cache::replay_cache::AppServerReplayCache,
     session_storage::session_storage::ApplicationSessionStorage,
 };
@@ -59,6 +60,7 @@ async fn handle_get(
     auth_service_config: web::Data<AuthenticationServiceConfig>,
     replay_cache: web::Data<AppServerReplayCache>,
     session_cache: web::Data<ApplicationSessionStorage>,
+    address_cache: web::Data<AppServerClientStorage>,
     query: web::Query<UserProfileQuery>,
     username: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
@@ -78,17 +80,12 @@ async fn handle_get(
     let realm = Realm::new(query.realm.as_bytes())
         .map_err(|_| actix_web::error::ErrorBadRequest("Failed to create Realm".to_string()))?;
 
-    let auth_service = ApplicationAuthenticationServiceBuilder::default()
-        .realm(auth_service_config.realm.clone())
-        .sname(auth_service_config.sname.clone())
-        .service_key(auth_service_config.service_key.clone())
-        .accept_empty_address_ticket(auth_service_config.accept_empty_address_ticket)
-        .ticket_allowable_clock_skew(auth_service_config.ticket_allowable_clock_skew)
-        .replay_cache(replay_cache.as_ref())
-        .session_storage(session_cache.as_ref())
-        .crypto(vec![Box::new(kerberos::AesGcm::new())])
-        .build()
-        .expect("Failed to build authentication service");
+    let auth_service = create_service(
+        auth_service_config.as_ref(),
+        replay_cache.as_ref(),
+        session_cache.as_ref(),
+        address_cache.as_ref(),
+    );
 
     if auth_service
         .is_user_authenticated(&username, &realm, sequence_number)
@@ -141,19 +138,15 @@ async fn handle_post(
     auth_service_config: web::Data<AuthenticationServiceConfig>,
     replay_cache: web::Data<AppServerReplayCache>,
     session_cache: web::Data<ApplicationSessionStorage>,
+    address_cache: web::Data<AppServerClientStorage>,
     body: web::Json<UserAuthenticateCommand>,
 ) -> actix_web::Result<impl Responder> {
-    let auth_service = ApplicationAuthenticationServiceBuilder::default()
-        .realm(auth_service_config.realm.clone())
-        .sname(auth_service_config.sname.clone())
-        .service_key(auth_service_config.service_key.clone())
-        .accept_empty_address_ticket(auth_service_config.accept_empty_address_ticket)
-        .ticket_allowable_clock_skew(auth_service_config.ticket_allowable_clock_skew)
-        .replay_cache(replay_cache.as_ref())
-        .session_storage(session_cache.as_ref())
-        .crypto(vec![Box::new(kerberos::AesGcm::new())])
-        .build()
-        .expect("Failed to build authentication service");
+    let auth_service = create_service(
+        auth_service_config.as_ref(),
+        replay_cache.as_ref(),
+        session_cache.as_ref(),
+        address_cache.as_ref(),
+    );
 
     let as_req = ApReq::from_der(&body.tickets)
         .map_err(|_| actix_web::error::ErrorBadRequest("Failed to decode AP-REQ".to_string()))?;
@@ -178,6 +171,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         let replay_cache = AppServerReplayCache::new();
         let session_cache = ApplicationSessionStorage::new();
+        let address_cache = AppServerClientStorage::new();
         let auth_service_config = AuthenticationServiceConfig {
             realm: Realm::new(b"EXAMPLE.COM").unwrap(),
             sname: PrincipalName::new(
@@ -192,19 +186,39 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(replay_cache))
             .app_data(web::Data::new(session_cache))
+            .app_data(web::Data::new(address_cache))
             .app_data(web::Data::new(postgres.clone()))
             .app_data(web::Data::new(auth_service_config))
-            .service(
-                // prefixes all resources and routes attached to it...
-                web::scope("/app")
-                    // ...so this handles requests for `GET /app/index.html`
-                    .route("/user/{username}", web::get().to(handle_get))
-                    .route("/authenticate", web::post().to(handle_post)),
-            )
+            .route("/user/{username}", web::get().to(handle_get))
+            .route("/authenticate", web::post().to(handle_post))
     })
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
+}
+
+fn create_service<'a>(
+    auth_service_config: &'a AuthenticationServiceConfig,
+    replay_cache: &'a AppServerReplayCache,
+    session_cache: &'a ApplicationSessionStorage,
+    address_cache: &'a AppServerClientStorage,
+) -> kerberos::application_authentication_service::ApplicationAuthenticationService<
+    'a,
+    AppServerReplayCache,
+    ApplicationSessionStorage,
+> {
+    ApplicationAuthenticationServiceBuilder::default()
+        .realm(auth_service_config.realm.clone())
+        .sname(auth_service_config.sname.clone())
+        .service_key(auth_service_config.service_key.clone())
+        .accept_empty_address_ticket(auth_service_config.accept_empty_address_ticket)
+        .ticket_allowable_clock_skew(auth_service_config.ticket_allowable_clock_skew)
+        .replay_cache(replay_cache)
+        .session_storage(session_cache)
+        .address_storage(address_cache)
+        .crypto(vec![Box::new(kerberos::AesGcm::new())])
+        .build()
+        .expect("Failed to build authentication service")
 }
 
 mod database;
