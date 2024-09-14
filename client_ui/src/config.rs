@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use config::{Config, ConfigError};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -13,7 +14,7 @@ pub enum TransportType {
 pub struct AppConfig {
     pub name: String,
     pub realm: String,
-    pub address: String,
+    pub address: SocketAddr,
     pub key: Option<String>,
     pub cache_location: Option<PathBuf>,
     pub transport_type: Option<TransportType>,

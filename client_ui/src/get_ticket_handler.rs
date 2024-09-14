@@ -1,101 +1,42 @@
 use crate::config::{AppConfig, TransportType};
 use config::ConfigError;
+use derive_builder::Builder;
+use kerberos::client::as_exchange::{prepare_as_request, receive_as_response};
 use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
+use kerberos::client::tgs_exchange::prepare_tgs_request;
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos_infra::client::{Sendable, TcpClient, UdpClient};
-use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, OctetString};
-use messages::flags::KdcOptionsFlag;
+use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, KerberosTime};
+use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, TgsRep};
 use std::fs;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
-pub struct Client {
+#[derive(Builder)]
+#[builder(pattern = "owned")]
+pub struct GetTicketHandler {
     pub name: String,
     pub realm: String,
     pub renewable: bool,
     pub server_name: Option<String>,
     pub server_realm: Option<String>,
-    pub as_sender: Option<Box<dyn Sendable>>,
-    pub tgs_sender: Option<Box<dyn Sendable>>,
+    pub as_receiver: Option<SocketAddr>,
+    pub tgs_receiver: Option<SocketAddr>,
+    pub as_sender: SocketAddr,
+    pub tgs_sender: SocketAddr,
     pub key: Option<String>,
     pub cache_location: PathBuf,
     pub transport_type: TransportType,
+    pub ticket_lifetime: Option<humantime::Duration>,
+    pub ticket_renew_time: Option<humantime::Timestamp>,
 }
 
-impl Client {
-    pub fn new(
-        cfg: AppConfig,
-        renewable: bool,
-        server_realm: Option<String>,
-        server_name: Option<String>,
-        as_server_address: Option<String>,
-        tgs_server_address: Option<String>,
-        password: Option<String>,
-        cache_location: PathBuf,
-    ) -> Result<Client, ConfigError> {
-        let as_sender: Option<Box<dyn Sendable>> =
-            if let Some(ref server_address) = as_server_address {
-                let client: Box<dyn Sendable> =
-                    match &cfg.transport_type.unwrap_or(TransportType::Tcp) {
-                        TransportType::Tcp => {
-                            Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
-                                Err(ConfigError::Message("Failed to parse address".to_string())),
-                            )?)))
-                        }
-                        TransportType::Udp => Box::new(UdpClient::new(
-                            SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
-                                "Failed to parse address".to_string(),
-                            )))?),
-                            SocketAddr::V4(server_address.parse().or(Err(
-                                ConfigError::Message("Failed to parse address".to_string()),
-                            ))?),
-                        )),
-                    };
-                Some(client)
-            } else {
-                None
-            };
-        let tgs_sender: Option<Box<dyn Sendable>> =
-            if let Some(ref server_address) = tgs_server_address {
-                let client: Box<dyn Sendable> =
-                    match &cfg.transport_type.unwrap_or(TransportType::Tcp) {
-                        TransportType::Tcp => {
-                            Box::new(TcpClient::new(SocketAddr::V4(server_address.parse().or(
-                                Err(ConfigError::Message("Failed to parse address".to_string())),
-                            )?)))
-                        }
-                        TransportType::Udp => Box::new(UdpClient::new(
-                            SocketAddr::V4(cfg.address.parse().or(Err(ConfigError::Message(
-                                "Failed to parse address".to_string(),
-                            )))?),
-                            SocketAddr::V4(server_address.parse().or(Err(
-                                ConfigError::Message("Failed to parse address".to_string()),
-                            ))?),
-                        )),
-                    };
-                Some(client)
-            } else {
-                None
-            };
-        Ok(Client {
-            name: cfg.name,
-            realm: cfg.realm,
-            key: cfg.key.or(password),
-            cache_location: cfg.cache_location.unwrap_or(cache_location),
-            renewable,
-            server_name,
-            server_realm,
-            as_sender,
-            tgs_sender,
-            transport_type: cfg.transport_type.unwrap_or(TransportType::Tcp),
-        })
-    }
-
+impl GetTicketHandler {
     fn open_file_and_write(
         &self,
         folder_name: Option<&str>,
@@ -132,28 +73,63 @@ impl Client {
         fs::read(loc)
     }
 
-    pub fn list_tickets(&self) -> Vec<EncAsRepPart> {
-        let mut loc = self.cache_location.clone();
-        loc.push("enc_as_rep_part");
-
-        let entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
-        let mut tickets = vec![];
-        entries.iter().for_each(|entry| {
-            let path = entry.path();
-            if let Some(file_name) = path.file_name() {
-                let b = self
-                    .open_file_and_read(Some("enc_as_rep_part"), file_name.to_str().unwrap())
-                    .unwrap();
-                let part = EncAsRepPart::from_der(&b).unwrap();
-                // println!("{:?}", part);
-                tickets.push(part);
+    pub async fn handle(&self) -> Result<(), ConfigError> {
+        let as_req = prepare_as_request(
+            self,
+            self.ticket_lifetime.map(|t| t.into()),
+            None,
+            self.renewable
+                .then(|| self.ticket_renew_time.clone())
+                .map(|t| KerberosTime::from_system_time(t.unwrap().into()).unwrap()),
+        )
+        .unwrap();
+        let mut client: Box<dyn Sendable> = match self.transport_type {
+            TransportType::Tcp => Box::new(TcpClient::new(self.as_sender)),
+            TransportType::Udp => {
+                Box::new(UdpClient::new(self.as_receiver.unwrap(), self.as_sender))
             }
-        });
-        tickets
+        };
+        let response = client
+            .send(as_req.to_der().unwrap().as_slice())
+            .await
+            .expect("failed to send");
+        let as_rep = AsRep::from_der(response.as_slice()).unwrap();
+        println!("{:?}", as_rep);
+        let ok = receive_as_response(self, &as_req, &as_rep);
+        match ok {
+            Ok(_) => {
+                println!("Success");
+            }
+            Err(e) => {
+                println!("Failed: {:?}", e);
+            }
+        }
+
+        let mut client: Box<dyn Sendable> = match self.transport_type {
+            TransportType::Tcp => Box::new(TcpClient::new(self.tgs_sender)),
+            TransportType::Udp => {
+                Box::new(UdpClient::new(self.tgs_receiver.unwrap(), self.tgs_sender))
+            }
+        };
+
+        let tgs_req = prepare_tgs_request(self).unwrap();
+        let response = client
+            .send(tgs_req.to_der().unwrap().as_slice())
+            .await
+            .expect("failed to send");
+        let tgs_rep = AsRep::from_der(response.as_slice()).unwrap();
+        let ok = receive_as_response(self, &as_req, &tgs_rep);
+        match ok {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                println!("Failed: {:?}", e);
+                Err(ConfigError::Message("Failed to get ticket".to_string()))
+            }
+        }
     }
 }
 
-impl ClientEnv for Client {
+impl ClientEnv for GetTicketHandler {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
         self.name.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client name".to_string(),

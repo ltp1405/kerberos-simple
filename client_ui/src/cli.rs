@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use humantime::Duration;
 use crate::config::TransportType;
 
 #[derive(Parser)]
@@ -12,16 +13,19 @@ pub struct Cli {
 pub enum Commands {
     GetTicket {
         #[arg(long)]
-        principal: String,
+        target_principal: String,
 
         #[arg(long)]
-        password: String,
+        target_realm: String,
+
+        #[arg(long)]
+        password: Option<String>,
 
         #[arg(long, default_value = "10h")]
-        ticket_lifetime: String,
+        ticket_lifetime: Duration,
 
-        #[arg(long, default_value = "6d")]
-        ticket_renew_time: String,
+        #[arg(long, default_value = "2020-01-01T00:00:00Z")]
+        ticket_renew_time: humantime::Timestamp,
 
         #[arg(short, long)]
         proxiable: bool,
@@ -36,10 +40,10 @@ pub enum Commands {
         transport: TransportType,
 
         #[arg(long)]
-        as_server_address: String,
+        as_server_address: std::net::SocketAddr,
 
         #[arg(long)]
-        tgs_server_address: String,
+        tgs_server_address: std::net::SocketAddr,
     },
     ListTicket,
 }
