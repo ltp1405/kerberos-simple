@@ -1,3 +1,4 @@
+use rand::{thread_rng, Rng};
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::cryptography::Cryptography;
@@ -26,7 +27,9 @@ pub fn prepare_ap_request(
     let cusec = client_env.get_current_time()?.subsec_micros();
     let crypto_hash = client_env.get_checksum_hash(1)?;
     let mut authenticator = AuthenticatorBuilder::default();
+    let mut rand = thread_rng();
     authenticator
+        .seq_number(rand.gen::<i32>())
         .cname(cname)
         .crealm(crealm)
         .ctime(ctime)

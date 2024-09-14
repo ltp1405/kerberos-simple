@@ -4,14 +4,9 @@ use kerberos::client::client_env_error::ClientEnvError;
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos::cryptography_error::CryptographyError;
-use kerberos::service_traits::{
-    LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache,
-    ReplayCacheEntry,
-};
-use messages::basic_types::{
-    EncryptionKey, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm,
-};
-use messages::{AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
+use kerberos::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry, UserSessionEntry, UserSessionStorage};
+use messages::basic_types::{EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm};
+use messages::{ApReq, AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -103,10 +98,6 @@ impl ClientEnv for MockClientEnv {
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
         Ok(KerberosString::new("realm".as_bytes()).unwrap())
-    }
-
-    fn get_client_address(&self) -> Result<OctetString, ClientEnvError> {
-        Ok(OctetString::new(vec![0; 4]).unwrap())
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {
@@ -335,5 +326,40 @@ impl ClientAddressStorage for MockedClientAddressStorage {
             .iter()
             .find_map(|(r, a)| if r == req { Some(a.clone()) } else { None })
             .unwrap()
+    }
+}
+pub struct MockedUserSessionStorage {
+    sessions: Arc<Mutex<Vec<UserSessionEntry>>>,
+}
+
+impl MockedUserSessionStorage {
+    pub fn new() -> MockedUserSessionStorage {
+        MockedUserSessionStorage {
+            sessions: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl UserSessionStorage for MockedUserSessionStorage {
+    type Error = ();
+
+    async fn get_session(
+        &self,
+        cname: &PrincipalName,
+        crealm: &Realm,
+    ) -> Result<Option<UserSessionEntry>, Self::Error> {
+        Ok(self.sessions.lock().unwrap().iter().find_map(|s| {
+            if &s.cname == cname && &s.crealm == crealm {
+                Some(s.clone())
+            } else {
+                None
+            }
+        }))
+    }
+
+    async fn store_session(&self, session: &UserSessionEntry) -> Result<(), Self::Error> {
+        self.sessions.lock().unwrap().push(session.clone());
+        Ok(())
     }
 }
