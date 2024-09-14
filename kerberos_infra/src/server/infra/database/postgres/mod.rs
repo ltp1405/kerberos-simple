@@ -13,6 +13,7 @@ use super::{
 
 pub use schemas::Krb5DbSchemaV1;
 
+#[derive(Clone)]
 pub struct PostgresDb {
     pool: PgPool,
     settings: PgDbSettings,

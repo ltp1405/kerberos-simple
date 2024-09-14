@@ -63,6 +63,20 @@ where
         let sender = self.address_storage.get_sender_of_packet(ap_req).await;
         host_addresses.iter().any(|a| a == &sender)
     }
+    pub async fn is_user_authenticated(&self, cname: &PrincipalName, crealm: &Realm, sequence_number: i32) -> bool {
+        let result = self.session_storage.get_session(cname, crealm).await;
+        match result {
+            Ok(session) => {
+                match session {
+                    Some(session) => {
+                        session.sequence_number == sequence_number
+                    }
+                    None => false
+                }
+            }
+            Err(_) => false
+        }
+    }
 
     fn default_error_builder(&self) -> KrbErrorMsgBuilder {
         let now = Local::now();
@@ -229,7 +243,6 @@ where
             )
             .map_err(|_| ServerError::Internal)?;
 
-        let mut rng = rand::thread_rng();
         self.session_storage
             .store_session(&UserSessionEntry {
                 cname: authenticator.cname().to_owned(),

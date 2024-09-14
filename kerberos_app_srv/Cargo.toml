@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 kerberos = { path = "../kerberos" }
 kerberos_infra = { path = "../kerberos_infra", features = ["server-tcp"] }
+messages = { path = "../messages" }
 actix-web = "4.5.1"
+async-trait = "0.1"
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1", features = ["derive"] }
 config = "0.14"
@@ -19,6 +21,7 @@ reqwest = { version = "0.12.7", default-features = false, features = [
     "rustls-tls",
     "cookies",
 ] }
+der = { version = "0.7.9", features = ["alloc", "derive", "std"] }
 rand = { version = "0.8", features = ["std_rng"] }
 serde_json = "1"
 futures-util = "0.3.30"

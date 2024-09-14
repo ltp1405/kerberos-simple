@@ -10,12 +10,6 @@ impl AppDbSchema {
     }
 }
 
-impl ClonableSchema for AppDbSchema {
-    fn clone_box(&self) -> Box<dyn ClonableSchema> {
-        Box::new(AppDbSchema)
-    }
-}
-
 impl Schema for AppDbSchema {
     fn schema_name(&self) -> String {
         format!("{}_{}", "krb5", "v1")
@@ -64,5 +58,11 @@ impl Schema for AppDbSchema {
         "#,
             schema
         )
+    }
+}
+
+impl ClonableSchema for AppDbSchema {
+    fn clone_box(&self) -> Box<dyn ClonableSchema> {
+        Box::new(AppDbSchema)
     }
 }
