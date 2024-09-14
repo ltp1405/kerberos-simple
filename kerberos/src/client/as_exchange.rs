@@ -9,6 +9,7 @@ use std::time::Duration;
 
 pub fn prepare_as_request(
     client_env: &impl ClientEnv,
+    ticket_lifetime: Option<Duration>,
     starttime: Option<KerberosTime>,
     renewal_time: Option<KerberosTime>,
 ) -> Result<AsReq, ClientError> {
@@ -21,7 +22,7 @@ pub fn prepare_as_request(
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
     let nonce = generate_nonce();
     let current_time = client_env.get_current_time()?;
-    let duration = Duration::new(60 * 60 * 24, 0);
+    let duration = ticket_lifetime.unwrap_or(Duration::new(60 * 60 * 24, 0));
     let till = KerberosTime::from_unix_duration(current_time + duration)
         .or(Err(ClientError::DecodeError))?;
     let etypes = client_env.get_supported_etypes()?;
@@ -74,13 +75,11 @@ pub fn receive_as_response(
 ) -> Result<(), ClientError> {
     let cryptosystem = client_env.get_crypto(*as_rep.enc_part().etype())?;
     let key = client_env.get_client_key(*as_rep.enc_part().etype())?;
-    let decrypted_kdc_rep_part = cryptosystem.decrypt(
-        as_rep.enc_part().cipher().as_ref(),
-        key.keyvalue().as_ref(),
-    )?;
+    let decrypted_kdc_rep_part =
+        cryptosystem.decrypt(as_rep.enc_part().cipher().as_ref(), key.keyvalue().as_ref())?;
     let enc_as_rep_part = EncAsRepPart::from_der(decrypted_kdc_rep_part.as_slice())
         .or(Err(ClientError::DecodeError))?;
-    
+
     receive_kdc_rep(
         client_env,
         cryptosystem,
@@ -89,7 +88,7 @@ pub fn receive_as_response(
         &as_rep.clone(),
         KdcExchangeType::As,
     )?;
-    
+
     client_env.save_as_reply(as_rep, &enc_as_rep_part)?;
     Ok(())
 }

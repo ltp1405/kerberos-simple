@@ -12,5 +12,6 @@ async fn kdc_is_spawned_when_loading_config_from_the_right_location() {
 
     let result = NpglKdcSrv::load_from("src/kdc_srv/tests/config", as_config, tgs_config);
 
-    assert!(result.is_ok(), "Failed with error: {:?}", result.err());
+    // assert!(result.is_ok(), "Failed with error: {:?}", result.err());
+    result.unwrap().listen().await;
 }

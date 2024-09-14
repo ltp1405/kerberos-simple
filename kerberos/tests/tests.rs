@@ -108,7 +108,7 @@ mod tests {
     async fn test_as_exchange() {
         let mock_client_env = MockClientEnv::new();
         let as_req =
-            prepare_as_request(&mock_client_env, None, None).expect("Failed to prepare AS request");
+            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
         let auth_service = get_auth_service(&MockedPrincipalDb, false);
         let as_rep = auth_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
@@ -122,7 +122,7 @@ mod tests {
         let mock_replay_cache = MockedReplayCache::new();
         let mock_last_req_db = MockedLastReqDb::new();
         let as_req =
-            prepare_as_request(&mock_client_env, None, None).expect("Failed to prepare AS request");
+            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
         let tgs_service =
             get_tgs_service(&MockedPrincipalDb, &mock_replay_cache, &mock_last_req_db);
         let as_service = get_auth_service(&MockedPrincipalDb, false);
