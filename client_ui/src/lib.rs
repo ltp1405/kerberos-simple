@@ -1,5 +1,6 @@
 pub mod client;
 pub mod config;
+mod util;
 
 use clap::{Parser, Subcommand};
 
