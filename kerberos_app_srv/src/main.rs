@@ -61,14 +61,22 @@ async fn handle_get(
     session_cache: web::Data<ApplicationSessionStorage>,
     query: web::Query<UserProfileQuery>,
     username: web::Path<String>,
-) -> impl Responder {
-    let username = PrincipalName::new(
-        NameTypes::NtPrincipal,
-        vec![KerberosString::new(username.as_bytes()).unwrap()],
-    )
-    .unwrap();
+) -> actix_web::Result<impl Responder> {
+    let username = {
+        let inner = KerberosString::new(username.as_bytes()).map_err(|_| {
+            actix_web::error::ErrorBadRequest(
+                "Failed to create KerberosString from username".to_string(),
+            )
+        })?;
+
+        PrincipalName::new(NameTypes::NtPrincipal, vec![inner])
+    }
+    .map_err(|_| actix_web::error::ErrorBadRequest("Failed to create PrincipalName".to_string()))?;
+
     let sequence_number = query.sequence;
-    let realm = Realm::new(query.realm.as_bytes()).unwrap();
+
+    let realm = Realm::new(query.realm.as_bytes())
+        .map_err(|_| actix_web::error::ErrorBadRequest("Failed to create Realm".to_string()))?;
 
     let auth_service = ApplicationAuthenticationServiceBuilder::default()
         .realm(auth_service_config.realm.clone())
@@ -86,7 +94,7 @@ async fn handle_get(
         .is_user_authenticated(&username, &realm, sequence_number)
         .await
     {
-        return HttpResponse::Unauthorized().finish();
+        return Ok(HttpResponse::Unauthorized().finish());
     }
     let pool = db.inner();
     let row = pool
@@ -96,13 +104,20 @@ async fn handle_get(
             SELECT * FROM "{0}".UserProfile WHERE username = '{1}';
             "#,
                 db.get_schema().schema_name(),
-                String::from_utf8(username.to_der().expect("Failed to encode username"))
-                    .expect("Failed to convert username to string")
+                String::from_utf8(username.to_der().expect("Failed to encode username")).map_err(
+                    |_| {
+                        actix_web::error::ErrorInternalServerError(
+                            "Failed to convert username to string".to_string(),
+                        )
+                    }
+                )?
             )
             .as_str(),
         )
         .await
-        .expect("Failed to fetch user profile");
+        .map_err(|_| {
+            actix_web::error::ErrorInternalServerError("Failed to fetch user profile".to_string())
+        })?;
     match row {
         Some(row) => {
             let user_profile = UserProfileResponse {
@@ -116,9 +131,9 @@ async fn handle_get(
                 updated_at: row.get("updated_at"),
             };
             // Return the user profile with impl Responder
-            HttpResponse::Ok().json(user_profile)
+            Ok(HttpResponse::Ok().json(user_profile))
         }
-        None => HttpResponse::NotFound().finish(),
+        None => Ok(HttpResponse::NotFound().finish()),
     }
 }
 
@@ -127,7 +142,7 @@ async fn handle_post(
     replay_cache: web::Data<AppServerReplayCache>,
     session_cache: web::Data<ApplicationSessionStorage>,
     body: web::Json<UserAuthenticateCommand>,
-) -> impl Responder {
+) -> actix_web::Result<impl Responder> {
     let auth_service = ApplicationAuthenticationServiceBuilder::default()
         .realm(auth_service_config.realm.clone())
         .sname(auth_service_config.sname.clone())
@@ -140,14 +155,17 @@ async fn handle_post(
         .build()
         .expect("Failed to build authentication service");
 
-    let as_req = ApReq::from_der(&body.tickets).unwrap();
+    let as_req = ApReq::from_der(&body.tickets)
+        .map_err(|_| actix_web::error::ErrorBadRequest("Failed to decode AP-REQ".to_string()))?;
 
     let reply = auth_service.handle_krb_ap_req(as_req).await;
 
     if let Ok(ap_rep) = reply {
-        HttpResponse::Ok().body(ap_rep.to_der().unwrap())
+        Ok(HttpResponse::Ok().body(ap_rep.to_der().map_err(|_| {
+            actix_web::error::ErrorInternalServerError("Failed to encode AP-REP".to_string())
+        })?))
     } else {
-        HttpResponse::Unauthorized().finish()
+        Ok(HttpResponse::Unauthorized().finish())
     }
 }
 
