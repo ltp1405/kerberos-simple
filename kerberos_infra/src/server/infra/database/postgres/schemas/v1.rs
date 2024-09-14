@@ -94,6 +94,7 @@ impl Schema for Krb5DbSchemaV1 {
 
                     INSERT INTO "{0}".Principal (principal_name, realm, flags, expire)
                     VALUES ('toney', 'MYREALM.COM', 0, '2025-12-31 23:59:59'),
+                           ('MYREALM.COM', 'MYREALM.COM', 0, '2025-12-31 23:59:59'),
                            ('steve', 'EXAMPLE.COM', 0, '2025-12-31 23:59:59'),
                            ('janice', 'MYREALM.COM', 0, '2025-12-31 23:59:59'),
                            ('david', 'EXAMPLE.ORG', 0, '2025-12-31 23:59:59');
@@ -104,20 +105,21 @@ impl Schema for Krb5DbSchemaV1 {
                            ('benjamin', 'EXAMPLE.ORG', 0, '2023-12-31 23:59:59', '2021-02-01 00:00:00', '2021-02-01 00:00:00');
 
                     INSERT INTO "{0}".Encrypt (etype, method, created_at, updated_at)
-                    VALUES (17, 'aes128-cts-hmac-sha1-96', '2021-01-01 00:00:00', '2021-01-01 00:00:00'),
-                           (18, 'aes256-cts-hmac-sha1-96', '2021-01-01 00:00:00', '2021-01-01 00:00:00'),
-                           (19, 'aes128-cts-hmac-sha256-128', '2021-01-01 00:00:00', '2021-01-01 00:00:00');
+                    VALUES (1, 'aes128-cts-hmac-sha1-96', '2021-01-01 00:00:00', '2021-01-01 00:00:00'),
+                           (2, 'aes256-cts-hmac-sha1-96', '2021-01-01 00:00:00', '2021-01-01 00:00:00'),
+                           (3, 'aes128-cts-hmac-sha256-128', '2021-01-01 00:00:00', '2021-01-01 00:00:00');
 
                     INSERT INTO "{0}".Checksum (ctype, method, created_at, updated_at)
                     VALUES (16, 'hmac-sha1-96-aes256', '2021-01-01 00:00:00', '2021-01-01 00:00:00');
 
                     INSERT INTO "{0}".Key (principal_name, etype, secret_key, knvno, created_at, updated_at)
-                    VALUES ('toney', 17, 'uJV4sOr09XwCdIIjKjB7CV3zZdBmWVRt', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
-                           ('steve', 17, 'VwTyeYkpChVj63Qg3KK4VbGyvi9ZwOaA', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
-                           ('janice', 17, 'kBgzBnJ9gO81twZT39Kxu3or8ngHyVM7', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
-                           ('david', 17, '22IzIa3qlwgRU1R7YOiRv9yamdN05sOK', 2, '2022-08-25 00:00:00', '2022-08-25 00:00:00'),
-                           ('donald', 18, 'G0kL9hKLD7B4WogLFPInyglRtnCbTrJA', 3, '2022-08-25 00:00:00', '2022-08-25 00:00:00'),
-                           ('benjamin', 19, 'u8YNSG06O8ENHJH9Hhunc81gBXHSgn0g', 5, '2022-08-25 00:00:00', '2022-08-25 00:00:00');
+                    VALUES ('toney', 1, 'uJV4sOr09XwCdIIjKjB7CV3zZdBmWVRt', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+                           ('MYREALM.COM', 1, 'M4rYnBn0kOQC5vM1ddnAHXcKc0hhe16d', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+                           ('steve', 1, 'VwTyeYkpChVj63Qg3KK4VbGyvi9ZwOaA', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+                           ('janice', 1, 'kBgzBnJ9gO81twZT39Kxu3or8ngHyVM7', 1, '2023-01-01 00:00:00', '2023-01-01 00:00:00'),
+                           ('david', 1, '22IzIa3qlwgRU1R7YOiRv9yamdN05sOK', 2, '2022-08-25 00:00:00', '2022-08-25 00:00:00'),
+                           ('donald', 2, 'G0kL9hKLD7B4WogLFPInyglRtnCbTrJA', 3, '2022-08-25 00:00:00', '2022-08-25 00:00:00'),
+                           ('benjamin', 3, 'u8YNSG06O8ENHJH9Hhunc81gBXHSgn0g', 5, '2022-08-25 00:00:00', '2022-08-25 00:00:00');
 
             COMMIT;
         "#,

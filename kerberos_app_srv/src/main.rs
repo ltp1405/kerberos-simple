@@ -191,13 +191,16 @@ async fn main() -> std::io::Result<()> {
         let session_cache = ApplicationSessionStorage::new();
         let address_cache = AppServerClientStorage::new();
         let auth_service_config = AuthenticationServiceConfig {
-            realm: Realm::new(b"EXAMPLE.COM").unwrap(),
+            realm: Realm::new(b"MYREALM.COM").unwrap(),
             sname: PrincipalName::new(
                 NameTypes::NtEnterprise,
-                vec![KerberosString::new(b"host").unwrap()],
+                vec![KerberosString::new(b"MYREALM.COM").unwrap()],
             )
             .unwrap(),
-            service_key: EncryptionKey::new(17, OctetString::new(vec![0; 16]).unwrap()),
+            service_key: EncryptionKey::new(
+                1,
+                OctetString::new(b"M4rYnBn0kOQC5vM1ddnAHXcKc0hhe16d").unwrap(),
+            ),
             accept_empty_address_ticket: true,
             ticket_allowable_clock_skew: Duration::from_secs(10),
         };
