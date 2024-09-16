@@ -1,0 +1,7 @@
+postgres:
+  host: "localhost"
+  port: 5455
+  username: "postgres"
+  password: "password"
+  name: "kerberos"
+  require_ssl: false
