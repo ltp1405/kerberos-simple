@@ -5,6 +5,7 @@ use tokio::{io::AsyncReadExt, net::TcpStream};
 use super::HostError;
 
 pub fn handle_result_at_router(addr: SocketAddr, result: Result<(), HostError>) {
+    println!("Connection from {} closed", addr);
     match result {
         Ok(_) => {}
         Err(err) => {

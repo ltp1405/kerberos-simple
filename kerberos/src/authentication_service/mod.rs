@@ -113,6 +113,7 @@ where
     }
 
     pub async fn handle_krb_as_req(&self, as_req: &AsReq) -> Result<AsRep> {
+        println!("Handling as req");
         let mut error_msg = self.default_error_builder();
         // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =

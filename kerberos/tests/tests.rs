@@ -151,7 +151,7 @@ mod tests {
         let mock_replay_cache = MockedReplayCache::new();
         let mock_last_req_db = MockedLastReqDb::new();
         let as_req =
-            prepare_as_request(&mock_client_env, None, None).expect("Failed to prepare AS request");
+            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
         let tgs_service =
             get_tgs_service(&MockedPrincipalDb, &mock_replay_cache, &mock_last_req_db);
         let as_service = get_auth_service(&MockedPrincipalDb, false);
