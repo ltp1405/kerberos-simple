@@ -9,6 +9,7 @@ pub mod cryptographic_hash;
 pub mod kdc_srv;
 mod algo;
 pub use algo::AesGcm;
+pub use algo::Sha1;
 
 #[cfg(test)]
 pub(crate) mod tests_common;

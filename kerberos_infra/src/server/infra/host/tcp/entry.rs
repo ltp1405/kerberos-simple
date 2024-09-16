@@ -45,10 +45,10 @@ impl<T> Entry for TcpEntry<T> {
         println!("Received message: {:?}", bytes);
         let d = {
             let lock = self.receiver.read().await;
-            println!("here");
+            println!("here1");
             lock.receive(&bytes, database, cache).await
         };
-        println!("here");
+        println!("here2");
         let response = extract_bytes_or_delegate_to_router(d)?;
 
         println!("Sending response: {:?}", response);

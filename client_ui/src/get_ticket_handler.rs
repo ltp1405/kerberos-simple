@@ -8,9 +8,11 @@ use kerberos::client::tgs_exchange::prepare_tgs_request;
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos_infra::client::{Sendable, TcpClient, UdpClient};
-use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, KerberosTime};
+use messages::basic_types::{
+    EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
+};
 use messages::flags::{KdcOptionsFlag, TicketFlag};
-use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, TgsRep};
+use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep};
 use std::fs;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -93,7 +95,17 @@ impl GetTicketHandler {
             .send(as_req.to_der().unwrap().as_slice())
             .await
             .expect("failed to send");
-        let as_rep = AsRep::from_der(response.as_slice()).unwrap();
+        let as_rep_res = AsRep::from_der(response.as_slice());
+        let mut as_rep;
+        match as_rep_res {
+            Ok(data) => {
+                as_rep = data;
+            }
+            Err(e) => {
+                println!("{:?}", KrbErrorMsg::from_der(response.as_slice()).unwrap());
+                panic!("Failed to get ticket: {:?}", e);
+            }
+        }
         println!("{:?}", as_rep);
         let ok = receive_as_response(self, &as_req, &as_rep);
         match ok {
@@ -131,12 +143,14 @@ impl GetTicketHandler {
 
 impl ClientEnv for GetTicketHandler {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
+        println!("client name: {:?}", self.name);
         self.name.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client name".to_string(),
         })
     }
 
     fn get_client_realm(&self) -> Result<KerberosString, ClientEnvError> {
+        println!("client realm: {:?}", self.realm);
         self.realm.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client realm".to_string(),
         })
@@ -169,14 +183,14 @@ impl ClientEnv for GetTicketHandler {
     }
 
     fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
-        todo!()
+        Ok(Box::new(kerberos::AesGcm::new()))
     }
 
     fn get_checksum_hash(
         &self,
         checksum_type: i32,
     ) -> Result<Box<dyn CryptographicHash>, ClientEnvError> {
-        todo!()
+        Ok(Box::new(kerberos::Sha1::new()))
     }
 
     fn get_supported_checksums(&self) -> Result<Vec<i32>, ClientEnvError> {
@@ -184,14 +198,10 @@ impl ClientEnv for GetTicketHandler {
     }
 
     fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
-        let mut loc = self.cache_location.clone();
-        loc.push("key");
-        let mut f = fs::File::open(loc).map_err(|_| ClientEnvError {
-            message: "Failed to fetch key".to_string(),
-        })?;
-        let mut buf = vec![];
-        f.read_to_end(&mut buf).expect("TODO: panic message");
-        Ok(EncryptionKey::from_der(&buf).unwrap())
+        let buf = self.key.as_ref().unwrap().as_bytes();
+        println!("client key: {:?}", buf);
+        let key = EncryptionKey::new(1, OctetString::new(buf).unwrap());
+        Ok(key)
     }
 
     fn set_clock_diff(

@@ -128,6 +128,7 @@ where
             .await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
         let client_key = client.key;
+        println!("Client key: {:?}", client_key);
         let server_key = server.key;
 
         if self.require_pre_authenticate {

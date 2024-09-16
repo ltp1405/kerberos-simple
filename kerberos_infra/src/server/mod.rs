@@ -58,7 +58,8 @@ impl<T> Server<T> {
             .migrate_then_seed()
             .await
             .map_err(|_| "Fail to initialize database")?;
-
+        let _ = db_lock.downgrade();
+        
         let database = self.database.clone();
 
         let cache = self.cache.clone();
