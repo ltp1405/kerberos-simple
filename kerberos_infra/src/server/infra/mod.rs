@@ -22,7 +22,7 @@ mod types {
 
     pub type KrbDatabase<T = PgPool> = DataBox<dyn Database<Inner = T>>;
 
-    pub type KrbCache<K = String, V = String> = DataBox<dyn Cacheable<K, V>>;
+    pub type KrbCache<K = Vec<u8>, V = Vec<u8>> = DataBox<dyn Cacheable<K, V>>;
 
     pub type KrbDbSchema = Box<dyn ClonableSchema>;
 }

@@ -114,12 +114,12 @@ impl Database for MockPool {
 pub struct MockCache;
 
 #[async_trait]
-impl Cacheable<String, String> for MockCache {
-    async fn get(&self, key: &String) -> CacheResult<String> {
+impl Cacheable<Vec<u8>, Vec<u8>> for MockCache {
+    async fn get(&self, key: &Vec<u8>) -> CacheResult<Vec<u8>> {
         Ok(key.clone())
     }
 
-    async fn put(&self, _key: String, _value: String) -> CacheResult<()> {
+    async fn put(&self, _key: Vec<u8>, _value: Vec<u8>) -> CacheResult<()> {
         Ok(())
     }
 }

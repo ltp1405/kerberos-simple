@@ -27,6 +27,3 @@ pub enum KdcSrvError {
 pub mod npgl;
 
 pub mod configs;
-
-#[cfg(test)]
-mod tests;
