@@ -27,6 +27,8 @@ pub mod cache {
     pub use crate::server::infra::cache::cacheable::Cacheable;
 
     pub use crate::server::infra::cache::error::CacheResult;
+
+    pub use crate::server::infra::cache::CacheResultType;
 }
 
 pub mod types {
@@ -59,7 +61,7 @@ impl<T> Server<T> {
             .await
             .map_err(|_| "Fail to initialize database")?;
         let _ = db_lock.downgrade();
-        
+
         let database = self.database.clone();
 
         let cache = self.cache.clone();
