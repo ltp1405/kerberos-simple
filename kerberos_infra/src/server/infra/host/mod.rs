@@ -17,7 +17,7 @@ mod receiver;
 mod runnable;
 mod utils;
 
-// Integration tests module
+// Integration server module
 #[cfg(test)]
 mod tests;
 

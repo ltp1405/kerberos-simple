@@ -7,7 +7,6 @@ pub struct AuthenticationServiceConfig {
 }
 
 impl AuthenticationServiceConfig {
-    #[cfg(test)]
     pub fn local(require_preauth: bool) -> Self {
         use messages::basic_types::{KerberosString, NameTypes};
 
@@ -33,7 +32,6 @@ pub struct TicketGrantingServiceConfig {
 }
 
 impl TicketGrantingServiceConfig {
-    #[cfg(test)]
     pub fn local() -> Self {
         use messages::basic_types::{KerberosString, NameTypes};
 

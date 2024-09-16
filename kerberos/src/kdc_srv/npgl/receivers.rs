@@ -33,10 +33,13 @@ impl AsyncReceiver for NpglAsReqHandler {
         database: KrbDatabase<Self::Db>,
         _: KrbCache,
     ) -> HostResult<Vec<u8>> {
+        println!("Received AS_REQ");
         let database = database.read().await;
+        println!("Received AS_REQ1");
 
         let npgl_db_view = NpglKdcDbView::new(database.as_ref());
 
+        println!("Received AS_REQ");
         let authentication_server = AuthenticationServiceBuilder::default()
             .realm(self.0.realm.clone())
             .sname(self.0.sname.clone())

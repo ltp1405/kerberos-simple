@@ -34,6 +34,7 @@ impl<T: 'static> TcpRouter<T> {
                 let pool = database.clone();
                 let cache = cache.clone();
                 async move {
+                    println!("Connection from {} accepted", addr);
                     let result = entry.handle(pool, cache).await;
 
                     handle_result_at_router(addr, result)

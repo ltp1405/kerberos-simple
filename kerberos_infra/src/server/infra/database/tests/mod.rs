@@ -8,7 +8,7 @@ use crate::server::{
 
 #[tokio::test]
 async fn user_should_be_able_to_connect_to_db_through_config() {
-    let config = PgDbSettings::load("src/server/infra/database/tests/config/database");
+    let config = PgDbSettings::load("src/server/infra/database/server/config/database");
 
     let schema = Krb5DbSchemaV1::boxed();
 
@@ -18,7 +18,7 @@ async fn user_should_be_able_to_connect_to_db_through_config() {
 #[tokio::test]
 async fn postgres_db_should_migrate_schema_and_seed_data_when_called() {
     let config = {
-        let mut initial = PgDbSettings::load("src/server/infra/database/tests/config/database");
+        let mut initial = PgDbSettings::load("src/server/infra/database/server/config/database");
         initial.name = Uuid::new_v4().to_string().into();
         initial
     };
@@ -39,7 +39,7 @@ async fn postgres_db_should_migrate_schema_and_seed_data_when_called() {
 #[tokio::test]
 async fn query_principal_should_return_principal_when_principal_exists() {
     let config = {
-        let mut initial = PgDbSettings::load("src/server/infra/database/tests/config/database");
+        let mut initial = PgDbSettings::load("src/server/infra/database/server/config/database");
         initial.name = Uuid::new_v4().to_string().into();
         initial
     };
