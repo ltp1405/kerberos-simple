@@ -15,8 +15,6 @@ use messages::basic_types::{
 use messages::flags::TicketFlag;
 use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
-use rand::Rng;
-use std::sync::Mutex;
 use std::time::Duration;
 
 #[derive(Builder)]
@@ -91,10 +89,10 @@ where
 
     fn get_key_for_decrypt(
         &self,
-        sname: &PrincipalName,
-        realm: &Realm,
+        _sname: &PrincipalName,
+        _realm: &Realm,
         etype: Int32,
-        knvo: Option<UInt32>,
+        _knvo: Option<UInt32>,
     ) -> Result<EncryptionKey, Ecode> {
         // TODO: Check for key in session key cache first
         let key = self.service_key.keyvalue().as_bytes();

@@ -1,9 +1,7 @@
 use crate::client::client_env_error::ClientEnvError;
 use crate::cryptographic_hash::CryptographicHash;
 use crate::cryptography::Cryptography;
-use messages::basic_types::{
-    EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
-};
+use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString, KerberosTime};
 use messages::{AsRep, EncAsRepPart, EncTgsRepPart, TgsRep};
 use std::time::Duration;
 
@@ -42,7 +40,11 @@ pub trait ClientEnv {
 
     fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError>;
 
-    fn save_tgs_reply(&self, data: &TgsRep, data_part: &EncTgsRepPart) -> Result<(), ClientEnvError>;
+    fn save_tgs_reply(
+        &self,
+        data: &TgsRep,
+        data_part: &EncTgsRepPart,
+    ) -> Result<(), ClientEnvError>;
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError>;
 

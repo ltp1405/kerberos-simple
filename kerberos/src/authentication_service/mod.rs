@@ -86,16 +86,6 @@ where
         self.supported_crypto_systems.as_slice()
     }
 
-    fn get_endtime(&self, as_req: &AsReq) -> KerberosTime {
-        // TODO: implement this correctly
-        let till = as_req.req_body().till();
-        if till.to_unix_duration() == Duration::from_secs(0) {
-            todo!("Max this out")
-        } else {
-            *till
-        }
-    }
-
     async fn get_client(&self, as_req: &AsReq) -> Option<PrincipalDatabaseRecord> {
         if let Some(cname) = as_req.req_body().cname() {
             Some(self.principal_db.get_principal(cname, &self.realm).await?)
@@ -330,56 +320,14 @@ where
         Ok(ticket_flag)
     }
 
-    // TODO: implement this correctly
-    fn verify_kdc_option(&self, as_req: AsReq) -> std::result::Result<(), Ecode> {
-        let kdc_options = as_req.req_body().kdc_options();
-        if kdc_options.is_set(KdcOptionsFlag::RENEW as usize)
-            || kdc_options.is_set(KdcOptionsFlag::VALIDATE as usize)
-            || kdc_options.is_set(KdcOptionsFlag::ENC_TKT_IN_SKEY as usize)
-            || kdc_options.is_set(KdcOptionsFlag::FORWARDED as usize)
-            || kdc_options.is_set(KdcOptionsFlag::PROXY as usize)
-        {
-            Err(Ecode::KDC_ERR_BADOPTION)
-        } else {
-            Ok(())
-        }
-    }
-
-    // TODO: implement this correctly
-    fn get_maximum_endtime_allowed(&self) -> KerberosTime {
-        KerberosTime::now() + Duration::from_secs(60 * 60 * 24)
-    }
-
     fn get_acceptable_clock_skew(&self) -> RangeInclusive<KerberosTime> {
         let now = KerberosTime::now();
         // TODO: correctly implement this
         (now - Duration::from_secs(60 * 5))..=(now + Duration::from_secs(60 * 5))
     }
 
-    fn get_starttime(&self, as_req: &AsReq) -> std::result::Result<KerberosTime, Ecode> {
-        let now = KerberosTime::now();
-        let acceptable_clock_skew = self.get_acceptable_clock_skew();
-        let postdated = as_req
-            .req_body()
-            .kdc_options()
-            .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
-        let start_time = as_req.req_body().from();
-        if start_time.is_none()
-            || start_time
-                .is_some_and(|t| (t < &now || acceptable_clock_skew.contains(t)) && !postdated)
-        {
-            Ok(now)
-        } else if !postdated
-            && start_time.is_some_and(|t| t > &now && !acceptable_clock_skew.contains(t))
-        {
-            Err(Ecode::KDC_ERR_CANNOT_POSTDATE)
-        } else {
-            todo!("This section should be checked using local policy")
-        }
-    }
-
     fn against_postdate_policy(&self, _p0: Option<&KerberosTime>) -> bool {
         // TODO: correctly implement this
-        return false;
+        false
     }
 }

@@ -94,6 +94,6 @@ pub fn receive_as_response(
     Ok(())
 }
 
-pub fn receive_krb_error(err_msg: &KrbErrorMsg) -> Result<(), ClientError> {
+pub fn receive_krb_error(_err_msg: &KrbErrorMsg) -> Result<(), ClientError> {
     todo!()
 }

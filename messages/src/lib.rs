@@ -17,6 +17,8 @@ mod krb_cred_spec;
 // Section 5.9
 mod cs_message;
 mod krb_error_spec;
+
+#[allow(dead_code)]
 mod krb_safe_spec;
 
 pub mod basic_types {
@@ -49,6 +51,7 @@ pub mod basic_types {
     pub use crate::basic::Realm;
     pub use crate::basic::SequenceOf;
     pub use crate::basic::UInt32;
+    pub use crate::basic::PaDataRegisteredType;
 }
 
 pub use basic::flags;

@@ -5,6 +5,7 @@ use der::{
 };
 
 use crate::basic::{EncryptedData, KerberosFlags};
+use crate::basic::application_tags::AP_REQ;
 use crate::tickets::Ticket;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -81,7 +82,7 @@ pub struct ApReq(KrbApReqInner);
 
 impl FixedTag for ApReq {
     const TAG: Tag = Application {
-        number: TagNumber::new(14),
+        number: TagNumber::new(AP_REQ),
         constructed: true,
     };
 }
