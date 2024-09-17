@@ -48,6 +48,19 @@ where
     }
 }
 
+impl<K, V> From<CacheSettings> for Cache<K, V>
+where
+    K: Eq + Hash + Send + Sync,
+    V: Clone + Send + Sync,
+{
+    fn from(settings: CacheSettings) -> Self {
+        Self {
+            storage: Arc::new(RwLock::new(LruCache::new(settings.capacity))),
+            ttl: Duration::from_secs(settings.ttl),
+        }
+    }
+}
+
 #[async_trait]
 impl<K, V> Cacheable<K, V> for Cache<K, V>
 where

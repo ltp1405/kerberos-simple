@@ -19,17 +19,18 @@ use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option))]
-pub struct ApplicationAuthenticationService<'a, C, S>
+pub struct ApplicationAuthenticationService<'a, C, S, CAS>
 where
     C: ApReplayCache,
     S: UserSessionStorage,
+    CAS: ClientAddressStorage,
 {
     realm: Realm,
     sname: PrincipalName,
     service_key: EncryptionKey,
     accept_empty_address_ticket: bool,
     ticket_allowable_clock_skew: Duration,
-    address_storage: &'a dyn ClientAddressStorage,
+    address_storage: &'a CAS,
     replay_cache: &'a C,
     crypto: Vec<Box<dyn Cryptography + Send + Sync>>,
     session_storage: &'a S,
@@ -41,8 +42,9 @@ pub enum ServerError {
     Internal,
 }
 
-impl<'a, C, S> ApplicationAuthenticationService<'a, C, S>
+impl<'a, C, S, CAS> ApplicationAuthenticationService<'a, C, S, CAS>
 where
+    CAS: ClientAddressStorage,
     C: ApReplayCache,
     S: UserSessionStorage,
 {
@@ -58,21 +60,25 @@ where
     }
 
     async fn search_for_addresses(&self, ap_req: &ApReq, host_addresses: &HostAddresses) -> bool {
-        let sender = self.address_storage.get_sender_of_packet(ap_req).await;
+        let sender = match self.address_storage.get_sender_of_packet(ap_req).await {
+            Ok(sender) => sender,
+            Err(_) => return false,
+        };
         host_addresses.iter().any(|a| a == &sender)
     }
-    pub async fn is_user_authenticated(&self, cname: &PrincipalName, crealm: &Realm, sequence_number: i32) -> bool {
+    pub async fn is_user_authenticated(
+        &self,
+        cname: &PrincipalName,
+        crealm: &Realm,
+        sequence_number: i32,
+    ) -> bool {
         let result = self.session_storage.get_session(cname, crealm).await;
         match result {
-            Ok(session) => {
-                match session {
-                    Some(session) => {
-                        session.sequence_number == sequence_number
-                    }
-                    None => false
-                }
-            }
-            Err(_) => false
+            Ok(session) => match session {
+                Some(session) => session.sequence_number == sequence_number,
+                None => false,
+            },
+            Err(_) => false,
         }
     }
 
@@ -246,9 +252,9 @@ where
                 cname: authenticator.cname().to_owned(),
                 crealm: authenticator.crealm().to_owned(),
                 session_key: decrypted_ticket.key().to_owned(),
-                sequence_number: authenticator.seq_number().ok_or(
-                    build_protocol_error(Ecode::KRB_ERR_GENERIC)
-                )?,
+                sequence_number: authenticator
+                    .seq_number()
+                    .ok_or(build_protocol_error(Ecode::KRB_ERR_GENERIC))?,
                 // sequence_number: authenticator.seq_number().ok_or(ProtocolError(Box::new(
                 //     error_msg
                 //         .lock()

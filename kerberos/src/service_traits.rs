@@ -63,7 +63,9 @@ pub trait ApReplayCache {
 
 #[async_trait]
 pub trait ClientAddressStorage: Sync + Send {
-    async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress;
+    type Error;
+
+    async fn get_sender_of_packet(&self, req: &ApReq) -> Result<HostAddress, Self::Error>;
 }
 
 #[derive(Debug, Clone, Sequence)]
