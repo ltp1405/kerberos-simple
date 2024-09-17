@@ -32,7 +32,9 @@ async fn main() {
             let handler = ListTicketHandler::default();
             let tickets = handler.list_tickets();
             for ticket in tickets {
-                println!("{:?}", ticket);
+                let sname = ticket.sname();
+                let realm = ticket.realm();
+                println!("Ticket from {:?} - {:?}", ticket.sname(), ticket.realm());
             }
         }
         GetTicket {
