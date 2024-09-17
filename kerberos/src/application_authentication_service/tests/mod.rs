@@ -284,7 +284,7 @@ async fn test_ticket_time() {
     });
     let ap_req = ApReq::new(APOptions::new(false, false), ticket, authenticator);
     auth_service
-        .handle_krb_ap_req(ap_req)
+        .handle_krb_ap_req(ap_req.clone())
         .await
         .expect_err("Should return error, the ticket is expired");
 }
