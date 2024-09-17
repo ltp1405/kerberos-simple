@@ -162,13 +162,11 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
                 EncTicketPart::from_der(data.as_slice())
-                    .inspect_err(|e| println!("Tgt error {:?}", e))
                     .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
         let realm = self.get_tgt_realm(&tgt);
 
-        println!("tgt {:?}", tgt.key());
         let authenticator = find_crypto_for_etype(*tgt.key().keytype())
             .ok_or(build_protocol_error(Ecode::KDC_ERR_ETYPE_NOSUPP))?
             .decrypt(
@@ -178,7 +176,6 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
             .map_err(|_| ServerError::Internal)
             .and_then(|data| {
                 Authenticator::from_der(data.as_slice())
-                    .inspect_err(|e| println!("Authenticator {:?}", e))
                     .map_err(|_| build_protocol_error(Ecode::KRB_AP_ERR_BAD_INTEGRITY))
             })?;
 
@@ -311,7 +308,6 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
             } else {
                 *tgs_req.req_body().till()
             };
-            println!("Till: {:?}", till);
 
             let new_tkt_endtime = *[
                 till,
@@ -466,7 +462,7 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
         let tgt_rep = EncTgsRepPart(tgt_rep);
 
         // Encrypt data using `use_etype` encryption type
-        let mut encrypt_data = |key: &[u8]| {
+        let mut encrypt_tgs_rep = |key: &[u8]| {
             self.supported_crypto
                 .iter()
                 .find(|crypto| crypto.get_etype() == use_etype)
@@ -476,14 +472,14 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
         };
 
         let tgs_rep = if let Some(subkey) = authenticator.subkey() {
-            let data = encrypt_data(subkey.keyvalue().as_bytes())?;
+            let data = encrypt_tgs_rep(subkey.keyvalue().as_bytes())?;
             EncryptedData::new(
                 *subkey.keytype(),
                 None,
                 OctetString::new(data).expect("data should be encrypted"),
             )
         } else {
-            let data = encrypt_data(session_key.keyvalue().as_bytes())?;
+            let data = encrypt_tgs_rep(tgt.key().keyvalue().as_ref())?;
             EncryptedData::new(
                 *session_key.keytype(),
                 None,

@@ -364,7 +364,6 @@ where
             .kdc_options()
             .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
         let start_time = as_req.req_body().from();
-        println!("{:?}", start_time);
         if start_time.is_none()
             || start_time
                 .is_some_and(|t| (t < &now || acceptable_clock_skew.contains(t)) && !postdated)

@@ -12,7 +12,7 @@ use messages::basic_types::{
     EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
 };
 use messages::flags::{KdcOptionsFlag, TicketFlag};
-use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep};
+use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep, TgsReq};
 use std::fs;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -96,16 +96,12 @@ impl GetTicketHandler {
             .await
             .expect("failed to send");
         let as_rep_res = AsRep::from_der(response.as_slice());
-        let mut as_rep;
-        match as_rep_res {
-            Ok(data) => {
-                as_rep = data;
-            }
-            Err(e) => {
+        let as_rep = as_rep_res
+            .inspect_err(|e| {
                 println!("{:?}", KrbErrorMsg::from_der(response.as_slice()).unwrap());
                 panic!("Failed to get ticket: {:?}", e);
-            }
-        }
+            })
+            .unwrap();
         println!("{:?}", as_rep);
         let ok = receive_as_response(self, &as_req, &as_rep);
         match ok {
@@ -129,8 +125,8 @@ impl GetTicketHandler {
             .send(tgs_req.to_der().unwrap().as_slice())
             .await
             .expect("failed to send");
-        let tgs_rep = AsRep::from_der(response.as_slice()).unwrap();
-        let ok = receive_as_response(self, &as_req, &tgs_rep);
+        let tgs_rep = TgsRep::from_der(response.as_slice()).unwrap();
+        let ok = receive_tgs_response(&tgs_req, &tgs_rep, self);
         match ok {
             Ok(_) => Ok(()),
             Err(e) => {

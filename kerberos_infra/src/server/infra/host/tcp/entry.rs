@@ -42,20 +42,15 @@ impl<T> Entry for TcpEntry<T> {
             buffer
         };
 
-        println!("Received message: {:?}", bytes);
         let d = {
             let lock = self.receiver.read().await;
-            println!("here1");
             lock.receive(&bytes, database, cache).await
         };
-        println!("here2");
         let response = extract_bytes_or_delegate_to_router(d)?;
 
-        println!("Sending response: {:?}", response);
 
         // Send the message
         self.stream.write_all(&response).await?;
-        println!("Response sent");
 
         Ok(())
     }
