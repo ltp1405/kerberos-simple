@@ -16,6 +16,66 @@ pub fn prepare_ap_request(
     cksum_material: Option<Vec<u8>>,
 ) -> Result<ApReq, ClientError> {
     let options = APOptions::new(true, mutual_required);
+    let tgs_rep = client_env.get_tgs_reply()?;
+    let ticket = tgs_rep.ticket();
+
+    let cname = PrincipalName::new(NameTypes::NtPrincipal, vec![client_env.get_client_name()?])
+        .map_err(|e| ClientError::GenericError(e.to_string()))?;
+    let crealm = client_env.get_client_realm()?;
+    let ctime = KerberosTime::from_unix_duration(client_env.get_current_time()?)
+        .map_err(|e| ClientError::GenericError(e.to_string()))?;
+    let cusec = client_env.get_current_time()?.subsec_micros();
+    let crypto_hash = client_env.get_checksum_hash(1)?;
+    let mut authenticator = AuthenticatorBuilder::default();
+    let mut rand = thread_rng();
+    authenticator
+        .seq_number(rand.gen::<i32>())
+        .cname(cname)
+        .crealm(crealm)
+        .ctime(ctime)
+        .cusec(Microseconds::try_from(cusec).expect("Invalid microseconds"));
+    if let Some(cksum_material) = cksum_material {
+        let cksum = Checksum::new(
+            1,
+            OctetString::new(crypto_hash.digest(cksum_material.as_slice()))
+                .or(Err(ClientError::EncodeError))?,
+        );
+        authenticator.cksum(cksum);
+    };
+    let authenticator = authenticator.build()?;
+
+    let encoded_authenticator = authenticator.to_der().or(Err(ClientError::EncodeError))?;
+    let cryptography = client_env.get_crypto(*ticket.enc_part().etype())?;
+    let decrypted_ticket_part = cryptography.decrypt(
+        ticket.enc_part().cipher().as_ref(),
+        client_env
+            .get_client_key(*ticket.enc_part().etype())?
+            .keyvalue()
+            .as_ref(),
+    )?;
+    let ticket_part = EncTicketPart::from_der(decrypted_ticket_part.as_slice())
+        .or(Err(ClientError::DecodeError))?;
+    let cryptography = client_env.get_crypto(*ticket_part.key().keytype())?;
+    let encrypted_authenticator = cryptography.encrypt(
+        &encoded_authenticator,
+        ticket_part.key().keyvalue().as_ref(),
+    )?;
+    let enc_authenticator = EncryptedData::new(
+        *ticket.enc_part().etype(),
+        ticket.enc_part().kvno().copied(),
+        OctetString::new(encrypted_authenticator).or(Err(ClientError::EncodeError))?,
+    );
+    let ap_req = ApReq::new(options, ticket.clone(), enc_authenticator);
+
+    Ok(ap_req)
+}
+
+pub fn prepare_pa_data(
+    client_env: &impl ClientEnv,
+    mutual_required: bool,
+    cksum_material: Option<Vec<u8>>,
+) -> Result<ApReq, ClientError> {
+    let options = APOptions::new(true, mutual_required);
     let as_rep = client_env.get_as_reply()?;
     let ticket = as_rep.ticket();
 

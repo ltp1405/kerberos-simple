@@ -1,4 +1,4 @@
-use crate::client::ap_exchange::prepare_ap_request;
+use crate::client::ap_exchange::{prepare_ap_request, prepare_pa_data};
 use crate::client::client_env::ClientEnv;
 use crate::client::client_env_error::ClientEnvError;
 use crate::client::client_error::ClientError;
@@ -45,7 +45,7 @@ pub fn prepare_tgs_request(client_env: &impl ClientEnv) -> Result<TgsReq, Client
 
     // authentication header
     let encoded_req_body = req_body.to_der().or(Err(ClientError::EncodeError))?;
-    let ap_req = prepare_ap_request(client_env, false, Some(encoded_req_body))?;
+    let ap_req = prepare_pa_data(client_env, false, Some(encoded_req_body))?;
     let mut ap_req_buf: Vec<u8> = Vec::new();
     ap_req
         .encode_to_vec(&mut ap_req_buf)
