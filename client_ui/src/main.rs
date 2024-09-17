@@ -1,12 +1,16 @@
 use clap::Parser;
 use client_ui::cli::{
-    Cli,
+    Cli, Commands,
     Commands::{GetTicket, ListTicket},
 };
-use client_ui::config::{AppConfig, TransportType};
-use client_ui::get_ticket_handler::{GetTicketHandler, GetTicketHandlerBuilder};
+use client_ui::config::AppConfig;
+use client_ui::get_ticket_handler::GetTicketHandlerBuilder;
 use client_ui::list_ticket_handler::ListTicketHandler;
+use client_ui::send_ap_req_handler::PrintApReqHandler;
 use config::ConfigError;
+use kerberos::client::ap_exchange::prepare_ap_request;
+use messages::Encode;
+use reqwest::Url;
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -68,6 +72,24 @@ async fn main() {
                 .build()
                 .unwrap();
             client.handle().await.unwrap();
+        }
+        Commands::SendApReq { server_address } => {
+            let client = PrintApReqHandler {
+                name: config.name.clone(),
+                realm: config.realm.clone(),
+                cache_location: config.cache_location.unwrap_or_else(|| PathBuf::from("./")),
+            };
+            let req = prepare_ap_request(&client, false, None)
+                .unwrap()
+                .to_der()
+                .unwrap();
+            let http_client = reqwest::Client::new();
+            let res = http_client
+                .post(Url::parse(&format!("http://{}/ap_req", server_address)).unwrap())
+                .body(req)
+                .send()
+                .await
+                .unwrap();
         }
     }
 }

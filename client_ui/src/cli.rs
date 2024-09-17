@@ -46,4 +46,8 @@ pub enum Commands {
         tgs_server_address: std::net::SocketAddr,
     },
     ListTicket,
+    SendApReq {
+        #[arg(long)]
+        server_address: std::net::SocketAddr,
+    },
 }
