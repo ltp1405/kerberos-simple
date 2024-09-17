@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use der::{Decode, Sequence};
 use kerberos_infra::server::{
-    cache::Cacheable,
+    cache::{CacheResultType, Cacheable},
     database::{Database, ExposeSecret, KrbV5Queryable},
 };
 use messages::{
@@ -58,7 +58,7 @@ impl PrincipalDatabase for NpglKdcDbView<'_> {
     }
 }
 
-pub struct NpglKdcCacheView<'a>(&'a mut dyn Cacheable<Vec<u8>, Vec<u8>>);
+pub struct NpglKdcCacheView<'a>(&'a mut dyn Cacheable<Vec<u8>, CacheResultType>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 struct LastReqEntryKey {
@@ -76,7 +76,7 @@ impl From<&LastReqEntry> for LastReqEntryKey {
 }
 
 impl<'a> NpglKdcCacheView<'a> {
-    pub fn new(cache: &'a mut dyn Cacheable<Vec<u8>, Vec<u8>>) -> Self {
+    pub fn new(cache: &'a mut dyn Cacheable<Vec<u8>, CacheResultType>) -> Self {
         Self(cache)
     }
 }
@@ -88,7 +88,10 @@ impl ReplayCache for NpglKdcCacheView<'_> {
     async fn store(&self, entry: &ReplayCacheEntry) -> Result<(), Self::ReplayCacheError> {
         let key = entry.to_der().expect("Failed to encode");
 
-        self.0.put(key.clone(), key).await.unwrap();
+        self.0
+            .put(key.clone(), CacheResultType::None)
+            .await
+            .unwrap();
 
         Ok(())
     }
@@ -114,9 +117,14 @@ impl LastReqDatabase for NpglKdcCacheView<'_> {
 
         let value = self.0.get(&key).await.ok()?;
 
-        let last_req = LastReq::from_der(&value).ok()?;
+        match value {
+            CacheResultType::None => None,
+            CacheResultType::DerBytes(bytes) => {
+                let last_req = LastReq::from_der(&bytes).ok()?;
 
-        Some(last_req)
+                Some(last_req)
+            }
+        }
     }
 
     async fn store_last_req(&self, last_req_entry: LastReqEntry) {
@@ -126,6 +134,9 @@ impl LastReqDatabase for NpglKdcCacheView<'_> {
 
         let value = last_req_entry.last_req.to_der().expect("Failed to encode");
 
-        self.0.put(key, value).await.unwrap();
+        self.0
+            .put(key, CacheResultType::DerBytes(value))
+            .await
+            .unwrap();
     }
 }
