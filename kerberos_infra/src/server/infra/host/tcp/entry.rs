@@ -42,10 +42,12 @@ impl<T> Entry for TcpEntry<T> {
             buffer
         };
 
-        let response = extract_bytes_or_delegate_to_router({
+        let d = {
             let lock = self.receiver.read().await;
             lock.receive(&bytes, database, cache).await
-        })?;
+        };
+        let response = extract_bytes_or_delegate_to_router(d)?;
+
 
         // Send the message
         self.stream.write_all(&response).await?;

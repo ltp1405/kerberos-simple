@@ -14,6 +14,12 @@ use crate::server::config::CacheSettings;
 pub mod cacheable;
 pub mod error;
 
+#[derive(Debug, Clone)]
+pub enum CacheResultType {
+    None,
+    DerBytes(Vec<u8>),
+}
+
 pub struct Cache<K, V> {
     storage: Arc<RwLock<LruCache<K, (V, Instant)>>>,
     ttl: Duration,

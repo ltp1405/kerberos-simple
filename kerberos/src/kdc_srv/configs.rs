@@ -7,15 +7,14 @@ pub struct AuthenticationServiceConfig {
 }
 
 impl AuthenticationServiceConfig {
-    #[cfg(test)]
     pub fn local(require_preauth: bool) -> Self {
         use messages::basic_types::{KerberosString, NameTypes};
 
-        let realm = Realm::try_from("EXAMPLE.COM").unwrap();
+        let realm = Realm::try_from("MYREALM.COM").unwrap();
 
         let sname = PrincipalName::new(
             NameTypes::NtEnterprise,
-            vec![KerberosString::try_from("host").unwrap()],
+            vec![KerberosString::try_from("MYREALM.COM").unwrap()],
         )
         .unwrap();
 
@@ -33,15 +32,14 @@ pub struct TicketGrantingServiceConfig {
 }
 
 impl TicketGrantingServiceConfig {
-    #[cfg(test)]
     pub fn local() -> Self {
         use messages::basic_types::{KerberosString, NameTypes};
 
-        let realm = Realm::try_from("EXAMPLE.COM").unwrap();
+        let realm = Realm::try_from("MYREALM.COM").unwrap();
 
         let sname = PrincipalName::new(
             NameTypes::NtEnterprise,
-            vec![KerberosString::try_from("host").unwrap()],
+            vec![KerberosString::try_from("MYREALM.COM").unwrap()],
         )
         .unwrap();
 

@@ -47,6 +47,7 @@ impl<T: 'static> Runnable for TcpHost<T> {
 
     async fn run(&mut self, database: KrbDatabase<T>, cache: KrbCache) {
         let (as_router, tgt_router) = self.splits();
+        println!("Starting AS and TGT servers");
 
         tokio::select! {
             result = as_router.listen(database.clone(), cache.clone()) => {

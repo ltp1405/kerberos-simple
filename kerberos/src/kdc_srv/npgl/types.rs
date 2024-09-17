@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use der::{Decode, Sequence};
 use kerberos_infra::server::{
-    cache::Cacheable,
+    cache::{CacheResultType, Cacheable},
     database::{Database, ExposeSecret, KrbV5Queryable},
 };
 use messages::{
@@ -58,7 +58,7 @@ impl PrincipalDatabase for NpglKdcDbView<'_> {
     }
 }
 
-pub struct NpglKdcCacheView<'a>(&'a mut dyn Cacheable<String, String>);
+pub struct NpglKdcCacheView<'a>(&'a mut dyn Cacheable<Vec<u8>, CacheResultType>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Sequence)]
 struct LastReqEntryKey {
@@ -76,7 +76,7 @@ impl From<&LastReqEntry> for LastReqEntryKey {
 }
 
 impl<'a> NpglKdcCacheView<'a> {
-    pub fn new(cache: &'a mut dyn Cacheable<String, String>) -> Self {
+    pub fn new(cache: &'a mut dyn Cacheable<Vec<u8>, CacheResultType>) -> Self {
         Self(cache)
     }
 }
@@ -86,15 +86,18 @@ impl ReplayCache for NpglKdcCacheView<'_> {
     type ReplayCacheError = String;
 
     async fn store(&self, entry: &ReplayCacheEntry) -> Result<(), Self::ReplayCacheError> {
-        let key = map_der_to_string(entry);
+        let key = entry.to_der().expect("Failed to encode");
 
-        self.0.put(key.clone(), key).await.unwrap();
+        self.0
+            .put(key.clone(), CacheResultType::None)
+            .await
+            .unwrap();
 
         Ok(())
     }
 
     async fn contain(&self, entry: &ReplayCacheEntry) -> Result<bool, Self::ReplayCacheError> {
-        let key = map_der_to_string(entry);
+        let key = entry.to_der().expect("Failed to encode");
 
         let result = self.0.get(&key).await;
 
@@ -105,31 +108,35 @@ impl ReplayCache for NpglKdcCacheView<'_> {
 #[async_trait]
 impl LastReqDatabase for NpglKdcCacheView<'_> {
     async fn get_last_req(&self, realm: &Realm, principal_name: &PrincipalName) -> Option<LastReq> {
-        let key = map_der_to_string(&LastReqEntryKey {
+        let key = LastReqEntryKey {
             realm: realm.clone(),
             name: principal_name.clone(),
-        });
+        }
+        .to_der()
+        .expect("Failed to encode");
 
         let value = self.0.get(&key).await.ok()?;
 
-        let last_req = LastReq::from_der(value.as_bytes()).ok()?;
+        match value {
+            CacheResultType::None => None,
+            CacheResultType::DerBytes(bytes) => {
+                let last_req = LastReq::from_der(&bytes).ok()?;
 
-        Some(last_req)
+                Some(last_req)
+            }
+        }
     }
 
     async fn store_last_req(&self, last_req_entry: LastReqEntry) {
-        let key = map_der_to_string(&LastReqEntryKey::from(&last_req_entry));
+        let key = LastReqEntryKey::from(&last_req_entry)
+            .to_der()
+            .expect("Failed to encode");
 
-        let value = map_der_to_string(&last_req_entry.last_req);
+        let value = last_req_entry.last_req.to_der().expect("Failed to encode");
 
-        self.0.put(key, value).await.unwrap();
+        self.0
+            .put(key, CacheResultType::DerBytes(value))
+            .await
+            .unwrap();
     }
-}
-
-fn map_der_to_string<T: Encode>(der: &T) -> String {
-    let encoded = der.to_der().expect("Failed to encode");
-
-    let key: String = String::from_utf8(encoded).unwrap();
-
-    key
 }

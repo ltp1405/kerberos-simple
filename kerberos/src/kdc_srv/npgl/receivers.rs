@@ -33,10 +33,14 @@ impl AsyncReceiver for NpglAsReqHandler {
         database: KrbDatabase<Self::Db>,
         _: KrbCache,
     ) -> HostResult<Vec<u8>> {
-        let database = database.read().await;
+        println!("Received AS_REQ");
+        let database = database.read();
+        println!("Received AS_REQ1");
 
+        let database = database.await;
         let npgl_db_view = NpglKdcDbView::new(database.as_ref());
 
+        println!("Received AS_REQ2");
         let authentication_server = AuthenticationServiceBuilder::default()
             .realm(self.0.realm.clone())
             .sname(self.0.sname.clone())
@@ -88,7 +92,9 @@ impl AsyncReceiver for NpglTgsReqHandler {
         database: KrbDatabase<Self::Db>,
         cache: KrbCache,
     ) -> HostResult<Vec<u8>> {
+        println!("Received TGS_REQ");
         let database = database.read().await;
+        println!("Received TGS_REQ1");
 
         let mut cache = cache.write().await;
 

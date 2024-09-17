@@ -1,5 +1,5 @@
 use config::{Config, ConfigError};
-use messages::{Decode, EncAsRepPart};
+use messages::{Decode, EncAsRepPart, Encode, TgsRep, Ticket};
 use std::convert::identity;
 use std::fs;
 use std::path::PathBuf;
@@ -48,9 +48,9 @@ impl ListTicketHandler {
         loc.push(name);
         fs::read(loc)
     }
-    pub fn list_tickets(&self) -> Vec<EncAsRepPart> {
+    pub fn list_tickets(&self) -> Vec<Ticket> {
         let mut loc = self.cache_location.clone();
-        loc.push("enc_as_rep_part");
+        loc.push("tgs_rep");
 
         let entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
         entries
@@ -59,9 +59,9 @@ impl ListTicketHandler {
                 let path = entry.path();
                 if let Some(file_name) = path.file_name() {
                     let b = self
-                        .open_file_and_read(Some("enc_as_rep_part"), file_name.to_str().unwrap())
+                        .open_file_and_read(Some("tgs_rep"), file_name.to_str().unwrap())
                         .unwrap();
-                    Some(EncAsRepPart::from_der(&b).unwrap())
+                    Some(TgsRep::from_der(&b).unwrap().ticket().to_owned())
                 } else {
                     None
                 }

@@ -113,6 +113,7 @@ where
     }
 
     pub async fn handle_krb_as_req(&self, as_req: &AsReq) -> Result<AsRep> {
+        println!("Handling as req");
         let mut error_msg = self.default_error_builder();
         // Helper function to build a protocol error, supplied with an error code
         let mut build_protocol_error =
@@ -127,6 +128,7 @@ where
             .await
             .ok_or(build_protocol_error(Ecode::KDC_ERR_S_PRINCIPAL_UNKNOWN))?;
         let client_key = client.key;
+        println!("Client key: {:?}", client_key);
         let server_key = server.key;
 
         if self.require_pre_authenticate {
@@ -362,7 +364,6 @@ where
             .kdc_options()
             .is_set(messages::flags::KdcOptionsFlag::POSTDATED as usize);
         let start_time = as_req.req_body().from();
-        println!("{:?}", start_time);
         if start_time.is_none()
             || start_time
                 .is_some_and(|t| (t < &now || acceptable_clock_skew.contains(t)) && !postdated)

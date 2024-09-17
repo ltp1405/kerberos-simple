@@ -11,6 +11,7 @@ mod types {
     use tokio::sync::RwLock;
 
     use super::cache::cacheable::Cacheable;
+    use super::cache::CacheResultType;
     use super::database::{ClonableSchema, Database};
     use super::host::{AsyncReceiver, Runnable};
 
@@ -22,7 +23,7 @@ mod types {
 
     pub type KrbDatabase<T = PgPool> = DataBox<dyn Database<Inner = T>>;
 
-    pub type KrbCache<K = String, V = String> = DataBox<dyn Cacheable<K, V>>;
+    pub type KrbCache<K = Vec<u8>, V = CacheResultType> = DataBox<dyn Cacheable<K, V>>;
 
     pub type KrbDbSchema = Box<dyn ClonableSchema>;
 }
