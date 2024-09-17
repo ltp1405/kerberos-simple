@@ -42,6 +42,7 @@ pub fn create_service<'a>(
     'a,
     AppServerReplayCache,
     ApplicationSessionStorage,
+    AppServerClientStorage,
 > {
     ApplicationAuthenticationServiceBuilder::default()
         .realm(auth_service_config.realm.clone())

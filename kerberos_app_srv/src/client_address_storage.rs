@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use der::Encode;
 use kerberos::service_traits::ClientAddressStorage;
-use kerberos_infra::server::cache::{Cache, CacheErr, CacheSettings, Cacheable};
+use kerberos_infra::server::cache::{Cache, CacheSettings, Cacheable};
 use messages::{basic_types::HostAddress, ApReq};
 
 use crate::utils::SrvCacheError;

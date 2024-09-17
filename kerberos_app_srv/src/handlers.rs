@@ -1,6 +1,7 @@
 use actix_web::{dev::ConnectionInfo, web, HttpResponse, Responder};
 use chrono::DateTime;
 use der::{Decode, Encode};
+use hex::FromHex;
 use kerberos_infra::server::database::{postgres::PostgresDb, Database};
 use messages::{
     basic_types::{
@@ -38,7 +39,7 @@ pub struct UserProfileResponse {
 
 #[derive(Deserialize)]
 pub struct UserAuthenticateCommand {
-    pub tickets: Vec<u8>,
+    pub ticket: String,
 }
 
 #[actix_web::get("/users/{username}")]
@@ -143,14 +144,20 @@ async fn handle_post(
         .peer_addr()
         .map(|addr| HostAddress::new(AddressTypes::Ipv4, OctetString::new(addr).unwrap()));
 
-    let ap_req = ApReq::from_der(&body.tickets)
-        .map_err(|_| actix_web::error::ErrorBadRequest("Failed to decode AP-REQ".to_string()))?;
+    let ap_req = {
+        let bytes = Vec::from_hex(&body.ticket)
+            .map_err(|_| actix_web::error::ErrorBadRequest("Your ticket is invalid".to_string()))?;
+        ApReq::from_der(&bytes)
+            .map_err(|_| actix_web::error::ErrorBadRequest("Failed to decode AP-REQ".to_string()))?
+    };
 
     if let Some(inner) = address {
         if let Ok(address) = inner {
-            address_cache.store(&ap_req, &address).await;
-        } else {
-            return Ok(HttpResponse::Unauthorized().finish());
+            address_cache.store(&ap_req, &address).await.map_err(|_| {
+                actix_web::error::ErrorInternalServerError(
+                    "Failed to store client address".to_string(),
+                )
+            })?;
         }
     } else {
         return Ok(HttpResponse::Unauthorized().finish());
