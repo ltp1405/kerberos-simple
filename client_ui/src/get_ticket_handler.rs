@@ -14,7 +14,7 @@ use messages::basic_types::{
 use messages::flags::{KdcOptionsFlag, TicketFlag};
 use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep, TgsReq};
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -41,36 +41,38 @@ pub struct GetTicketHandler {
 impl GetTicketHandler {
     fn open_file_and_write(
         &self,
-        folder_name: Option<&str>,
+        // folder_name: Option<&str>,
         name: &str,
         data: &[u8],
     ) -> std::io::Result<()> {
         let mut loc = self.cache_location.clone();
-        match folder_name {
-            None => {}
-            Some(folder) => {
-                loc.push(folder);
-                fs::create_dir_all(loc.clone())?;
-            }
-        }
+        // match folder_name {
+        //     None => {}
+        //     Some(folder) => {
+        //         loc.push(folder);
+        //         fs::create_dir_all(loc.clone())?;
+        //     }
+        // }
         loc.push(name);
-        fs::write(loc, data)?;
+        let mut file = fs::File::create(&loc)?;
+
+        file.write_all(data)?;
         Ok(())
     }
 
     fn open_file_and_read(
         &self,
-        folder_name: Option<&str>,
+        // folder_name: Option<&str>,
         name: &str,
     ) -> std::io::Result<Vec<u8>> {
         let mut loc = self.cache_location.clone();
-        match folder_name {
-            None => {}
-            Some(folder) => {
-                loc.push(folder);
-                fs::create_dir_all(loc.clone())?;
-            }
-        }
+        // match folder_name {
+        //     None => {}
+        //     Some(folder) => {
+        //         loc.push(folder);
+        //         fs::create_dir_all(loc.clone())?;
+        //     }
+        // }
         loc.push(name);
         fs::read(loc)
     }
@@ -104,7 +106,7 @@ impl GetTicketHandler {
             .unwrap();
         println!("{:?}", as_rep);
         let ok = receive_as_response(self, &as_req, &as_rep);
-        match ok {
+        match &ok {
             Ok(_) => {
                 println!("Success");
             }
@@ -210,75 +212,37 @@ impl ClientEnv for GetTicketHandler {
 
     fn save_as_reply(&self, data: &AsRep, data_part: &EncAsRepPart) -> Result<(), ClientEnvError> {
         self.open_file_and_write(
-            Some("as_rep_enc_part"),
-            data_part.authtime().timestamp().to_string().as_str(),
+            "as_rep_enc_part",
+            // data_part.authtime().timestamp().to_string().as_str(),
             &data_part.to_der().unwrap(),
         )
         .map_err(|_| ClientEnvError {
-            message: "".to_string(),
+            message: "failed to save as_rep_enc_part".to_string(),
         })?;
         self.open_file_and_write(
-            Some("as_rep"),
-            data_part.authtime().timestamp().to_string().as_str(),
+            "as_rep",
+            // data_part.authtime().timestamp().to_string().as_str(),
             &data.to_der().unwrap(),
         )
         .map_err(|_| ClientEnvError {
-            message: "".to_string(),
+            message: "failed to save as_rep".to_string(),
         })
     }
 
     fn get_as_reply(&self) -> Result<AsRep, ClientEnvError> {
-        let mut loc = self.cache_location.clone();
-        loc.push("as_rep");
-
-        let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
-        entries.sort_by_key(|dir| dir.path());
-        match entries.first() {
-            Some(first_entry) => {
-                let path = first_entry.path();
-                match path.file_name() {
-                    Some(file_name) => self
-                        .open_file_and_read(Some("as_rep"), file_name.to_str().unwrap())
-                        .map(|b| AsRep::from_der(&b).unwrap())
-                        .map_err(|_| ClientEnvError {
-                            message: "Failed to read file".to_string(),
-                        }),
-                    None => Err(ClientEnvError {
-                        message: "Failed to read file".to_string(),
-                    }),
-                }
-            }
-            None => Err(ClientEnvError {
+        self.open_file_and_read("as_rep")
+            .map(|b| AsRep::from_der(&b).unwrap())
+            .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
-            }),
-        }
+            })
     }
 
     fn get_as_reply_enc_part(&self) -> Result<EncAsRepPart, ClientEnvError> {
-        let mut loc = self.cache_location.clone();
-        loc.push("as_rep_enc_part");
-
-        let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
-        entries.sort_by_key(|dir| dir.path());
-        match entries.first() {
-            Some(first_entry) => {
-                let path = first_entry.path();
-                match path.file_name() {
-                    Some(file_name) => self
-                        .open_file_and_read(Some("as_rep_enc_part"), file_name.to_str().unwrap())
-                        .map(|b| EncAsRepPart::from_der(&b).unwrap())
-                        .map_err(|_| ClientEnvError {
-                            message: "Failed to read file".to_string(),
-                        }),
-                    None => Err(ClientEnvError {
-                        message: "Failed to read file".to_string(),
-                    }),
-                }
-            }
-            None => Err(ClientEnvError {
+        self.open_file_and_read("as_rep_enc_part")
+            .map(|b| EncAsRepPart::from_der(&b).unwrap())
+            .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
-            }),
-        }
+            })
     }
 
     fn save_tgs_reply(
@@ -287,16 +251,16 @@ impl ClientEnv for GetTicketHandler {
         data_part: &EncTgsRepPart,
     ) -> Result<(), ClientEnvError> {
         self.open_file_and_write(
-            Some("tgs_rep_enc_part"),
-            data_part.authtime().timestamp().to_string().as_str(),
+            "tgs_rep_enc_part",
+            // data_part.authtime().timestamp().to_string().as_str(),
             &data_part.to_der().unwrap(),
         )
         .map_err(|_| ClientEnvError {
             message: "".to_string(),
         })?;
         self.open_file_and_write(
-            Some("tgs_rep"),
-            data_part.authtime().timestamp().to_string().as_str(),
+            "tgs_rep",
+            // data_part.authtime().timestamp().to_string().as_str(),
             &data.to_der().unwrap(),
         )
         .map_err(|_| ClientEnvError {
@@ -305,68 +269,30 @@ impl ClientEnv for GetTicketHandler {
     }
 
     fn get_tgs_reply(&self) -> Result<TgsRep, ClientEnvError> {
-        let mut loc = self.cache_location.clone();
-        loc.push("tgs_rep");
-
-        let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
-        entries.sort_by_key(|dir| dir.path());
-        match entries.first() {
-            Some(first_entry) => {
-                let path = first_entry.path();
-                match path.file_name() {
-                    Some(file_name) => self
-                        .open_file_and_read(Some("tgs_rep"), file_name.to_str().unwrap())
-                        .map(|b| TgsRep::from_der(&b).unwrap())
-                        .map_err(|_| ClientEnvError {
-                            message: "Failed to read file".to_string(),
-                        }),
-                    None => Err(ClientEnvError {
-                        message: "Failed to read file".to_string(),
-                    }),
-                }
-            }
-            None => Err(ClientEnvError {
+        self.open_file_and_read("tgs_rep")
+            .map(|b| TgsRep::from_der(&b).unwrap())
+            .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
-            }),
-        }
+            })
     }
 
     fn get_tgs_reply_enc_part(&self) -> Result<EncTgsRepPart, ClientEnvError> {
-        let mut loc = self.cache_location.clone();
-        loc.push("tgs_rep_enc_part");
-
-        let mut entries: Vec<_> = fs::read_dir(loc).unwrap().filter_map(Result::ok).collect();
-        entries.sort_by_key(|dir| dir.path());
-        match entries.first() {
-            Some(first_entry) => {
-                let path = first_entry.path();
-                match path.file_name() {
-                    Some(file_name) => self
-                        .open_file_and_read(Some("tgs_rep_enc_part"), file_name.to_str().unwrap())
-                        .map(|b| EncTgsRepPart::from_der(&b).unwrap())
-                        .map_err(|_| ClientEnvError {
-                            message: "Failed to read file".to_string(),
-                        }),
-                    None => Err(ClientEnvError {
-                        message: "Failed to read file".to_string(),
-                    }),
-                }
-            }
-            None => Err(ClientEnvError {
+        self.open_file_and_read("tgs_rep_enc_part")
+            .map(|b| EncTgsRepPart::from_der(&b).unwrap())
+            .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
-            }),
-        }
+            })
     }
 
     fn save_subkey(&self, key: EncryptionKey) -> Result<(), ClientEnvError> {
-        self.open_file_and_write(None, "subkey", &key.to_der().unwrap())
+        self.open_file_and_write("subkey", &key.to_der().unwrap())
             .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
             })
     }
 
     fn save_seq_number(&self, seq_num: u32) -> Result<(), ClientEnvError> {
-        self.open_file_and_write(None, "seq_number", &seq_num.to_der().unwrap())
+        self.open_file_and_write("seq_number", &seq_num.to_der().unwrap())
             .map_err(|_| ClientEnvError {
                 message: "Failed to read file".to_string(),
             })
