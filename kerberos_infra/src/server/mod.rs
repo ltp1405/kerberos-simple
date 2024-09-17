@@ -24,9 +24,13 @@ pub mod database {
 }
 
 pub mod cache {
+    pub use crate::server::infra::cache::Cache;
+
     pub use crate::server::infra::cache::cacheable::Cacheable;
 
-    pub use crate::server::infra::cache::error::CacheResult;
+    pub use crate::server::config::CacheSettings;
+
+    pub use crate::server::infra::cache::error::{CacheErr, CacheResult};
 
     pub use crate::server::infra::cache::CacheResultType;
 }
