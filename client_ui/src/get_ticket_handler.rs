@@ -4,7 +4,7 @@ use derive_builder::Builder;
 use kerberos::client::as_exchange::{prepare_as_request, receive_as_response};
 use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
-use kerberos::client::tgs_exchange::prepare_tgs_request;
+use kerberos::client::tgs_exchange::{prepare_tgs_request, receive_tgs_response};
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos_infra::client::{Sendable, TcpClient, UdpClient};
