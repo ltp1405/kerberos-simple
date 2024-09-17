@@ -4,6 +4,7 @@ use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Header, Length, Reader, Sequence, Tag,
     TagNumber, Writer,
 };
+use crate::basic::application_tags::ENC_AP_REP_PART;
 
 #[derive(Sequence, Debug, PartialEq, Clone)]
 struct EncApRepPartInner {
@@ -32,7 +33,7 @@ impl<'a> DecodeValue<'a> for EncApRepPart {
 
 impl FixedTag for EncApRepPart {
     const TAG: Tag = Application {
-        number: TagNumber::new(27),
+        number: TagNumber::new(ENC_AP_REP_PART),
         constructed: true,
     };
 }

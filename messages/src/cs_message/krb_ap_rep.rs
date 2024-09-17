@@ -1,3 +1,4 @@
+use crate::basic::application_tags::AP_REP;
 use crate::basic::EncryptedData;
 use der::{
     Decode, DecodeValue, Encode, EncodeValue, FixedTag, Length, Reader, Sequence, TagNumber, Writer,
@@ -16,7 +17,7 @@ impl<'a> DecodeValue<'a> for ApRep {
 
 impl FixedTag for ApRep {
     const TAG: der::Tag = der::Tag::Application {
-        number: TagNumber::new(15),
+        number: TagNumber::new(AP_REP),
         constructed: true,
     };
 }

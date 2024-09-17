@@ -114,7 +114,9 @@ pub(crate) mod application_tags {
     pub const TGS_REP: u8 = 13;
     pub const AP_REQ: u8 = 14;
     pub const AP_REP: u8 = 15;
+    #[allow(dead_code)]
     pub const RESERVED16: u8 = 16; // TGT-REQ (for user-to-user)
+    #[allow(dead_code)]
     pub const RESERVED17: u8 = 17; // TGT-REP (for user-to-user)
 
     // 18-19 unused

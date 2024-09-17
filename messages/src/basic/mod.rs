@@ -158,6 +158,7 @@ impl ADEntry {
     }
 }
 
+#[allow(dead_code)]
 pub trait CipherText: Encode {
     fn to_cipher_text(&self) -> Result<OctetString, &'static str> {
         let bytes = self.to_der().map_err(|_| {

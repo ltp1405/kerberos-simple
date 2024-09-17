@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test;
 
+use crate::basic::application_tags::KRB_SAFE;
 use crate::basic::{Checksum, HostAddress, KerberosTime, Microseconds, OctetString, UInt32};
 use der::asn1::ContextSpecific;
 use der::{
@@ -8,9 +9,7 @@ use der::{
     TagNumber, Writer,
 };
 
-const KRB_SAFE_PVNO: u8 = 5;
-const KRB_SAFE_MSG_TYPE: u8 = 20;
-const KRB_SAFE_TAG: TagNumber = TagNumber::new(20);
+const KRB_SAFE_TAG: TagNumber = TagNumber::new(KRB_SAFE);
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KrbSafe(KrbSafeInner);
@@ -180,16 +179,16 @@ impl KrbSafeBuilder {
             }
         }
         KrbSafe(KrbSafeInner {
-            pnvo: make_tag(KRB_SAFE_PVNO, 0),
-            msg_type: make_tag(KRB_SAFE_MSG_TYPE, 1),
+            pnvo: make_tag(5, 0),
+            msg_type: make_tag(KRB_SAFE, 1),
             safe_body: make_tag(
                 KrbSafeBody {
                     user_data: self.user_data.expect("user_data is required"),
-                    timestamp: self.timestamp.map(|timestamp| timestamp),
-                    usec: self.usec.map(|usec| usec),
-                    seq_number: self.seq_number.map(|seq_number| seq_number),
+                    timestamp: self.timestamp,
+                    usec: self.usec,
+                    seq_number: self.seq_number,
                     s_address: self.s_address.expect("s_address is required"),
-                    r_address: self.r_address.map(|r_address| r_address),
+                    r_address: self.r_address,
                 },
                 2,
             ),
