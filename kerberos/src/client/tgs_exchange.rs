@@ -1,4 +1,4 @@
-use crate::client::ap_exchange::{prepare_ap_request, prepare_pa_data};
+use crate::client::ap_exchange::prepare_pa_data;
 use crate::client::client_env::ClientEnv;
 use crate::client::client_env_error::ClientEnvError;
 use crate::client::client_error::ClientError;

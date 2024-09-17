@@ -37,6 +37,7 @@ where
     principal_db: &'a T,
     name: PrincipalName,
     realm: Realm,
+    #[allow(dead_code)] // TODO: use this to detect replay attacks
     replay_cache: &'a C,
     last_req_db: &'a (dyn LastReqDatabase + Sync + Send),
 }
@@ -55,7 +56,7 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
             .to_owned()
     }
 
-    fn is_tgt_local_realm(&self, ticket: &Ticket) -> bool {
+    fn is_tgt_local_realm(&self, _ticket: &Ticket) -> bool {
         // TODO: Implement this
         true
     }
@@ -95,23 +96,23 @@ impl<'a, T: PrincipalDatabase + Sync + Send, C: ReplayCache + Sync + Send>
         ))
     }
 
-    fn replay_detected(&self, ticket: &EncTicketPart) -> bool {
+    fn replay_detected(&self, _ticket: &EncTicketPart) -> bool {
         // TODO: Implement request replay detection, https://www.rfc-editor.org/rfc/rfc4120#section-3.3.3.1
         // This is a dummy implementation
         false
     }
 
-    fn is_checksum_supported(&self, checksum: &Checksum) -> bool {
+    fn is_checksum_supported(&self, _checksum: &Checksum) -> bool {
         // TODO: Implement this
         true
     }
 
-    fn is_checksum_keyed(&self, checksum: &Checksum) -> bool {
+    fn is_checksum_keyed(&self, _checksum: &Checksum) -> bool {
         // TODO: Implement this
         true
     }
 
-    fn is_checksum_collision_proof(&self, checksum: &Checksum) -> bool {
+    fn is_checksum_collision_proof(&self, _checksum: &Checksum) -> bool {
         // TODO: Implement this
         true
     }
