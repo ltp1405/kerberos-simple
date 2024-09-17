@@ -1,4 +1,3 @@
-use rand::{thread_rng, Rng};
 use crate::client::client_env::ClientEnv;
 use crate::client::client_error::ClientError;
 use crate::cryptography::Cryptography;
@@ -6,9 +5,9 @@ use messages::basic_types::{
     Checksum, EncryptedData, KerberosTime, Microseconds, NameTypes, OctetString, PrincipalName,
 };
 use messages::{
-    APOptions, ApRep, ApReq, Authenticator, AuthenticatorBuilder, Decode, EncApRepPart,
-    EncTicketPart, Encode,
+    APOptions, ApRep, ApReq, Authenticator, AuthenticatorBuilder, Decode, EncApRepPart, Encode,
 };
+use rand::{thread_rng, Rng};
 
 pub fn prepare_ap_request(
     client_env: &impl ClientEnv,
@@ -17,7 +16,6 @@ pub fn prepare_ap_request(
 ) -> Result<ApReq, ClientError> {
     let options = APOptions::new(true, mutual_required);
     let tgs_rep = client_env.get_tgs_reply()?;
-    let ticket = tgs_rep.ticket();
 
     let cname = PrincipalName::new(NameTypes::NtPrincipal, vec![client_env.get_client_name()?])
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
@@ -45,27 +43,23 @@ pub fn prepare_ap_request(
     let authenticator = authenticator.build()?;
 
     let encoded_authenticator = authenticator.to_der().or(Err(ClientError::EncodeError))?;
-    let cryptography = client_env.get_crypto(*ticket.enc_part().etype())?;
-    let decrypted_ticket_part = cryptography.decrypt(
-        ticket.enc_part().cipher().as_ref(),
+    let enc_part = client_env.get_tgs_reply_enc_part()?;
+    let cryptography = client_env.get_crypto(*enc_part.key().keytype())?;
+    let encrypted_authenticator = cryptography.encrypt(
+        &encoded_authenticator,
         client_env
-            .get_client_key(*ticket.enc_part().etype())?
+            .get_tgs_reply_enc_part()
+            .unwrap()
+            .key()
             .keyvalue()
             .as_ref(),
     )?;
-    let ticket_part = EncTicketPart::from_der(decrypted_ticket_part.as_slice())
-        .or(Err(ClientError::DecodeError))?;
-    let cryptography = client_env.get_crypto(*ticket_part.key().keytype())?;
-    let encrypted_authenticator = cryptography.encrypt(
-        &encoded_authenticator,
-        ticket_part.key().keyvalue().as_ref(),
-    )?;
     let enc_authenticator = EncryptedData::new(
-        *ticket.enc_part().etype(),
-        ticket.enc_part().kvno().copied(),
+        *enc_part.key().keytype(),
+        1,
         OctetString::new(encrypted_authenticator).or(Err(ClientError::EncodeError))?,
     );
-    let ap_req = ApReq::new(options, ticket.clone(), enc_authenticator);
+    let ap_req = ApReq::new(options, tgs_rep.ticket().clone(), enc_authenticator);
 
     Ok(ap_req)
 }
@@ -77,7 +71,6 @@ pub fn prepare_pa_data(
 ) -> Result<ApReq, ClientError> {
     let options = APOptions::new(true, mutual_required);
     let as_rep = client_env.get_as_reply()?;
-    let ticket = as_rep.ticket();
 
     let cname = PrincipalName::new(NameTypes::NtPrincipal, vec![client_env.get_client_name()?])
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
@@ -105,27 +98,23 @@ pub fn prepare_pa_data(
     let authenticator = authenticator.build()?;
 
     let encoded_authenticator = authenticator.to_der().or(Err(ClientError::EncodeError))?;
-    let cryptography = client_env.get_crypto(*ticket.enc_part().etype())?;
-    let decrypted_ticket_part = cryptography.decrypt(
-        ticket.enc_part().cipher().as_ref(),
+    let enc_part = client_env.get_as_reply_enc_part()?;
+    let cryptography = client_env.get_crypto(*enc_part.key().keytype())?;
+    let encrypted_authenticator = cryptography.encrypt(
+        &encoded_authenticator,
         client_env
-            .get_client_key(*ticket.enc_part().etype())?
+            .get_as_reply_enc_part()
+            .unwrap()
+            .key()
             .keyvalue()
             .as_ref(),
     )?;
-    let ticket_part = EncTicketPart::from_der(decrypted_ticket_part.as_slice())
-        .or(Err(ClientError::DecodeError))?;
-    let cryptography = client_env.get_crypto(*ticket_part.key().keytype())?;
-    let encrypted_authenticator = cryptography.encrypt(
-        &encoded_authenticator,
-        ticket_part.key().keyvalue().as_ref(),
-    )?;
     let enc_authenticator = EncryptedData::new(
-        *ticket.enc_part().etype(),
-        ticket.enc_part().kvno().copied(),
+        *enc_part.key().keytype(),
+        1,
         OctetString::new(encrypted_authenticator).or(Err(ClientError::EncodeError))?,
     );
-    let ap_req = ApReq::new(options, ticket.clone(), enc_authenticator);
+    let ap_req = ApReq::new(options, as_rep.ticket().clone(), enc_authenticator);
 
     Ok(ap_req)
 }
