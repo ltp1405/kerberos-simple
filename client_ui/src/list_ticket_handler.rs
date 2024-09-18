@@ -1,23 +1,6 @@
-use config::{Config, ConfigError};
-use messages::{Decode, EncAsRepPart, Encode, TgsRep, Ticket};
-use std::convert::identity;
+use messages::{Decode, TgsRep, Ticket};
 use std::fs;
 use std::path::PathBuf;
-
-struct AppConfig {
-    cache_location: PathBuf,
-}
-
-impl AppConfig {
-    pub fn init(config_path: String) -> Result<crate::config::AppConfig, ConfigError> {
-        let cfg = Config::builder()
-            .add_source(config::File::with_name(&config_path))
-            .build()?;
-
-        let cfg = cfg.try_deserialize()?;
-        Ok(cfg)
-    }
-}
 
 pub struct ListTicketHandler {
     cache_location: PathBuf,

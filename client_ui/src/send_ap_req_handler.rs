@@ -1,13 +1,12 @@
-use std::fs;
-use std::io::Write;
-use std::path::PathBuf;
-use std::time::Duration;
 use kerberos::client::client_env::ClientEnv;
 use kerberos::client::client_env_error::ClientEnvError;
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
-use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, TgsRep};
 use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString};
+use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, TgsRep};
+use std::fs;
+use std::path::PathBuf;
+use std::time::Duration;
 
 pub struct SendApReqHandler {
     pub name: String,
@@ -16,27 +15,6 @@ pub struct SendApReqHandler {
 }
 
 impl SendApReqHandler {
-    fn open_file_and_write(
-        &self,
-        // folder_name: Option<&str>,
-        name: &str,
-        data: &[u8],
-    ) -> std::io::Result<()> {
-        let mut loc = self.cache_location.clone();
-        // match folder_name {
-        //     None => {}
-        //     Some(folder) => {
-        //         loc.push(folder);
-        //         fs::create_dir_all(loc.clone())?;
-        //     }
-        // }
-        loc.push(name);
-        let mut file = fs::File::create(&loc)?;
-
-        file.write_all(data)?;
-        Ok(())
-    }
-
     fn open_file_and_read(
         &self,
         // folder_name: Option<&str>,
@@ -66,18 +44,21 @@ impl ClientEnv for SendApReqHandler {
     fn get_client_realm(&self) -> Result<KerberosString, ClientEnvError> {
         self.realm.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client realm".to_string(),
-        })  
+        })
     }
 
     fn get_server_name(&self) -> Result<KerberosString, ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
     fn get_server_realm(&self) -> Result<KerberosString, ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
     fn get_kdc_options(&self) -> Result<KerberosFlags, ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
@@ -85,13 +66,13 @@ impl ClientEnv for SendApReqHandler {
         Ok(vec![1])
     }
 
-    fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
+    fn get_crypto(&self, _etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
         Ok(Box::new(kerberos::AesGcm::new()))
     }
 
     fn get_checksum_hash(
         &self,
-        checksum_type: i32,
+        _checksum_type: i32,
     ) -> Result<Box<dyn CryptographicHash>, ClientEnvError> {
         Ok(Box::new(kerberos::Sha1::new()))
     }
@@ -100,19 +81,21 @@ impl ClientEnv for SendApReqHandler {
         todo!()
     }
 
-    fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
+    fn get_client_key(&self, _key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
     fn set_clock_diff(
         &self,
-        diff: Duration,
-        is_client_earlier: bool,
+        _diff: Duration,
+        _is_client_earlier: bool,
     ) -> Result<(), ClientEnvError> {
         todo!()
     }
 
-    fn save_as_reply(&self, data: &AsRep, data_part: &EncAsRepPart) -> Result<(), ClientEnvError> {
+    fn save_as_reply(&self, _data: &AsRep, _data_part: &EncAsRepPart) -> Result<(), ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
@@ -134,9 +117,10 @@ impl ClientEnv for SendApReqHandler {
 
     fn save_tgs_reply(
         &self,
-        data: &TgsRep,
-        data_part: &EncTgsRepPart,
+        _data: &TgsRep,
+        _data_part: &EncTgsRepPart,
     ) -> Result<(), ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
@@ -156,11 +140,13 @@ impl ClientEnv for SendApReqHandler {
             })
     }
 
-    fn save_subkey(&self, key: EncryptionKey) -> Result<(), ClientEnvError> {
+    fn save_subkey(&self, _key: EncryptionKey) -> Result<(), ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 
-    fn save_seq_number(&self, seq_num: u32) -> Result<(), ClientEnvError> {
+    fn save_seq_number(&self, _seq_num: u32) -> Result<(), ClientEnvError> {
+        #[allow(unreachable_code)]
         !unimplemented!()
     }
 }

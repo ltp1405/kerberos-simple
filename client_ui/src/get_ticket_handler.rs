@@ -1,4 +1,4 @@
-use crate::config::{AppConfig, TransportType};
+use crate::config::TransportType;
 use config::ConfigError;
 use derive_builder::Builder;
 use kerberos::client::as_exchange::{prepare_as_request, receive_as_response};
@@ -11,13 +11,13 @@ use kerberos_infra::client::{Sendable, TcpClient, UdpClient};
 use messages::basic_types::{
     EncryptionKey, KerberosFlags, KerberosString, KerberosTime, OctetString,
 };
-use messages::flags::{KdcOptionsFlag, TicketFlag};
-use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep, TgsReq};
+use messages::flags::KdcOptionsFlag;
+use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, Encode, KrbErrorMsg, TgsRep};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 #[derive(Builder)]
 #[builder(pattern = "owned")]
@@ -180,13 +180,13 @@ impl ClientEnv for GetTicketHandler {
         Ok(vec![1])
     }
 
-    fn get_crypto(&self, etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
+    fn get_crypto(&self, _etype: i32) -> Result<Box<dyn Cryptography>, ClientEnvError> {
         Ok(Box::new(kerberos::AesGcm::new()))
     }
 
     fn get_checksum_hash(
         &self,
-        checksum_type: i32,
+        _checksum_type: i32,
     ) -> Result<Box<dyn CryptographicHash>, ClientEnvError> {
         Ok(Box::new(kerberos::Sha1::new()))
     }
@@ -195,7 +195,7 @@ impl ClientEnv for GetTicketHandler {
         todo!()
     }
 
-    fn get_client_key(&self, key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
+    fn get_client_key(&self, _key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
         let buf = self.key.as_ref().unwrap().as_bytes();
         println!("client key: {:?}", buf);
         let key = EncryptionKey::new(1, OctetString::new(buf).unwrap());
@@ -204,8 +204,8 @@ impl ClientEnv for GetTicketHandler {
 
     fn set_clock_diff(
         &self,
-        diff: Duration,
-        is_client_earlier: bool,
+        _diff: Duration,
+        _is_client_earlier: bool,
     ) -> Result<(), ClientEnvError> {
         todo!()
     }

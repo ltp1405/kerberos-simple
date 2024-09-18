@@ -14,7 +14,7 @@ use messages::basic_types::{
 };
 use messages::flags::TicketFlag;
 use messages::{
-    ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncApRepPart, EncTicketPart, Encode,
+    ApRep, ApReq, Authenticator, Ecode, EncApRepPart, EncTicketPart, Encode,
 };
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
 use std::time::Duration;
