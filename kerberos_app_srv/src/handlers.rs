@@ -1,5 +1,5 @@
 use actix_web::{dev::ConnectionInfo, web, HttpResponse, Responder};
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDate};
 use der::{Decode, Encode};
 use hex::FromHex;
 use kerberos_infra::server::database::{postgres::PostgresDb, Database};
@@ -32,7 +32,7 @@ pub struct UserProfileResponse {
     pub email: String,
     pub firstname: String,
     pub lastname: String,
-    pub birthday: DateTime<chrono::Utc>,
+    pub birthday: NaiveDate,
     pub created_at: DateTime<chrono::Utc>,
     pub updated_at: DateTime<chrono::Utc>,
 }
