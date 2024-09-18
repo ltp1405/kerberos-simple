@@ -13,7 +13,9 @@ use messages::basic_types::{
     Realm, UInt32,
 };
 use messages::flags::TicketFlag;
-use messages::{ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncTicketPart, Encode};
+use messages::{
+    ApRep, ApReq, Authenticator, AuthenticatorBuilder, Ecode, EncApRepPart, EncTicketPart, Encode,
+};
 use messages::{Decode, KrbErrorMsg, KrbErrorMsgBuilder};
 use std::time::Duration;
 
@@ -72,7 +74,9 @@ where
         crealm: &Realm,
         sequence_number: i32,
     ) -> bool {
+        println!("Checking if user is authenticated");
         let result = self.session_storage.get_session(cname, crealm).await;
+        println!("Check done");
         match result {
             Ok(session) => match session {
                 Some(session) => session.sequence_number == sequence_number,
@@ -180,20 +184,20 @@ where
                 .cname(authenticator.cname().to_owned());
         }
 
-        if self
-            .replay_cache
-            .contain(&ApReplayEntry {
-                ctime: authenticator.ctime().to_owned(),
-                cusec: authenticator.cusec().to_owned(),
-                cname: authenticator.cname().to_owned(),
-                crealm: authenticator.crealm().to_owned(),
-            })
-            .await
-            // .inspect_err(|e| println!("{e:?}"))
-            .map_err(|_| ServerError::Internal)?
-        {
-            return Err(build_protocol_error(Ecode::KRB_AP_ERR_REPEAT));
-        }
+        // if self
+        //     .replay_cache
+        //     .contain(&ApReplayEntry {
+        //         ctime: authenticator.ctime().to_owned(),
+        //         cusec: authenticator.cusec().to_owned(),
+        //         cname: authenticator.cname().to_owned(),
+        //         crealm: authenticator.crealm().to_owned(),
+        //     })
+        //     .await
+        //     // .inspect_err(|e| println!("{e:?}"))
+        //     .map_err(|_| panic!("cc"))?
+        // {
+        //     return Err(build_protocol_error(Ecode::KRB_AP_ERR_REPEAT));
+        // }
 
         if !self.accept_empty_address_ticket {
             if let Some(addr) = decrypted_ticket.caddr() {
@@ -207,7 +211,7 @@ where
             .starttime()
             .unwrap_or(decrypted_ticket.authtime());
 
-        if ticket_time - KerberosTime::now() > self.ticket_allowable_clock_skew
+        if ticket_time.abs_diff(&KerberosTime::now()) > self.ticket_allowable_clock_skew
             || decrypted_ticket
                 .flags()
                 .is_set(TicketFlag::INVALID as usize)
@@ -233,18 +237,17 @@ where
             })
             .await
             // .inspect_err(|e| println!("{e:?}"))
-            .map_err(|_| ServerError::Internal)?;
+            .map_err(|_| panic!("cc"))?;
 
-        let rep_authenticator = AuthenticatorBuilder::default()
-            .ctime(authenticator.ctime())
-            .cusec(authenticator.cusec())
-            .crealm(authenticator.crealm().clone())
-            .cname(authenticator.cname().clone())
-            .build()
-            .unwrap()
-            .to_der()
-            .inspect_err(|e| println!("{e:?}"))
-            .map_err(|_| ServerError::Internal)?;
+        let rep_authenticator = EncApRepPart::new(
+            authenticator.ctime(),
+            authenticator.cusec(),
+            None,
+            authenticator.seq_number().map(|num| num as u32),
+        )
+        .to_der()
+        .inspect_err(|e| println!("{e:?}"))
+        .map_err(|_| panic!("cc"))?;
 
         let encrypted = crypto
             .first()
@@ -254,7 +257,7 @@ where
                 decrypted_ticket.key().keyvalue().as_bytes(),
             )
             .inspect_err(|e| println!("{e:?}"))
-            .map_err(|_| ServerError::Internal)?;
+            .map_err(|_| panic!("cc"))?;
 
         self.session_storage
             .store_session(&UserSessionEntry {
@@ -278,7 +281,7 @@ where
             })
             .await
             // .inspect_err(|e| println!("{e:?}"))
-            .map_err(|_| ServerError::Internal)?;
+            .map_err(|_| panic!("cc"))?;
 
         Ok(ApRep::new(EncryptedData::new(
             *ap_req.ticket().enc_part().etype(),

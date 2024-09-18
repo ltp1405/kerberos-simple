@@ -25,7 +25,7 @@ pub struct UserProfileQuery {
     pub sequence: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone)]
 pub struct UserProfileResponse {
     pub id: i32,
     pub username: String,
@@ -52,6 +52,7 @@ async fn handle_get(
     query: web::Query<UserProfileQuery>,
     username: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
+    println!("Getting user info: {}", username);
     let username = {
         let inner = KerberosString::new(username.as_bytes()).map_err(|_| {
             actix_web::error::ErrorBadRequest(
@@ -75,17 +76,20 @@ async fn handle_get(
         address_cache.as_ref(),
     );
 
-    if auth_service
+    println!("before");
+    if !auth_service
         .is_user_authenticated(&username, &realm, sequence_number)
         .await
     {
         return Ok(HttpResponse::Unauthorized().finish());
     }
+    println!("after");
 
     let username = username.name_string().first().map(|o| o.as_str()).ok_or(
         actix_web::error::ErrorBadRequest("Failed to get username from PrincipalName".to_string()),
     )?;
 
+    println!("before");
     let pool = db.inner();
 
     let row = pool
@@ -102,9 +106,13 @@ async fn handle_get(
             .as_str(),
         )
         .await
+        .inspect_err(|e| {
+            println!("Error: {:?}", e);
+        })
         .map_err(|_| {
             actix_web::error::ErrorInternalServerError("Failed to fetch user profile".to_string())
         })?;
+    println!("after");
 
     let body = row
         .map(|inner| UserProfileResponse {
@@ -120,6 +128,7 @@ async fn handle_get(
         .ok_or(actix_web::error::ErrorNotFound(
             "User not found".to_string(),
         ))?;
+    println!("User profile: {:?}", body);
 
     Ok(HttpResponse::Ok().json(body))
 }

@@ -27,7 +27,7 @@ pub fn prepare_ap_request(
     let mut authenticator = AuthenticatorBuilder::default();
     let mut rand = thread_rng();
     authenticator
-        .seq_number(rand.gen::<i32>())
+        .seq_number(rand.gen::<u16>() as i32)
         .cname(cname)
         .crealm(crealm)
         .ctime(ctime)
