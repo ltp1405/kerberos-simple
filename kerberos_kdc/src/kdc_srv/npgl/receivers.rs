@@ -6,10 +6,11 @@ use kerberos_infra::server::{
 use messages::{AsReq, Decode, Encode, TgsReq};
 use sqlx::PgPool;
 
-use crate::{
+use crate::kdc_srv::configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig};
+use kerberos::{
     algo::{AesGcm, Sha1},
+    authentication_service,
     authentication_service::AuthenticationServiceBuilder,
-    kdc_srv::configs::{AuthenticationServiceConfig, TicketGrantingServiceConfig},
     ticket_granting_service::TicketGrantingServiceBuilder,
 };
 
@@ -52,25 +53,24 @@ impl AsyncReceiver for NpglAsReqHandler {
 
         let as_req = AsReq::from_der(bytes).unwrap();
 
-        let reply = authentication_server.handle_krb_as_req(&as_req).await?;
+        let reply = authentication_server
+            .handle_krb_as_req(&as_req)
+            .await
+            .map_err(|e| match e {
+                authentication_service::ServerError::ProtocolError(reply) => {
+                    HostError::Actionable {
+                        reply: reply.to_der().unwrap(),
+                    }
+                }
+                authentication_service::ServerError::Internal => HostError::Aborted { cause: None },
+                authentication_service::ServerError::CannotDecode => HostError::Ignorable,
+            })?;
 
         Ok(reply.to_der().unwrap())
     }
 
     fn error(&self, _: ExchangeError) -> HostResult<Vec<u8>> {
         Err(HostError::Ignorable)
-    }
-}
-
-impl From<crate::authentication_service::ServerError> for HostError {
-    fn from(error: crate::authentication_service::ServerError) -> Self {
-        match error {
-            crate::authentication_service::ServerError::ProtocolError(reply) => Self::Actionable {
-                reply: reply.to_der().unwrap(),
-            },
-            crate::authentication_service::ServerError::Internal => Self::Aborted { cause: None },
-            crate::authentication_service::ServerError::CannotDecode => Self::Ignorable,
-        }
     }
 }
 
