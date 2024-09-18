@@ -35,7 +35,7 @@ impl SendApReqHandler {
 
 impl ClientEnv for SendApReqHandler {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
-        println!("client name: {:?}", self.name);
+        // println!("client name: {:?}", self.name);
         self.name.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client name".to_string(),
         })

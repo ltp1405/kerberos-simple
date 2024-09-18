@@ -100,15 +100,15 @@ impl GetTicketHandler {
         let as_rep_res = AsRep::from_der(response.as_slice());
         let as_rep = as_rep_res
             .inspect_err(|e| {
-                println!("{:?}", KrbErrorMsg::from_der(response.as_slice()).unwrap());
-                panic!("Failed to get ticket: {:?}", e);
+                println!("{:#?}", KrbErrorMsg::from_der(response.as_slice()).unwrap());
+                // panic!("Failed to get ticket: {:?}", e);
             })
             .unwrap();
-        println!("{:?}", as_rep);
+        // println!("{:?}", as_rep);
         let ok = receive_as_response(self, &as_req, &as_rep);
         match &ok {
             Ok(_) => {
-                println!("Success");
+                // println!("Success");
             }
             Err(e) => {
                 println!("Failed: {:?}", e);
@@ -130,7 +130,19 @@ impl GetTicketHandler {
         let tgs_rep = TgsRep::from_der(response.as_slice()).unwrap();
         let ok = receive_tgs_response(&tgs_req, &tgs_rep, self);
         match ok {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                println!(
+                    "Successfully got ticket for {}",
+                    tgs_rep
+                        .ticket()
+                        .sname()
+                        .name_string()
+                        .first()
+                        .unwrap()
+                        .as_str()
+                );
+                Ok(())
+            }
             Err(e) => {
                 println!("Failed: {:?}", e);
                 Err(ConfigError::Message("Failed to get ticket".to_string()))
@@ -141,14 +153,14 @@ impl GetTicketHandler {
 
 impl ClientEnv for GetTicketHandler {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
-        println!("client name: {:?}", self.name);
+        // println!("client name: {:?}", self.name);
         self.name.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client name".to_string(),
         })
     }
 
     fn get_client_realm(&self) -> Result<KerberosString, ClientEnvError> {
-        println!("client realm: {:?}", self.realm);
+        // println!("client realm: {:?}", self.realm);
         self.realm.clone().try_into().map_err(|_| ClientEnvError {
             message: "Failed to get client realm".to_string(),
         })
@@ -197,7 +209,7 @@ impl ClientEnv for GetTicketHandler {
 
     fn get_client_key(&self, _key_type: i32) -> Result<EncryptionKey, ClientEnvError> {
         let buf = self.key.as_ref().unwrap().as_bytes();
-        println!("client key: {:?}", buf);
+        // println!("client key: {:?}", buf);
         let key = EncryptionKey::new(1, OctetString::new(buf).unwrap());
         Ok(key)
     }

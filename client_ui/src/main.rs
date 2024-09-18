@@ -94,7 +94,6 @@ async fn main() {
                 .unwrap();
 
             let res = res.bytes().await.unwrap();
-            println!("{res:02x?}");
             match ApRep::from_der(&res) {
                 Ok(ap_rep) => {
                     let tgs_rep = client.get_tgs_reply_enc_part().unwrap();
@@ -110,7 +109,10 @@ async fn main() {
                     .unwrap();
                     let seq_number = *ap_rep_decrypted.seq_number().unwrap();
                     let res = http_client
-                        .get(Url::parse(&format!("http://{}/users/toney", server_address)).unwrap())
+                        .get(
+                            Url::parse(&format!("http://{}/users/{}", server_address, config.name))
+                                .unwrap(),
+                        )
                         .query(&[
                             ("realm", "MYREALM.COM"),
                             ("sequence", seq_number.to_string().as_str()),
@@ -118,7 +120,8 @@ async fn main() {
                         .send()
                         .await
                         .unwrap();
-                    println!("{:?}", res.text().await.unwrap());
+                    let res = res.json::<HashMap<String, String>>().await.unwrap();
+                    println!("{:#?}", res);
                 }
                 Err(e) => {
                     println!("Failed to parse AP_REP: {:?}", e);
