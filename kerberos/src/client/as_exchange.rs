@@ -14,7 +14,6 @@ pub fn prepare_as_request(
     renewal_time: Option<KerberosTime>,
 ) -> Result<AsReq, ClientError> {
     let client_name = client_env.get_client_name()?;
-    println!("client_name: {:?}", client_name);
     let cname = PrincipalName::new(NameTypes::NtPrincipal, vec![client_name])
         .map_err(|e| ClientError::GenericError(e.to_string()))?;
     let server_realm = client_env.get_server_realm()?;

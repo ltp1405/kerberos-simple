@@ -6,8 +6,8 @@ postgres:
  name: "kerberos"
 host:
  protocol: "tcp" # or "udp"
- as_port: 5050
- tgs_port: 5051
+ as_port: 8088
+ tgs_port: 8089
  host: "127.0.0.1"
 cache:
  capacity: 1000

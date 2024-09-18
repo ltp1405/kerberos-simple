@@ -122,7 +122,7 @@ async fn main() {
                         .unwrap();
                     let res = res.text().await.unwrap();
                     let res_json: serde_json::Value = serde_json::from_str(&res).unwrap();
-                    println!("{:#?}", serde_json::to_string_pretty(&res_json));
+                    println!("{}", serde_json::to_string_pretty(&res_json).unwrap());
                 }
                 Err(e) => {
                     println!("Failed to parse AP_REP: {:?}", e);

@@ -41,6 +41,7 @@ async fn main() -> std::io::Result<()> {
         let address_cache = AppServerClientStorage::new();
         let app_config = AppSrvConfig::load_from("server");
         let auth_service_config = AuthenticationServiceConfig::from(app_config);
+        println!("Application server started at 127.0.0.1:8080!");
         App::new()
             .app_data(web::Data::new(replay_cache))
             .app_data(web::Data::new(session_cache))
@@ -49,7 +50,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auth_service_config))
             .service(handle_get)
             .service(handle_post)
+            
     })
+    .workers(1)
     .bind(("127.0.0.1", 8080))?
     .run()
     .await
