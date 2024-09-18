@@ -7,11 +7,11 @@ use messages::basic_types::{KerberosString, NameTypes, PrincipalName, Realm};
 
 #[tokio::main]
 async fn main() {
-    let realm = Realm::try_from("EXAMPLE.COM").unwrap();
+    let realm = Realm::try_from("MYREALM.COM").unwrap();
 
     let sname = PrincipalName::new(
         NameTypes::NtEnterprise,
-        vec![KerberosString::try_from("host").unwrap()],
+        vec![KerberosString::try_from("MYREALM.COM").unwrap()],
     )
     .unwrap();
     let as_config = AuthenticationServiceConfig {

@@ -13,4 +13,5 @@ serde = { version = "1.0.210", features = ["derive"] }
 kerberos_infra = { path = "../kerberos_infra", version = "0.1.0", features = ["client"] }
 tokio = { version = "1.0.0", features = ["rt", "rt-multi-thread", "macros"] }
 derive_builder = "0.20.1"
-reqwest = "0.12.7"
+reqwest = { version = "0.12.7", features = ["json"] }
+hex = "0.4.3"

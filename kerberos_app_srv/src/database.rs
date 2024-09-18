@@ -12,7 +12,7 @@ impl AppDbSchema {
 
 impl Schema for AppDbSchema {
     fn schema_name(&self) -> String {
-        format!("{}_{}", "krb5", "v1")
+        format!("{}_{}", "srv", "v1")
     }
 
     fn get_schema(&self) -> String {
@@ -34,8 +34,8 @@ impl Schema for AppDbSchema {
                     firstname VARCHAR(255) NOT NULL,
                     lastname VARCHAR(255) NOT NULL,
                     birthday DATE NOT NULL,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
             COMMIT;
         "#,
@@ -52,9 +52,9 @@ impl Schema for AppDbSchema {
                 -- Insert data into UserProfile table
                 INSERT INTO "{0}".UserProfile (username, email, firstname, lastname, birthday)
                 VALUES
-                    ('admin', 'admin@gmail.com', 'Admin', 'Admin', '1990-01-01'),
-                    ('toney', 'toney@hotmail.com', 'Toney', 'Jordan', '1990-12-01'),
-                    ('user', 'user@gmail.com', 'User', 'User', '1990-01-02');
+                    ('admin', 'admin@gmail.com', 'Admin', 'Admin', '1990-01-01 00:00:00'),
+                    ('toney', 'toney@hotmail.com', 'Toney', 'Jordan', '1990-12-01 00:00:00'),
+                    ('user', 'user@gmail.com', 'User', 'User', '1990-01-02 00:00:00');
             COMMIT;
         "#,
             schema

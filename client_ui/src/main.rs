@@ -6,11 +6,14 @@ use client_ui::cli::{
 use client_ui::config::AppConfig;
 use client_ui::get_ticket_handler::GetTicketHandlerBuilder;
 use client_ui::list_ticket_handler::ListTicketHandler;
-use client_ui::send_ap_req_handler::PrintApReqHandler;
+use client_ui::send_ap_req_handler::SendApReqHandler;
 use config::ConfigError;
+use hex::ToHex;
 use kerberos::client::ap_exchange::prepare_ap_request;
-use messages::Encode;
+use kerberos::client::client_env::ClientEnv;
+use messages::{ApRep, Decode, EncApRepPart, Encode};
 use reqwest::Url;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -74,7 +77,7 @@ async fn main() {
             client.handle().await.unwrap();
         }
         Commands::SendApReq { server_address } => {
-            let client = PrintApReqHandler {
+            let client = SendApReqHandler {
                 name: config.name.clone(),
                 realm: config.realm.clone(),
                 cache_location: config.cache_location.unwrap_or_else(|| PathBuf::from("./")),
@@ -84,12 +87,46 @@ async fn main() {
                 .to_der()
                 .unwrap();
             let http_client = reqwest::Client::new();
+            let mut data = HashMap::new();
+            data.insert("ticket", hex::encode(req));
             let res = http_client
-                .post(Url::parse(&format!("http://{}/ap_req", server_address)).unwrap())
-                .body(req)
+                .post(Url::parse(&format!("http://{}/authenticate", server_address)).unwrap())
+                .json(&data)
                 .send()
                 .await
                 .unwrap();
+
+            let res = res.bytes().await.unwrap();
+            println!("{res:02x?}");
+            match ApRep::from_der(&res) {
+                Ok(ap_rep) => {
+                    let tgs_rep = client.get_tgs_reply_enc_part().unwrap();
+                    let session_key = tgs_rep.key().keyvalue().as_bytes();
+                    let ap_rep_decrypted = EncApRepPart::from_der(
+                        client
+                            .get_crypto(*client.get_tgs_reply_enc_part().unwrap().key().keytype())
+                            .unwrap()
+                            .decrypt(ap_rep.enc_part().cipher().as_ref(), session_key)
+                            .unwrap()
+                            .as_slice(),
+                    )
+                    .unwrap();
+                    let seq_number = *ap_rep_decrypted.seq_number().unwrap();
+                    let res = http_client
+                        .get(Url::parse(&format!("http://{}/users/toney", server_address)).unwrap())
+                        .query(&[
+                            ("realm", "MYREALM.COM"),
+                            ("sequence", seq_number.to_string().as_str()),
+                        ])
+                        .send()
+                        .await
+                        .unwrap();
+                    println!("{:?}", res.text().await.unwrap());
+                }
+                Err(e) => {
+                    println!("Failed to parse AP_REP: {:?}", e);
+                }
+            }
         }
     }
 }

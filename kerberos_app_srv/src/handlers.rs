@@ -1,5 +1,5 @@
 use actix_web::{dev::ConnectionInfo, web, HttpResponse, Responder};
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDate};
 use der::{Decode, Encode};
 use hex::FromHex;
 use kerberos_infra::server::database::{postgres::PostgresDb, Database};
@@ -25,14 +25,14 @@ pub struct UserProfileQuery {
     pub sequence: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone)]
 pub struct UserProfileResponse {
     pub id: i32,
     pub username: String,
     pub email: String,
     pub firstname: String,
     pub lastname: String,
-    pub birthday: DateTime<chrono::Utc>,
+    pub birthday: NaiveDate,
     pub created_at: DateTime<chrono::Utc>,
     pub updated_at: DateTime<chrono::Utc>,
 }
@@ -52,6 +52,7 @@ async fn handle_get(
     query: web::Query<UserProfileQuery>,
     username: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
+    println!("Getting user info: {}", username);
     let username = {
         let inner = KerberosString::new(username.as_bytes()).map_err(|_| {
             actix_web::error::ErrorBadRequest(
@@ -75,17 +76,20 @@ async fn handle_get(
         address_cache.as_ref(),
     );
 
-    if auth_service
+    println!("before");
+    if !auth_service
         .is_user_authenticated(&username, &realm, sequence_number)
         .await
     {
         return Ok(HttpResponse::Unauthorized().finish());
     }
+    println!("after");
 
     let username = username.name_string().first().map(|o| o.as_str()).ok_or(
         actix_web::error::ErrorBadRequest("Failed to get username from PrincipalName".to_string()),
     )?;
 
+    println!("before");
     let pool = db.inner();
 
     let row = pool
@@ -102,9 +106,13 @@ async fn handle_get(
             .as_str(),
         )
         .await
+        .inspect_err(|e| {
+            println!("Error: {:?}", e);
+        })
         .map_err(|_| {
             actix_web::error::ErrorInternalServerError("Failed to fetch user profile".to_string())
         })?;
+    println!("after");
 
     let body = row
         .map(|inner| UserProfileResponse {
@@ -120,6 +128,7 @@ async fn handle_get(
         .ok_or(actix_web::error::ErrorNotFound(
             "User not found".to_string(),
         ))?;
+    println!("User profile: {:?}", body);
 
     Ok(HttpResponse::Ok().json(body))
 }
@@ -133,6 +142,7 @@ async fn handle_post(
     address_cache: web::Data<AppServerClientStorage>,
     body: web::Json<UserAuthenticateCommand>,
 ) -> actix_web::Result<impl Responder> {
+    println!("Handling");
     let auth_service = create_service(
         auth_service_config.as_ref(),
         replay_cache.as_ref(),
@@ -164,6 +174,7 @@ async fn handle_post(
     }
 
     let reply = auth_service.handle_krb_ap_req(ap_req).await;
+    println!("Reply: {:?}", reply);
 
     if let Ok(ap_rep) = reply {
         Ok(HttpResponse::Ok().body(ap_rep.to_der().map_err(|_| {

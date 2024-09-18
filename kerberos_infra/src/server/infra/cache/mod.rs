@@ -68,17 +68,23 @@ where
     V: Clone + Send + Sync,
 {
     async fn get(&self, key: &K) -> CacheResult<V> {
+        println!("check 1");
         let mut storage = self.storage.write().unwrap();
+        println!("check 2");
         match storage.get(key) {
             Some((value, instant)) => {
+                println!("check 3");
                 if instant.elapsed() < self.ttl {
                     Ok(value.clone())
                 } else {
-                    storage.pop(key);
+                    // storage.pop(key);
                     Err(error::CacheErr::ValueExpired)
                 }
             }
-            None => Err(error::CacheErr::MissingKey),
+            None => {
+                println!("check 3");
+                Err(error::CacheErr::MissingKey)
+            }
         }
     }
 
