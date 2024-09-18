@@ -4,8 +4,15 @@ use kerberos::client::client_env_error::ClientEnvError;
 use kerberos::cryptographic_hash::CryptographicHash;
 use kerberos::cryptography::Cryptography;
 use kerberos::cryptography_error::CryptographyError;
-use kerberos::service_traits::{ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry, PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry, UserSessionEntry, UserSessionStorage};
-use messages::basic_types::{EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName, Realm};
+use kerberos::service_traits::{
+    ApReplayCache, ApReplayEntry, ClientAddressStorage, LastReqDatabase, LastReqEntry,
+    PrincipalDatabase, PrincipalDatabaseRecord, ReplayCache, ReplayCacheEntry, UserSessionEntry,
+    UserSessionStorage,
+};
+use messages::basic_types::{
+    EncryptionKey, HostAddress, Int32, KerberosFlags, KerberosString, OctetString, PrincipalName,
+    Realm,
+};
 use messages::{ApReq, AsRep, AsReq, EncAsRepPart, EncTgsRepPart, LastReq, TgsRep};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
@@ -55,7 +62,7 @@ impl PrincipalDatabase for MockedPrincipalDb {
     }
 }
 
-pub(crate) struct MockClientEnv {
+pub struct MockClientEnv {
     pub as_req: RefCell<Option<AsReq>>,
     pub as_rep: RefCell<Option<AsRep>>,
     pub enc_as_rep_part: RefCell<Option<EncAsRepPart>>,
@@ -319,13 +326,15 @@ impl MockedClientAddressStorage {
 
 #[async_trait]
 impl ClientAddressStorage for MockedClientAddressStorage {
-    async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress {
-        self.addresses
+    type Error = ();
+    async fn get_sender_of_packet(&self, req: &ApReq) -> Result<HostAddress, Self::Error> {
+        Ok(self
+            .addresses
             .lock()
             .unwrap()
             .iter()
             .find_map(|(r, a)| if r == req { Some(a.clone()) } else { None })
-            .unwrap()
+            .unwrap())
     }
 }
 pub struct MockedUserSessionStorage {

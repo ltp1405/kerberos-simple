@@ -1,8 +1,3 @@
-use kerberos::client::client_env::ClientEnv;
-use kerberos::cryptography::Cryptography;
-use kerberos::service_traits::PrincipalDatabase;
-use messages::Decode;
-
 pub mod common;
 
 mod tests {
@@ -25,7 +20,7 @@ mod tests {
         AddressTypes, EncryptionKey, HostAddress, KerberosString, NameTypes, OctetString,
         PrincipalName, Realm,
     };
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::Ipv4Addr;
     use std::time::Duration;
 
     fn get_auth_service<P>(db: &P, pre_auth: bool) -> AuthenticationService<P>
@@ -80,7 +75,7 @@ mod tests {
         replay_cache: &'a C,
         address_storage: &'a MockedClientAddressStorage,
         session_storage: &'a MockedUserSessionStorage,
-    ) -> ApplicationAuthenticationService<'a, C, MockedUserSessionStorage>
+    ) -> ApplicationAuthenticationService<'a, C, MockedUserSessionStorage, MockedClientAddressStorage>
     where
         C: ApReplayCache + Sync + Send,
     {
@@ -107,8 +102,8 @@ mod tests {
     #[tokio::test]
     async fn test_as_exchange() {
         let mock_client_env = MockClientEnv::new();
-        let as_req =
-            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
+        let as_req = prepare_as_request(&mock_client_env, None, None, None)
+            .expect("Failed to prepare AS request");
         let auth_service = get_auth_service(&MockedPrincipalDb, false);
         let as_rep = auth_service.handle_krb_as_req(&as_req).await;
         assert!(as_rep.is_ok());
@@ -121,8 +116,8 @@ mod tests {
         let mock_client_env = MockClientEnv::new();
         let mock_replay_cache = MockedReplayCache::new();
         let mock_last_req_db = MockedLastReqDb::new();
-        let as_req =
-            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
+        let as_req = prepare_as_request(&mock_client_env, None, None, None)
+            .expect("Failed to prepare AS request");
         let tgs_service =
             get_tgs_service(&MockedPrincipalDb, &mock_replay_cache, &mock_last_req_db);
         let as_service = get_auth_service(&MockedPrincipalDb, false);
@@ -150,8 +145,8 @@ mod tests {
         let mock_client_env = MockClientEnv::new();
         let mock_replay_cache = MockedReplayCache::new();
         let mock_last_req_db = MockedLastReqDb::new();
-        let as_req =
-            prepare_as_request(&mock_client_env, None, None, None).expect("Failed to prepare AS request");
+        let as_req = prepare_as_request(&mock_client_env, None, None, None)
+            .expect("Failed to prepare AS request");
         let tgs_service =
             get_tgs_service(&MockedPrincipalDb, &mock_replay_cache, &mock_last_req_db);
         let as_service = get_auth_service(&MockedPrincipalDb, false);
