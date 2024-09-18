@@ -12,7 +12,7 @@ impl AppDbSchema {
 
 impl Schema for AppDbSchema {
     fn schema_name(&self) -> String {
-        format!("{}_{}", "krb5", "v1")
+        format!("{}_{}", "srv", "v1")
     }
 
     fn get_schema(&self) -> String {
