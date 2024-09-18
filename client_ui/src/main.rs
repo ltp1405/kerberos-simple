@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use clap::Parser;
 use client_ui::cli::{
     Cli, Commands,
@@ -6,10 +7,10 @@ use client_ui::cli::{
 use client_ui::config::AppConfig;
 use client_ui::get_ticket_handler::GetTicketHandlerBuilder;
 use client_ui::list_ticket_handler::ListTicketHandler;
-use client_ui::send_ap_req_handler::PrintApReqHandler;
+use client_ui::send_ap_req_handler::SendApReqHandler;
 use config::ConfigError;
 use kerberos::client::ap_exchange::prepare_ap_request;
-use messages::Encode;
+use messages::{ApRep, Decode, Encode};
 use reqwest::Url;
 use std::path::PathBuf;
 
@@ -74,7 +75,7 @@ async fn main() {
             client.handle().await.unwrap();
         }
         Commands::SendApReq { server_address } => {
-            let client = PrintApReqHandler {
+            let client = SendApReqHandler {
                 name: config.name.clone(),
                 realm: config.realm.clone(),
                 cache_location: config.cache_location.unwrap_or_else(|| PathBuf::from("./")),
@@ -84,12 +85,30 @@ async fn main() {
                 .to_der()
                 .unwrap();
             let http_client = reqwest::Client::new();
+            let mut data = HashMap::new();
+            data.insert("ticket", hex::encode(req));
             let res = http_client
-                .post(Url::parse(&format!("http://{}/ap_req", server_address)).unwrap())
-                .body(req)
+                .post(Url::parse(&format!("http://{}/authenticate", server_address)).unwrap())
+                .json(&data)
                 .send()
                 .await
                 .unwrap();
+
+            let res = res.json().await.unwrap();
+            println!("{res:?}");
+            // match ApRep::from_der(res.as_bytes()) {
+            //     Ok(ap_rep) => {
+            //         let res = http_client
+            //             .post(Url::parse(&format!("http://{}/users/toney", server_address)).unwrap())
+            //             .send()
+            //             .await
+            //             .unwrap();
+            //         println!("{:?}", res.text().await.unwrap());
+            //     }
+            //     Err(e) => {
+            //         println!("Failed to parse AP_REP: {:?}", e);
+            //     }
+            }
         }
     }
 }

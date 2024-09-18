@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
     let mut postgres = PostgresDb::new(config, schema);
 
     postgres.migrate_then_seed().await.unwrap();
-    
+
     HttpServer::new(move || {
         let replay_cache = AppServerReplayCache::new();
         let session_cache = ApplicationSessionStorage::new();

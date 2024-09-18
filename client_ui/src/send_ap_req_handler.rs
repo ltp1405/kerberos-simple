@@ -9,13 +9,13 @@ use kerberos::cryptography::Cryptography;
 use messages::{AsRep, Decode, EncAsRepPart, EncTgsRepPart, TgsRep};
 use messages::basic_types::{EncryptionKey, KerberosFlags, KerberosString};
 
-pub struct PrintApReqHandler {
+pub struct SendApReqHandler {
     pub name: String,
     pub realm: String,
     pub cache_location: PathBuf,
 }
 
-impl PrintApReqHandler {
+impl SendApReqHandler {
     fn open_file_and_write(
         &self,
         // folder_name: Option<&str>,
@@ -55,7 +55,7 @@ impl PrintApReqHandler {
     }
 }
 
-impl ClientEnv for PrintApReqHandler {
+impl ClientEnv for SendApReqHandler {
     fn get_client_name(&self) -> Result<KerberosString, ClientEnvError> {
         println!("client name: {:?}", self.name);
         self.name.clone().try_into().map_err(|_| ClientEnvError {

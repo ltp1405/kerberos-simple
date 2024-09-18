@@ -137,6 +137,7 @@ where
                 ap_req.ticket().enc_part().cipher().as_bytes(),
                 key.keyvalue().as_bytes(),
             )
+            .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)
             .and_then(|d| {
                 EncTicketPart::from_der(&d)
@@ -152,6 +153,7 @@ where
                 ap_req.authenticator().cipher().as_bytes(),
                 ss_key.keyvalue().as_bytes(),
             )
+            .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)
             .and_then(|d| {
                 Authenticator::from_der(&d)
@@ -187,6 +189,7 @@ where
                 crealm: authenticator.crealm().to_owned(),
             })
             .await
+            // .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)?
         {
             return Err(build_protocol_error(Ecode::KRB_AP_ERR_REPEAT));
@@ -229,6 +232,7 @@ where
                 crealm: authenticator.crealm().to_owned(),
             })
             .await
+            // .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)?;
 
         let rep_authenticator = AuthenticatorBuilder::default()
@@ -239,6 +243,7 @@ where
             .build()
             .unwrap()
             .to_der()
+            .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)?;
 
         let encrypted = crypto
@@ -248,6 +253,7 @@ where
                 &rep_authenticator,
                 decrypted_ticket.key().keyvalue().as_bytes(),
             )
+            .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)?;
 
         self.session_storage
@@ -271,6 +277,7 @@ where
                 )))?,
             })
             .await
+            // .inspect_err(|e| println!("{e:?}"))
             .map_err(|_| ServerError::Internal)?;
 
         Ok(ApRep::new(EncryptedData::new(

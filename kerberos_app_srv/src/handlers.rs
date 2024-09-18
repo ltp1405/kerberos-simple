@@ -133,6 +133,7 @@ async fn handle_post(
     address_cache: web::Data<AppServerClientStorage>,
     body: web::Json<UserAuthenticateCommand>,
 ) -> actix_web::Result<impl Responder> {
+    println!("Handling");
     let auth_service = create_service(
         auth_service_config.as_ref(),
         replay_cache.as_ref(),
@@ -164,6 +165,7 @@ async fn handle_post(
     }
 
     let reply = auth_service.handle_krb_ap_req(ap_req).await;
+    println!("Reply: {:?}", reply);
 
     if let Ok(ap_rep) = reply {
         Ok(HttpResponse::Ok().body(ap_rep.to_der().map_err(|_| {
