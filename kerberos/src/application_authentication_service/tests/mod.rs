@@ -91,7 +91,12 @@ fn create_ap_service<'a>(
     ap_replay_cache: &'a MockedApReplayCache,
     address_storage: &'a MockedClientAddressStorage,
     session_storage: &'a MockedUserSessionStorage,
-) -> ApplicationAuthenticationService<'a, MockedApReplayCache, MockedUserSessionStorage> {
+) -> ApplicationAuthenticationService<
+    'a,
+    MockedApReplayCache,
+    MockedUserSessionStorage,
+    MockedClientAddressStorage,
+> {
     ApplicationAuthenticationServiceBuilder::default()
         .realm(SERVER_REALM.clone())
         .sname(SERVER_NAME.clone())

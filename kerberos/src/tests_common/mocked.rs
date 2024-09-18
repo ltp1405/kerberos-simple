@@ -352,13 +352,14 @@ impl MockedClientAddressStorage {
 
 #[async_trait]
 impl ClientAddressStorage for MockedClientAddressStorage {
-    async fn get_sender_of_packet(&self, req: &ApReq) -> HostAddress {
-        self.addresses
+    type Error = ();
+    async fn get_sender_of_packet(&self, req: &ApReq) -> Result<HostAddress, Self::Error> {
+        Ok(self.addresses
             .lock()
             .unwrap()
             .iter()
             .find_map(|(r, a)| if r == req { Some(a.clone()) } else { None })
-            .unwrap()
+            .unwrap())
     }
 }
 
