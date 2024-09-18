@@ -1,0 +1,12 @@
+postgres:
+  host: "localhost"
+  port: 5460
+  username: "postgres"
+  password: "password"
+  name: "kerberos"
+server:
+  realm: MYREALM.COM
+  sname: MYREALM.COM
+  service_key: M4rYnBn0kOQC5vM1ddnAHXcKc0hhe16d
+  accept_empty_address_ticket: true
+  ticket_allowable_clock_skew: 300

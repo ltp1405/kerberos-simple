@@ -1,6 +1,0 @@
-postgres:
-  host: "localhost"
-  port: 5460
-  username: "postgres"
-  password: "password"
-  name: "kerberos"
