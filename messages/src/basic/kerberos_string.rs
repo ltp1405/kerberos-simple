@@ -1,5 +1,6 @@
 use der::asn1::Ia5String;
 use der::{DecodeValue, EncodeValue, FixedTag, Header, Length, Reader, Tag, Writer};
+use std::fmt::Formatter;
 
 /// Ia5String
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -35,6 +36,12 @@ impl KerberosString {
 
     pub fn as_str(&self) -> &str {
         self.0.as_str()
+    }
+}
+
+impl std::fmt::Display for KerberosString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
