@@ -1,3 +1,5 @@
+pub extern crate der;
+
 mod back_to_enum;
 // Section 5.2
 mod basic;

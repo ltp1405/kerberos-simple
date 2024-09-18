@@ -6,8 +6,7 @@ pub mod cryptography_error;
 pub mod authentication_service;
 pub mod service_traits;
 pub mod cryptographic_hash;
-pub mod kdc_srv;
-mod algo;
+pub mod algo;
 pub use algo::AesGcm;
 pub use algo::Sha1;
 

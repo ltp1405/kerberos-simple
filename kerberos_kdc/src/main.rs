@@ -1,9 +1,8 @@
 extern crate kerberos;
 extern crate messages;
 
-use kerberos::kdc_srv::{
-    npgl::NpglKdcSrv, AuthenticationServiceConfig, Listen, TicketGrantingServiceConfig,
-};
+use kerberos_kdc::kdc_srv::{AuthenticationServiceConfig, Listen, TicketGrantingServiceConfig};
+use kerberos_kdc::kdc_srv::npgl::NpglKdcSrv;
 use messages::basic_types::{KerberosString, NameTypes, PrincipalName, Realm};
 
 #[tokio::main]
