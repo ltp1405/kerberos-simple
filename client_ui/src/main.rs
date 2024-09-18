@@ -120,8 +120,9 @@ async fn main() {
                         .send()
                         .await
                         .unwrap();
-                    let res = res.json::<HashMap<String, String>>().await.unwrap();
-                    println!("{:#?}", res);
+                    let res = res.text().await.unwrap();
+                    let res_json: serde_json::Value = serde_json::from_str(&res).unwrap();
+                    println!("{:#?}", serde_json::to_string_pretty(&res_json));
                 }
                 Err(e) => {
                     println!("Failed to parse AP_REP: {:?}", e);
