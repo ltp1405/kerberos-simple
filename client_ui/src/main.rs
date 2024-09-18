@@ -8,7 +8,6 @@ use client_ui::get_ticket_handler::GetTicketHandlerBuilder;
 use client_ui::list_ticket_handler::ListTicketHandler;
 use client_ui::send_ap_req_handler::SendApReqHandler;
 use config::ConfigError;
-use hex::ToHex;
 use kerberos::client::ap_exchange::prepare_ap_request;
 use kerberos::client::client_env::ClientEnv;
 use messages::{ApRep, Decode, EncApRepPart, Encode};
@@ -39,8 +38,6 @@ async fn main() {
             let handler = ListTicketHandler::default();
             let tickets = handler.list_tickets();
             for ticket in tickets {
-                let sname = ticket.sname();
-                let realm = ticket.realm();
                 println!("Ticket from {:?} - {:?}", ticket.sname(), ticket.realm());
             }
         }
@@ -49,8 +46,8 @@ async fn main() {
             password,
             ticket_lifetime,
             ticket_renew_time,
-            proxiable,
-            forwardable,
+            proxiable: _,
+            forwardable: _,
             renewable,
             target_principal,
             transport,
